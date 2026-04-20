@@ -91,7 +91,15 @@ export async function createParcel(
     note,
   };
 
-  return (await callAPI<CreateParcelResponse>(payload)) || { success: false };
+  const response = await callAPI<any>(payload);
+  if (response) {
+    return {
+      success: response.success,
+      trackingID: response.trackingID || response.trackingId,
+      error: response.error,
+    };
+  }
+  return { success: false };
 }
 
 export async function getParcels(status: string = 'ทั้งหมด'): Promise<GetParcelsResponse> {
