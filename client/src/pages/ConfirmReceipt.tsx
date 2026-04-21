@@ -133,6 +133,10 @@ export default function ConfirmReceipt() {
       return;
     }
 
+    if (!window.confirm('คุณแน่ใจหรือไม่ว่าต้องการยืนยันการทำรายการนี้? ข้อมูลจะไม่สามารถแก้ไขได้ภายหลัง')) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       let finalNote = note;

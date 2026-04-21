@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import Timeline from '@/components/Timeline';
 import type { TimelineEvent } from '@/types/timeline';
+import ImagePopup from '@/components/ImagePopup';
 
 const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
   const events: TimelineEvent[] = [];
@@ -41,8 +42,9 @@ const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
   const note = parcel['หมายเหตุ'] || '';
   const forwardRegex = /\[ส่งต่อโดย:\s*(.*?)\s*จากสาขา:\s*(.*?)\s*ไปสาขา:\s*(.*?)\s*เมื่อ:\s*(.*?)\]/g;
   let match;
+  const forwardEvents: TimelineEvent[] = [];
   while ((match = forwardRegex.exec(note)) !== null) {
-    events.push({
+    forwardEvents.push({
       id: String(currentId++),
       status: 'completed',
       title: 'ส่งต่อพัสดุ',
@@ -51,6 +53,12 @@ const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
       location: match[2],
     });
   }
+
+  if (parcel['สถานะ'] !== 'ส่งถึงแล้ว' && parcel['รูปยืนยัน'] && forwardEvents.length > 0) {
+    forwardEvents[forwardEvents.length - 1].imageUrl = parcel['รูปยืนยัน'];
+  }
+
+  events.push(...forwardEvents);
 
   // 3. Status logic
   if (parcel['สถานะ'] === 'ส่งถึงแล้ว') {
@@ -109,9 +117,14 @@ export default function Dashboard({ onConfigClick, isConfigured }: DashboardProp
   useEffect(() => {
     if (isConfigured) {
       loadParcels();
-      loadSummary();
+      
+      const interval = setInterval(() => {
+        loadParcels();
+      }, 180000); // 3 minutes
+
+      return () => clearInterval(interval);
     }
-  }, [isConfigured, loadParcels, loadSummary]);
+  }, [isConfigured, loadParcels]);
 
   useEffect(() => {
     let filtered = parcels;
@@ -285,14 +298,7 @@ export default function Dashboard({ onConfigClick, isConfigured }: DashboardProp
                       </td>
                       <td className="py-3 px-4">
                         {parcel['รูปยืนยัน'] ? (
-                          <a
-                            href={parcel['รูปยืนยัน']}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline text-sm"
-                          >
-                            📷 ดูรูป
-                          </a>
+                          <ImagePopup url={parcel['รูปยืนยัน']} />
                         ) : (
                           <span className="text-muted-foreground text-sm">—</span>
                         )}

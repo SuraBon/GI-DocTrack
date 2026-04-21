@@ -11,10 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useParcelStore } from '@/hooks/useParcelStore';
 import StatusBadge from '@/components/StatusBadge';
 import Timeline from '@/components/Timeline';
+import ImagePopup from '@/components/ImagePopup';
 import { toast } from 'sonner';
 import { Search, Calendar } from 'lucide-react';
 import { getMockTimeline } from '@/lib/timelineMock';
 import type { Parcel } from '@/types/parcel';
+import { getParcel, searchParcels } from '@/lib/parcelService';
 
 export default function Track() {
   const { confirmReceipt } = useParcelStore();
@@ -32,9 +34,24 @@ export default function Track() {
 
     setIsLoading(true);
     try {
-      // This would call the API to fetch parcel details
-      // For now, we'll show a placeholder
-      toast.info('ฟีเจอร์นี้จำเป็นต้องตั้งค่า Google Apps Script URL');
+      // Try exact ID match first
+      const response = await getParcel(trackingId.trim());
+      if (response.success && response.parcel) {
+        setParcel(response.parcel);
+        toast.success('พบข้อมูลพัสดุ');
+      } else {
+        // Try searching by name/ID
+        const results = await searchParcels(trackingId.trim());
+        if (results && results.length > 0) {
+          setParcel(results[0]);
+          toast.success(`พบข้อมูลพัสดุของ ${results[0]['ผู้รับ']}`);
+        } else {
+          setParcel(null);
+          toast.error('ไม่พบข้อมูลพัสดุ');
+        }
+      }
+    } catch (err) {
+      toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       setParcel(null);
     } finally {
       setIsLoading(false);
@@ -145,10 +162,10 @@ export default function Track() {
                       <p className="text-foreground">{parcel['รายละเอียด']}</p>
                     </div>
                   )}
-                  {parcel['หมายเหตุ'] && (
+                  {parcel['หมายเหตุ'] && parcel['หมายเหตุ'].replace(/\[.*?\]/g, '').trim() && (
                     <div>
                       <p className="text-sm font-medium text-muted-foreground mb-1">หมายเหตุ</p>
-                      <p className="text-foreground">{parcel['หมายเหตุ']}</p>
+                      <p className="text-foreground whitespace-pre-wrap">{parcel['หมายเหตุ'].replace(/\[.*?\]/g, '').trim()}</p>
                     </div>
                   )}
                 </div>
@@ -158,11 +175,7 @@ export default function Track() {
               {parcel['รูปยืนยัน'] && (
                 <div className="pt-4 border-t border-border">
                   <p className="text-sm font-medium text-muted-foreground mb-3">📷 หลักฐานการส่ง</p>
-                  <img
-                    src={parcel['รูปยืนยัน']}
-                    alt="หลักฐานการส่ง"
-                    className="max-w-full rounded border border-border"
-                  />
+                  <ImagePopup url={parcel['รูปยืนยัน']} className="w-full sm:w-auto" />
                 </div>
               )}
             </CardContent>

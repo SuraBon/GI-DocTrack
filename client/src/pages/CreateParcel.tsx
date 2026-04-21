@@ -251,10 +251,21 @@ export default function CreateParcel() {
                 <div className="bg-white p-4 rounded border border-green-200">
                   <code className="text-lg font-mono font-bold text-primary">{createdTrackingId}</code>
                 </div>
-                <Button onClick={handleCopyTrackingId} variant="outline" className="w-full gap-2">
-                  <Copy className="w-4 h-4" />
-                  คัดลอก
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleCopyTrackingId} variant="outline" className="flex-1 gap-2">
+                    <Copy className="w-4 h-4" />
+                    คัดลอก
+                  </Button>
+                  <Button onClick={() => {
+                    const printWindow = window.open('', '', 'width=400,height=300');
+                    if (printWindow) {
+                      printWindow.document.write(`<div style="text-align:center;font-family:sans-serif;padding:20px;"><h2>DocTrack Parcel</h2><h1>${createdTrackingId}</h1><p>Date: ${new Date().toLocaleDateString()}</p><button onclick="window.print()" style="padding:10px;margin-top:20px;">Print</button></div>`);
+                      printWindow.document.close();
+                    }
+                  }} variant="outline" className="flex-1 gap-2">
+                    🖨️ พิมพ์
+                  </Button>
+                </div>
                 <p className="text-sm text-green-700">
                   ✓ บันทึกหรือแชร์ Tracking ID นี้เพื่อติดตามสถานะการจัดส่ง
                 </p>

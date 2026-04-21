@@ -74,9 +74,7 @@ function handleCreateParcel(payload) {
 
   // Generate Tracking ID (e.g., TRK20260420001)
   const dateStr = Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMdd");
-  const lastRow = sheet.getLastRow();
-  const sequence = (lastRow > 0) ? (lastRow) : 1;
-  const trackingId = "TRK" + dateStr + String(sequence).padStart(3, '0');
+  const trackingId = "TRK" + dateStr + String(date.getTime()).slice(-4);
 
   const createdDate = Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
 
@@ -193,8 +191,19 @@ function handleConfirmReceipt(payload) {
 
       if (payload.photoUrl && payload.photoUrl.startsWith('data:image')) {
         try {
-          const folderId = "1EdVJ73vJ0tGOxn1V3Jh4J2z98T2azrFH";
-          const rootFolder = DriveApp.getFolderById(folderId);
+          // ค้นหาหรือสร้างโฟลเดอร์หลักชื่อ DocTrack_Images
+          let rootFolder;
+          const rootFolderIterator = DriveApp.getFoldersByName("DocTrack_Images");
+          if (rootFolderIterator.hasNext()) {
+            rootFolder = rootFolderIterator.next();
+          } else {
+            rootFolder = DriveApp.createFolder("DocTrack_Images");
+            try {
+              rootFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            } catch (e) {
+              console.log("Sharing restriction: " + e.message);
+            }
+          }
 
           // สร้างโฟลเดอร์ย่อยตามเดือน (เช่น 2026-04)
           const dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM");
@@ -204,7 +213,11 @@ function handleConfirmReceipt(payload) {
             folder = folders.next();
           } else {
             folder = rootFolder.createFolder(dateStr);
-            folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            try {
+              folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+            } catch (e) {
+              console.log("Sharing restriction: " + e.message);
+            }
           }
 
           const splitData = payload.photoUrl.split(',');
@@ -217,7 +230,11 @@ function handleConfirmReceipt(payload) {
           const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, filename);
 
           const file = folder.createFile(blob);
-          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          try {
+            file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          } catch (e) {
+            console.log("Sharing restriction: " + e.message);
+          }
 
           // URL สำหรับดูรูปโดยตรง
           finalPhotoUrl = "https://drive.google.com/uc?export=view&id=" + file.getId();

@@ -35,6 +35,18 @@ export function useParcelStore() {
           return parcel;
         });
         setParcels(overriddenParcels);
+
+        // Recalculate summary locally if we fetched all parcels
+        if (status === 'ทั้งหมด') {
+          let total = 0, pending = 0, transit = 0, delivered = 0;
+          overriddenParcels.forEach(p => {
+            total++;
+            if (p['สถานะ'] === 'รอจัดส่ง') pending++;
+            else if (p['สถานะ'] === 'กำลังจัดส่ง') transit++;
+            else if (p['สถานะ'] === 'ส่งถึงแล้ว') delivered++;
+          });
+          setSummary({ total, pending, transit, delivered });
+        }
       } else {
         setError(response.error || 'ไม่สามารถโหลดข้อมูลได้');
       }
