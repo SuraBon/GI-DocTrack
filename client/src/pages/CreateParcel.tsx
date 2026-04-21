@@ -33,21 +33,16 @@ export default function CreateParcel() {
     note: '',
   });
 
+  const [customSenderBranch, setCustomSenderBranch] = useState('');
+  const [customReceiverBranch, setCustomReceiverBranch] = useState('');
+  const [customDocType, setCustomDocType] = useState('');
+
   const [createdTrackingId, setCreatedTrackingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const senderBranchSelectValue = formData.senderBranch
-    ? branches.includes(formData.senderBranch)
-      ? formData.senderBranch
-      : OTHER_BRANCH_VALUE
-    : '';
-  const receiverBranchSelectValue = formData.receiverBranch
-    ? branches.includes(formData.receiverBranch)
-      ? formData.receiverBranch
-      : OTHER_BRANCH_VALUE
-    : '';
-
-  const docTypeSelectValue = formData.docType ? (DOC_TYPES.includes(formData.docType) ? formData.docType : OTHER_DOC_TYPE_VALUE) : '';
+  const senderBranchSelectValue = formData.senderBranch || (customSenderBranch ? OTHER_BRANCH_VALUE : '');
+  const receiverBranchSelectValue = formData.receiverBranch || (customReceiverBranch ? OTHER_BRANCH_VALUE : '');
+  const docTypeSelectValue = formData.docType || (customDocType ? OTHER_DOC_TYPE_VALUE : '');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -67,20 +62,24 @@ export default function CreateParcel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (senderBranchSelectValue === OTHER_BRANCH_VALUE && !formData.senderBranch.trim()) {
+    const finalSenderBranch = senderBranchSelectValue === OTHER_BRANCH_VALUE ? customSenderBranch.trim() : formData.senderBranch.trim();
+    const finalReceiverBranch = receiverBranchSelectValue === OTHER_BRANCH_VALUE ? customReceiverBranch.trim() : formData.receiverBranch.trim();
+    const finalDocType = docTypeSelectValue === OTHER_DOC_TYPE_VALUE ? customDocType.trim() : formData.docType.trim();
+
+    if (senderBranchSelectValue === OTHER_BRANCH_VALUE && !finalSenderBranch) {
       toast.error('กรุณาระบุสาขาผู้ส่ง');
       return;
     }
-    if (receiverBranchSelectValue === OTHER_BRANCH_VALUE && !formData.receiverBranch.trim()) {
+    if (receiverBranchSelectValue === OTHER_BRANCH_VALUE && !finalReceiverBranch) {
       toast.error('กรุณาระบุสาขาผู้รับ');
       return;
     }
-    if (docTypeSelectValue === OTHER_DOC_TYPE_VALUE && !formData.docType.trim()) {
+    if (docTypeSelectValue === OTHER_DOC_TYPE_VALUE && !finalDocType) {
       toast.error('กรุณาระบุประเภทเอกสาร/พัสดุ');
       return;
     }
 
-    if (!formData.senderName || !formData.senderBranch || !formData.receiverName || !formData.receiverBranch || !formData.docType) {
+    if (!formData.senderName || !finalSenderBranch || !formData.receiverName || !finalReceiverBranch || !finalDocType) {
       toast.error('กรุณากรอกข้อมูลที่จำเป็นให้ครบ');
       return;
     }
@@ -89,10 +88,10 @@ export default function CreateParcel() {
     try {
       const trackingId = await createParcel(
         formData.senderName,
-        formData.senderBranch,
+        finalSenderBranch,
         formData.receiverName,
-        formData.receiverBranch,
-        formData.docType,
+        finalReceiverBranch,
+        finalDocType,
         formData.description,
         formData.note
       );
@@ -109,6 +108,9 @@ export default function CreateParcel() {
           description: '',
           note: '',
         });
+        setCustomSenderBranch('');
+        setCustomReceiverBranch('');
+        setCustomDocType('');
       } else {
         toast.error(error || 'ไม่สามารถสร้างรายการได้');
       }
@@ -163,7 +165,14 @@ export default function CreateParcel() {
                       </label>
                       <Select
                         value={senderBranchSelectValue}
-                        onValueChange={(value) => handleSelectChange('senderBranch', value === OTHER_BRANCH_VALUE ? '' : value)}
+                        onValueChange={(value) => {
+                          if (value === OTHER_BRANCH_VALUE) {
+                            handleSelectChange('senderBranch', '');
+                          } else {
+                            setCustomSenderBranch('');
+                            handleSelectChange('senderBranch', value);
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="เลือกสาขา" />
@@ -179,9 +188,8 @@ export default function CreateParcel() {
                       </Select>
                       {senderBranchSelectValue === OTHER_BRANCH_VALUE && (
                         <Input
-                          name="senderBranch"
-                          value={formData.senderBranch}
-                          onChange={handleInputChange}
+                          value={customSenderBranch}
+                          onChange={(e) => setCustomSenderBranch(e.target.value)}
                           placeholder="ระบุสาขาผู้ส่ง"
                           className="mt-2"
                           required
@@ -212,7 +220,14 @@ export default function CreateParcel() {
                       </label>
                       <Select
                         value={receiverBranchSelectValue}
-                        onValueChange={(value) => handleSelectChange('receiverBranch', value === OTHER_BRANCH_VALUE ? '' : value)}
+                        onValueChange={(value) => {
+                          if (value === OTHER_BRANCH_VALUE) {
+                            handleSelectChange('receiverBranch', '');
+                          } else {
+                            setCustomReceiverBranch('');
+                            handleSelectChange('receiverBranch', value);
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="เลือกสาขา" />
@@ -228,9 +243,8 @@ export default function CreateParcel() {
                       </Select>
                       {receiverBranchSelectValue === OTHER_BRANCH_VALUE && (
                         <Input
-                          name="receiverBranch"
-                          value={formData.receiverBranch}
-                          onChange={handleInputChange}
+                          value={customReceiverBranch}
+                          onChange={(e) => setCustomReceiverBranch(e.target.value)}
                           placeholder="ระบุสาขาผู้รับ"
                           className="mt-2"
                           required
@@ -247,7 +261,14 @@ export default function CreateParcel() {
                   </label>
                   <Select
                     value={docTypeSelectValue}
-                    onValueChange={(value) => handleSelectChange('docType', value === OTHER_DOC_TYPE_VALUE ? '' : value)}
+                    onValueChange={(value) => {
+                      if (value === OTHER_DOC_TYPE_VALUE) {
+                        handleSelectChange('docType', '');
+                      } else {
+                        setCustomDocType('');
+                        handleSelectChange('docType', value);
+                      }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="เลือกประเภท" />
@@ -263,9 +284,8 @@ export default function CreateParcel() {
                   </Select>
                   {docTypeSelectValue === OTHER_DOC_TYPE_VALUE && (
                     <Input
-                      name="docType"
-                      value={formData.docType}
-                      onChange={handleInputChange}
+                      value={customDocType}
+                      onChange={(e) => setCustomDocType(e.target.value)}
                       placeholder="ระบุประเภทเอกสาร/พัสดุ"
                       className="mt-2"
                       required
