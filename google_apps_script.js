@@ -3,20 +3,15 @@ const SHEET_NAME = "Parcels";
 // นำลิงก์ Google Sheet ของคุณมาใส่ตรงนี้ (ในเครื่องหมายคำพูด)
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1mVw8ZdW5HXkSfu0CY_M1TI7fqJpt77GAA_pVC9m92AU/edit?usp=sharing";
 
-// ฟังก์ชันช่วยดึงข้อมูล Spreadsheet (แก้ที่นี่จุดเดียว)
 function getSpreadsheet() {
   try {
-    // ลองดึงแบบโปรเจกต์เดิมก่อน
     return SpreadsheetApp.getActiveSpreadsheet();
   } catch (e) {
-    // ถ้าพัง (แปลว่าสร้างโปรเจกต์ใหม่) จะดึงจากลิงก์แทน
     return SpreadsheetApp.openByUrl(SHEET_URL);
   }
 }
 
-// ฟังก์ชันสำหรับกดเรียกใช้เพื่อขอสิทธิ์ Google Drive โดยเฉพาะ
 function authorizeDrive() {
-  // คำสั่งนี้จะบังคับให้ Google ขอสิทธิ์ Drive แบบ "แก้ไขได้" (Full Access)
   var dummy = DriveApp.createFolder("DocTrack_Auth_Check");
   dummy.setTrashed(true);
   getSpreadsheet();
@@ -72,7 +67,7 @@ function handleCreateParcel(payload) {
   const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
   const date = new Date();
 
-  // Generate Tracking ID (e.g., TRK20260420001)
+  // ป้องกัน Tracking ID ซ้ำกันโดยใช้ Millisecond ต่อท้าย
   const dateStr = Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMdd");
   const trackingId = "TRK" + dateStr + String(date.getTime()).slice(-4);
 
@@ -108,7 +103,6 @@ function handleGetParcels(payload) {
       parcel[headers[j]] = row[j];
     }
 
-    // Format Date correctly if it's a date object
     if (parcel["วันที่สร้าง"] && parcel["วันที่สร้าง"].getTime) {
       parcel["วันที่สร้าง"] = Utilities.formatDate(parcel["วันที่สร้าง"], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
     }
@@ -118,9 +112,7 @@ function handleGetParcels(payload) {
     }
   }
 
-  // เรียงลำดับจากใหม่ไปเก่า
   parcels.reverse();
-
   return createJsonResponse({ success: true, parcels: parcels });
 }
 
@@ -155,7 +147,7 @@ function handleExportSummary() {
   let total = 0, pending = 0, transit = 0, delivered = 0;
 
   for (let i = 1; i < data.length; i++) {
-    const status = data[i][9]; // คอลัมน์ J (index 9)
+    const status = data[i][9];
     total++;
     if (status === "รอจัดส่ง") pending++;
     else if (status === "กำลังจัดส่ง") transit++;
@@ -175,18 +167,10 @@ function handleConfirmReceipt(payload) {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (row[0] === payload.trackingID) {
-      const rowIndex = i + 1; // Google Sheet starts at row 1
+      const rowIndex = i + 1;
 
-      // อัปเดตหมายเหตุ (ถ้ามี)
-      if (payload.note) {
-        const existingNote = sheet.getRange(rowIndex, 9).getValue();
-        sheet.getRange(rowIndex, 9).setValue(existingNote ? existingNote + "\n" + payload.note : payload.note);
-      }
-
-      // อัปเดตสถานะเป็น "ส่งถึงแล้ว"
       sheet.getRange(rowIndex, 10).setValue("ส่งถึงแล้ว");
 
-      // จัดการเซฟรูปภาพลง Google Drive ถ้าเป็น Base64
       let finalPhotoUrl = payload.photoUrl;
 
       if (payload.photoUrl && payload.photoUrl.startsWith('data:image')) {
@@ -236,15 +220,24 @@ function handleConfirmReceipt(payload) {
             console.log("Sharing restriction: " + e.message);
           }
 
-          // URL สำหรับดูรูปโดยตรง
           finalPhotoUrl = "https://drive.google.com/uc?export=view&id=" + file.getId();
         } catch (e) {
           return createJsonResponse({ success: false, error: "Drive Error: " + e.toString() });
         }
       }
 
-      // อัปเดต URL รูปภาพยืนยัน
       sheet.getRange(rowIndex, 11).setValue(finalPhotoUrl);
+
+      if (payload.note) {
+        let noteToSave = payload.note;
+        if (finalPhotoUrl) {
+          noteToSave = noteToSave.replace(/\|IMAGE_URL\|/g, finalPhotoUrl);
+        } else {
+          noteToSave = noteToSave.replace(/ รูปภาพ: \|IMAGE_URL\|/g, '');
+        }
+        const existingNote = sheet.getRange(rowIndex, 9).getValue();
+        sheet.getRange(rowIndex, 9).setValue(existingNote ? existingNote + "\n" + noteToSave : noteToSave);
+      }
 
       return createJsonResponse({ success: true });
     }
@@ -258,7 +251,6 @@ function createJsonResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// จำเป็นต้องมีสำหรับ CORS
 function doOptions(e) {
   return ContentService.createTextOutput("")
     .setMimeType(ContentService.MimeType.TEXT);

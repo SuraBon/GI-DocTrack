@@ -12,9 +12,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useParcelStore } from '@/hooks/useParcelStore';
-import { getBranches } from '@/lib/parcelService';
+import { getBranches, getParcel } from '@/lib/parcelService';
 import { toast } from 'sonner';
 import { Upload, Search, Camera } from 'lucide-react';
+import type { Parcel } from '@/types/parcel';
 
 export default function ConfirmReceipt() {
   const { confirmReceipt } = useParcelStore();
@@ -34,6 +35,47 @@ export default function ConfirmReceipt() {
   const [proxyName, setProxyName] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [parcelDest, setParcelDest] = useState<string | null>(null);
+  const [checkedParcel, setCheckedParcel] = useState<Parcel | null>(null);
+
+  const handleCheckParcel = async () => {
+    if (!trackingId.trim()) {
+      toast.error('กรุณากรอก Tracking ID ก่อนตรวจสอบ');
+      return;
+    }
+    
+    setIsChecking(true);
+    try {
+      const res = await getParcel(trackingId.trim());
+      if (res.success && res.parcel) {
+        const p = res.parcel;
+        
+        let currentBranch = p['สาขาผู้ส่ง'];
+        const note = p['หมายเหตุ'] || '';
+        const forwardRegex = /\[ส่งต่อโดย:\s*(.*?)\s*จากสาขา:\s*(.*?)\s*ไปสาขา:\s*(.*?)\s*เมื่อ:\s*(.*?)\]/g;
+        let match;
+        while ((match = forwardRegex.exec(note)) !== null) {
+          currentBranch = match[3];
+        }
+        
+        setForwardFromBranch(currentBranch);
+        setParcelDest(p['สาขาผู้รับ']);
+        setForwardToBranch(''); // Reset
+        setCheckedParcel(p);
+        
+        toast.success(`พบข้อมูลพัสดุ (ปลายทาง: ${p['สาขาผู้รับ']})`);
+      } else {
+        toast.error('ไม่พบข้อมูลพัสดุ');
+        setParcelDest(null);
+        setCheckedParcel(null);
+      }
+    } catch (e) {
+      toast.error('เกิดข้อผิดพลาดในการตรวจสอบ');
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const processImageFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -144,15 +186,15 @@ export default function ConfirmReceipt() {
       const nowStr = new Date().toLocaleString('th-TH');
       
       if (isForwarding && forwardToBranch) {
-        additionalNotes.push(`[ส่งต่อโดย: ${forwardSender} จากสาขา: ${forwardFromBranch} ไปสาขา: ${forwardToBranch} เมื่อ: ${nowStr}]`);
+        additionalNotes.push(`[ส่งต่อโดย: ${forwardSender} จากสาขา: ${forwardFromBranch} ไปสาขา: ${forwardToBranch} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
       }
       
       if (isProxy && proxyName) {
-        additionalNotes.push(`[รับแทนโดย: ${proxyName} เมื่อ: ${nowStr}]`);
+        additionalNotes.push(`[รับแทนโดย: ${proxyName} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
       }
 
       if (!isForwarding && !isProxy) {
-        additionalNotes.push(`[รับพัสดุเรียบร้อย เมื่อ: ${nowStr}]`);
+        additionalNotes.push(`[รับพัสดุเรียบร้อย เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
       }
 
       if (additionalNotes.length > 0) {
@@ -170,6 +212,8 @@ export default function ConfirmReceipt() {
         setForwardSender('');
         setForwardFromBranch('');
         setForwardToBranch('');
+        setParcelDest(null);
+        setCheckedParcel(null);
         setIsProxy(false);
         setProxyName('');
       } else {
@@ -203,11 +247,29 @@ export default function ConfirmReceipt() {
                   <label className="text-sm font-medium text-foreground">
                     Tracking ID <span className="text-red-500">*</span>
                   </label>
-                  <Input
-                    placeholder="เช่น TRK20260420001"
-                    value={trackingId}
-                    onChange={(e) => setTrackingId(e.target.value)}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="เช่น TRK20260420001"
+                      value={trackingId}
+                      onChange={(e) => setTrackingId(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="secondary" 
+                      onClick={handleCheckParcel}
+                      disabled={isChecking}
+                    >
+                      {isChecking ? '⏳' : <Search className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  
+                  {checkedParcel && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-md text-sm space-y-1 animate-in fade-in slide-in-from-top-2">
+                      <p className="text-blue-900"><span className="font-semibold">ผู้รับ:</span> {checkedParcel['ผู้รับ']}</p>
+                      <p className="text-blue-900"><span className="font-semibold">สาขาปลายทาง:</span> {checkedParcel['สาขาผู้รับ']}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Photo Upload */}
@@ -304,14 +366,27 @@ export default function ConfirmReceipt() {
                               <SelectValue placeholder="ไปสาขา" />
                             </SelectTrigger>
                             <SelectContent>
-                              {branches.map((branch) => (
-                                <SelectItem key={branch} value={branch}>
-                                  {branch}
-                                </SelectItem>
-                              ))}
+                              {branches.map((branch) => {
+                                const isDest = parcelDest === branch;
+                                return (
+                                  <SelectItem 
+                                    key={branch} 
+                                    value={branch}
+                                    disabled={isDest}
+                                    className={isDest ? 'opacity-50' : ''}
+                                  >
+                                    {branch} {isDest && '(ปลายทาง - ให้กดยืนยันปกติ)'}
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
+                        {parcelDest && (
+                          <p className="text-xs text-muted-foreground font-medium mt-1 bg-muted/50 p-2 rounded">
+                            * หากพัสดุถึงสาขาปลายทาง (<b>{parcelDest}</b>) แล้ว ไม่ต้องติ๊กส่งต่อ ให้กดยืนยันการรับพัสดุได้ตามปกติเลยครับ
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

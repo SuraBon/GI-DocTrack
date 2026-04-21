@@ -14,9 +14,9 @@ import Timeline from '@/components/Timeline';
 import ImagePopup from '@/components/ImagePopup';
 import { toast } from 'sonner';
 import { Search, Calendar } from 'lucide-react';
-import { getMockTimeline } from '@/lib/timelineMock';
 import type { Parcel } from '@/types/parcel';
 import { getParcel, searchParcels } from '@/lib/parcelService';
+import { parseParcelTimeline } from './Dashboard';
 
 export default function Track() {
   const { confirmReceipt } = useParcelStore();
@@ -58,8 +58,8 @@ export default function Track() {
     }
   };
 
-  // Get mock timeline data for demo
-  const timeline = parcel ? getMockTimeline(parcel.TrackingID) : null;
+  // Generate real timeline data from the parcel
+  const timelineEvents = parcel ? parseParcelTimeline(parcel) : null;
 
   return (
     <div className="space-y-6">
@@ -88,9 +88,6 @@ export default function Track() {
               {isLoading ? 'กำลังค้นหา...' : 'ค้นหา'}
             </Button>
           </form>
-          <p className="text-xs text-muted-foreground mt-3">
-            💡 ลองใช้: TRK20260420001, TRK20260419002, หรือ TRK20260420003 เพื่อดูตัวอย่าง Timeline
-          </p>
         </CardContent>
       </Card>
 
@@ -182,17 +179,16 @@ export default function Track() {
           </Card>
 
           {/* Timeline Card */}
-          {timeline && (
+          {timelineEvents && timelineEvents.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
                   เส้นเวลาการจัดส่ง
                 </CardTitle>
-                <CardDescription>ประมาณการส่งถึง: {timeline.estimatedDelivery}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Timeline events={timeline.events} />
+                <Timeline events={timelineEvents} />
               </CardContent>
             </Card>
           )}

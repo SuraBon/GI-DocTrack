@@ -22,9 +22,8 @@ import {
 } from '@/components/ui/dialog';
 import Timeline from '@/components/Timeline';
 import type { TimelineEvent } from '@/types/timeline';
-import ImagePopup from '@/components/ImagePopup';
 
-const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
+export const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
   const events: TimelineEvent[] = [];
   let currentId = 1;
 
@@ -40,7 +39,7 @@ const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
 
   // 2. Parse Forwarding from Note
   const note = parcel['หมายเหตุ'] || '';
-  const forwardRegex = /\[ส่งต่อโดย:\s*(.*?)\s*จากสาขา:\s*(.*?)\s*ไปสาขา:\s*(.*?)\s*เมื่อ:\s*(.*?)\]/g;
+  const forwardRegex = /\[ส่งต่อโดย:\s*(.*?)\s*จากสาขา:\s*(.*?)\s*ไปสาขา:\s*(.*?)\s*เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?\]/g;
   let match;
   const forwardEvents: TimelineEvent[] = [];
   while ((match = forwardRegex.exec(note)) !== null) {
@@ -51,6 +50,7 @@ const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
       description: `ส่งต่อโดย: ${match[1]} ไปยังสาขา: ${match[3]}`,
       timestamp: match[4],
       location: match[2],
+      imageUrl: match[5] || undefined,
     });
   }
 
@@ -62,7 +62,7 @@ const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
 
   // 3. Status logic
   if (parcel['สถานะ'] === 'ส่งถึงแล้ว') {
-    const proxyRegex = /\[รับแทนโดย:\s*(.*?)\s*เมื่อ:\s*(.*?)\]/;
+    const proxyRegex = /\[รับแทนโดย:\s*(.*?)\s*เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?\]/;
     const proxyMatch = proxyRegex.exec(note);
     
     let desc = 'ส่งถึงผู้รับเรียบร้อย';
@@ -71,6 +71,18 @@ const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
       desc = `รับแทนโดย: ${proxyMatch[1]}`;
       time = proxyMatch[2];
     }
+    
+    // Fallback: If no proxy image, maybe we have a normal delivery image?
+    // Actually, normal delivery note is: [รับพัสดุเรียบร้อย เมื่อ: xxx รูปภาพ: xxx]
+    const normalRegex = /\[รับพัสดุเรียบร้อย เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?\]/;
+    const normalMatch = normalRegex.exec(note);
+    if (!proxyMatch && normalMatch) {
+      time = normalMatch[1];
+    }
+
+    let deliveryImageUrl = parcel['รูปยืนยัน'] || undefined;
+    if (proxyMatch && proxyMatch[3]) deliveryImageUrl = proxyMatch[3];
+    if (normalMatch && normalMatch[2]) deliveryImageUrl = normalMatch[2];
 
     events.push({
       id: String(currentId++),
@@ -79,7 +91,7 @@ const parseParcelTimeline = (parcel: Parcel): TimelineEvent[] => {
       description: desc,
       timestamp: time,
       location: parcel['สาขาผู้รับ'], // Could be the forwarded branch, but this serves as final destination
-      imageUrl: parcel['รูปยืนยัน'] || undefined,
+      imageUrl: deliveryImageUrl,
     });
   } else if (parcel['สถานะ'] === 'กำลังจัดส่ง') {
     events.push({
@@ -268,7 +280,6 @@ export default function Dashboard({ onConfigClick, isConfigured }: DashboardProp
                     <th className="text-left py-3 px-4 font-semibold text-foreground">ผู้รับ</th>
                     <th className="text-left py-3 px-4 font-semibold text-foreground">ประเภท</th>
                     <th className="text-left py-3 px-4 font-semibold text-foreground">สถานะ</th>
-                    <th className="text-left py-3 px-4 font-semibold text-foreground">หลักฐาน</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -295,13 +306,6 @@ export default function Dashboard({ onConfigClick, isConfigured }: DashboardProp
                       <td className="py-3 px-4 text-sm">{parcel['ประเภทเอกสาร']}</td>
                       <td className="py-3 px-4">
                         <StatusBadge status={parcel['สถานะ']} />
-                      </td>
-                      <td className="py-3 px-4">
-                        {parcel['รูปยืนยัน'] ? (
-                          <ImagePopup url={parcel['รูปยืนยัน']} />
-                        ) : (
-                          <span className="text-muted-foreground text-sm">—</span>
-                        )}
                       </td>
                     </tr>
                   ))}
