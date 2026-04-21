@@ -1,5 +1,9 @@
 const SHEET_NAME = "Parcels";
 const API_KEY_PROPERTY = "API_KEY";
+// Fallback key (ใช้กรณีไม่อยากตั้ง Script Properties)
+// ตั้งค่านี้ให้ตรงกับ VITE_GAS_API_KEY แล้ว Deploy ใหม่
+// แนะนำ: อย่า commit ค่า key ลง git ถ้า repo เป็น public
+const SCRIPT_API_KEY = "";
 const MAX_NOTE_LENGTH = 2000;
 const MAX_BASE64_LENGTH = 6 * 1024 * 1024;
 const TRACKING_ID_REGEX = /^TRK\d{8}\d{4,}$/;
@@ -16,7 +20,7 @@ function getSpreadsheet() {
 }
 
 function getApiKey() {
-  return PropertiesService.getScriptProperties().getProperty(API_KEY_PROPERTY) || "";
+  return PropertiesService.getScriptProperties().getProperty(API_KEY_PROPERTY) || SCRIPT_API_KEY || "";
 }
 
 function normalizeBranchName(branch) {
