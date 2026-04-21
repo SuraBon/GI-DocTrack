@@ -35,33 +35,62 @@ export default function ConfirmReceipt() {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
+  const processImageFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
       toast.error('กรุณาเลือกไฟล์รูปภาพ');
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('ขนาดไฟล์ต้องไม่เกิน 5MB');
-      return;
-    }
-
-    // Create preview
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const preview = e.target?.result as string;
-      setPhotoPreview(preview);
-      // In a real app, you would upload this to a server
-      // For now, we'll use the data URL
-      setPhotoUrl(preview);
-      toast.success('เลือกรูปภาพสำเร็จ');
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Max dimensions
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress to JPEG with 70% quality
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          setPhotoPreview(compressedDataUrl);
+          setPhotoUrl(compressedDataUrl);
+          toast.success('เลือกรูปภาพสำเร็จ');
+        } else {
+          toast.error('ไม่สามารถประมวลผลรูปภาพได้');
+        }
+      };
+      img.onerror = () => {
+        toast.error('ไม่สามารถอ่านรูปภาพได้');
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processImageFile(file);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -75,19 +104,7 @@ export default function ConfirmReceipt() {
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      const file = files[0];
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const preview = event.target?.result as string;
-          setPhotoPreview(preview);
-          setPhotoUrl(preview);
-          toast.success('เลือกรูปภาพสำเร็จ');
-        };
-        reader.readAsDataURL(file);
-      } else {
-        toast.error('กรุณาลากไฟล์รูปภาพ');
-      }
+      processImageFile(files[0]);
     }
   };
 
@@ -210,7 +227,7 @@ export default function ConfirmReceipt() {
                     <Camera className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
                     <p className="text-sm text-foreground font-medium">ลากรูปภาพมาที่นี่</p>
                     <p className="text-xs text-muted-foreground mt-1">หรือคลิกเพื่อเลือกไฟล์</p>
-                    <p className="text-xs text-muted-foreground mt-2">ไฟล์ต้องเป็นรูปภาพ และไม่เกิน 5MB</p>
+                    <p className="text-xs text-muted-foreground mt-2">ไฟล์ต้องเป็นรูปภาพเท่านั้น ระบบจะปรับขนาดอัตโนมัติ</p>
                   </div>
                 </div>
 
