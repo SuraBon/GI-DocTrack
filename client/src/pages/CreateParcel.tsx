@@ -40,9 +40,7 @@ export default function CreateParcel() {
   const [createdTrackingId, setCreatedTrackingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const senderBranchSelectValue = formData.senderBranch || (customSenderBranch ? OTHER_BRANCH_VALUE : '');
-  const receiverBranchSelectValue = formData.receiverBranch || (customReceiverBranch ? OTHER_BRANCH_VALUE : '');
-  const docTypeSelectValue = formData.docType || (customDocType ? OTHER_DOC_TYPE_VALUE : '');
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -62,19 +60,19 @@ export default function CreateParcel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const finalSenderBranch = senderBranchSelectValue === OTHER_BRANCH_VALUE ? customSenderBranch.trim() : formData.senderBranch.trim();
-    const finalReceiverBranch = receiverBranchSelectValue === OTHER_BRANCH_VALUE ? customReceiverBranch.trim() : formData.receiverBranch.trim();
-    const finalDocType = docTypeSelectValue === OTHER_DOC_TYPE_VALUE ? customDocType.trim() : formData.docType.trim();
+    const finalSenderBranch = formData.senderBranch === OTHER_BRANCH_VALUE ? customSenderBranch.trim() : formData.senderBranch.trim();
+    const finalReceiverBranch = formData.receiverBranch === OTHER_BRANCH_VALUE ? customReceiverBranch.trim() : formData.receiverBranch.trim();
+    const finalDocType = formData.docType === OTHER_DOC_TYPE_VALUE ? customDocType.trim() : formData.docType.trim();
 
-    if (senderBranchSelectValue === OTHER_BRANCH_VALUE && !finalSenderBranch) {
+    if (formData.senderBranch === OTHER_BRANCH_VALUE && !finalSenderBranch) {
       toast.error('กรุณาระบุสาขาผู้ส่ง');
       return;
     }
-    if (receiverBranchSelectValue === OTHER_BRANCH_VALUE && !finalReceiverBranch) {
+    if (formData.receiverBranch === OTHER_BRANCH_VALUE && !finalReceiverBranch) {
       toast.error('กรุณาระบุสาขาผู้รับ');
       return;
     }
-    if (docTypeSelectValue === OTHER_DOC_TYPE_VALUE && !finalDocType) {
+    if (formData.docType === OTHER_DOC_TYPE_VALUE && !finalDocType) {
       toast.error('กรุณาระบุประเภทเอกสาร/พัสดุ');
       return;
     }
@@ -164,13 +162,11 @@ export default function CreateParcel() {
                         สาขาผู้ส่ง <span className="text-red-500">*</span>
                       </label>
                       <Select
-                        value={senderBranchSelectValue}
+                        value={formData.senderBranch}
                         onValueChange={(value) => {
-                          if (value === OTHER_BRANCH_VALUE) {
-                            handleSelectChange('senderBranch', '');
-                          } else {
+                          handleSelectChange('senderBranch', value);
+                          if (value !== OTHER_BRANCH_VALUE) {
                             setCustomSenderBranch('');
-                            handleSelectChange('senderBranch', value);
                           }
                         }}
                       >
@@ -186,7 +182,7 @@ export default function CreateParcel() {
                           <SelectItem value={OTHER_BRANCH_VALUE}>อื่นๆ (ระบุเอง)</SelectItem>
                         </SelectContent>
                       </Select>
-                      {senderBranchSelectValue === OTHER_BRANCH_VALUE && (
+                      {formData.senderBranch === OTHER_BRANCH_VALUE && (
                         <Input
                           value={customSenderBranch}
                           onChange={(e) => setCustomSenderBranch(e.target.value)}
@@ -219,13 +215,11 @@ export default function CreateParcel() {
                         สาขาผู้รับ <span className="text-red-500">*</span>
                       </label>
                       <Select
-                        value={receiverBranchSelectValue}
+                        value={formData.receiverBranch}
                         onValueChange={(value) => {
-                          if (value === OTHER_BRANCH_VALUE) {
-                            handleSelectChange('receiverBranch', '');
-                          } else {
+                          handleSelectChange('receiverBranch', value);
+                          if (value !== OTHER_BRANCH_VALUE) {
                             setCustomReceiverBranch('');
-                            handleSelectChange('receiverBranch', value);
                           }
                         }}
                       >
@@ -241,7 +235,7 @@ export default function CreateParcel() {
                           <SelectItem value={OTHER_BRANCH_VALUE}>อื่นๆ (ระบุเอง)</SelectItem>
                         </SelectContent>
                       </Select>
-                      {receiverBranchSelectValue === OTHER_BRANCH_VALUE && (
+                      {formData.receiverBranch === OTHER_BRANCH_VALUE && (
                         <Input
                           value={customReceiverBranch}
                           onChange={(e) => setCustomReceiverBranch(e.target.value)}
@@ -260,13 +254,11 @@ export default function CreateParcel() {
                     ประเภทเอกสาร/พัสดุ <span className="text-red-500">*</span>
                   </label>
                   <Select
-                    value={docTypeSelectValue}
+                    value={formData.docType}
                     onValueChange={(value) => {
-                      if (value === OTHER_DOC_TYPE_VALUE) {
-                        handleSelectChange('docType', '');
-                      } else {
+                      handleSelectChange('docType', value);
+                      if (value !== OTHER_DOC_TYPE_VALUE) {
                         setCustomDocType('');
-                        handleSelectChange('docType', value);
                       }
                     }}
                   >
@@ -282,7 +274,7 @@ export default function CreateParcel() {
                       <SelectItem value={OTHER_DOC_TYPE_VALUE}>อื่นๆ (ระบุเอง)</SelectItem>
                     </SelectContent>
                   </Select>
-                  {docTypeSelectValue === OTHER_DOC_TYPE_VALUE && (
+                  {formData.docType === OTHER_DOC_TYPE_VALUE && (
                     <Input
                       value={customDocType}
                       onChange={(e) => setCustomDocType(e.target.value)}
