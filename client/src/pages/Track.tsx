@@ -4,7 +4,7 @@
  * Design: Premium Logistics
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -96,7 +96,9 @@ export default function Track() {
     }
   };
 
-  const timelineEvents = parcel ? parseParcelTimeline(parcel) : null;
+  const timelineEvents = useMemo(() => 
+    parcel ? parseParcelTimeline(parcel) : [],
+  [parcel]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-20 animate-in fade-in duration-700">

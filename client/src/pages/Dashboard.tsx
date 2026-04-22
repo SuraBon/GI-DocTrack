@@ -4,7 +4,7 @@
  * Design: Premium Logistics
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -192,7 +192,9 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     toast.success(`Export สำเร็จ (${rows.length} รายการ)`);
   };
 
-  const selectedTimelineEvents = selectedParcel ? parseParcelTimeline(selectedParcel) : [];
+  const selectedTimelineEvents = useMemo(() => 
+    selectedParcel ? parseParcelTimeline(selectedParcel) : [],
+  [selectedParcel]);
 
   if (!isConfigured) {
     return (
