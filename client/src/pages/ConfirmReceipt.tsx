@@ -45,6 +45,7 @@ export default function ConfirmReceipt() {
 
   const [customForwardFromBranch, setCustomForwardFromBranch] = useState('');
   const [customForwardToBranch, setCustomForwardToBranch] = useState('');
+  const [isDelivered, setIsDelivered] = useState(false);
 
   // No need for forwardFromSelectValue and forwardToSelectValue anymore
 
@@ -78,12 +79,32 @@ export default function ConfirmReceipt() {
         setForwardToBranch(''); // Reset
         setCustomForwardToBranch('');
         setCheckedParcel(p);
+
+        // Check if actually delivered
+        const currentStatus = p['สถานะ'];
+        const noteStr = String(p['หมายเหตุ'] || "");
+        let actuallyDelivered = currentStatus === "ส่งถึงแล้ว";
+        if (actuallyDelivered) {
+          const lastForwardIdx = noteStr.lastIndexOf('[ส่งต่อโดย:');
+          const lastProxyIdx = noteStr.lastIndexOf('[รับแทนโดย:');
+          const lastNormalIdx = noteStr.lastIndexOf('[รับพัสดุเรียบร้อย');
+          const maxIdx = Math.max(lastForwardIdx, lastProxyIdx, lastNormalIdx);
+          if (maxIdx >= 0 && maxIdx === lastForwardIdx) {
+            actuallyDelivered = false; // it is in transit (forwarded)
+          }
+        }
+        setIsDelivered(actuallyDelivered);
         
-        toast.success(`พบข้อมูลพัสดุ (ปลายทาง: ${p['สาขาผู้รับ']})`);
+        if (actuallyDelivered) {
+          toast.warning(`พัสดุนี้ถูกจัดส่งถึงที่หมายเรียบร้อยแล้ว ไม่สามารถยืนยันรับซ้ำได้`);
+        } else {
+          toast.success(`พบข้อมูลพัสดุ (ปลายทาง: ${p['สาขาผู้รับ']})`);
+        }
       } else {
         toast.error(res.error === "Invalid trackingID format" ? "รูปแบบ Tracking ID ไม่ถูกต้อง" : 'ไม่พบข้อมูลพัสดุ หรือ Tracking ID ไม่ถูกต้อง');
         setParcelDest(null);
         setCheckedParcel(null);
+        setIsDelivered(false);
       }
     } catch (e: any) {
       console.error('Check Parcel Error:', e);
@@ -176,6 +197,11 @@ export default function ConfirmReceipt() {
 
     if (!checkedParcel || checkedParcel.TrackingID !== trackingId.trim()) {
       toast.error('กรุณากดปุ่ม 🔍 เพื่อตรวจสอบ Tracking ID ให้ถูกต้องก่อนทำรายการ');
+      return;
+    }
+
+    if (isDelivered) {
+      toast.error('ไม่สามารถยืนยันรับพัสดุนี้ได้ เนื่องจากถูกจัดส่งเรียบร้อยแล้ว');
       return;
     }
 
@@ -296,9 +322,18 @@ export default function ConfirmReceipt() {
                   </div>
                   
                   {checkedParcel && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-md text-sm space-y-1 animate-in fade-in slide-in-from-top-2">
-                      <p className="text-blue-900"><span className="font-semibold">ผู้รับ:</span> {checkedParcel['ผู้รับ']}</p>
-                      <p className="text-blue-900"><span className="font-semibold">สาขาปลายทาง:</span> {checkedParcel['สาขาผู้รับ']}</p>
+                    <div className={`mt-3 p-3 border rounded-md text-sm space-y-1 animate-in fade-in slide-in-from-top-2 ${isDelivered ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'}`}>
+                      {isDelivered ? (
+                        <div className="flex items-center gap-2 text-red-900 font-bold mb-1">
+                          <span className="text-lg">🚫</span>
+                          <span>พัสดุนี้ถูกจัดส่งเรียบร้อยแล้ว</span>
+                        </div>
+                      ) : null}
+                      <p className={isDelivered ? 'text-red-900' : 'text-blue-900'}><span className="font-semibold">ผู้รับ:</span> {checkedParcel['ผู้รับ']}</p>
+                      <p className={isDelivered ? 'text-red-900' : 'text-blue-900'}><span className="font-semibold">สาขาปลายทาง:</span> {checkedParcel['สาขาผู้รับ']}</p>
+                      {isDelivered && (
+                        <p className="text-red-700 text-xs mt-2 italic">* ไม่สามารถยืนยันรับพัสดุรายการนี้ซ้ำได้</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -496,9 +531,9 @@ export default function ConfirmReceipt() {
 
                 {/* Submit Button */}
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                  <Button type="submit" disabled={isLoading || !photoUrl} className="gap-2 flex-1">
+                  <Button type="submit" disabled={isLoading || !photoUrl || isDelivered} className="gap-2 flex-1">
                     <Upload className="w-4 h-4" />
-                    {isLoading ? 'กำลังส่ง...' : 'ยืนยันการส่ง'}
+                    {isLoading ? 'กำลังส่ง...' : isDelivered ? 'ไม่สามารถทำรายการได้' : 'ยืนยันการส่ง'}
                   </Button>
                 </div>
               </form>
