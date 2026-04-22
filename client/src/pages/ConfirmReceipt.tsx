@@ -1,10 +1,10 @@
 /**
  * Confirm Receipt Page
  * ยืนยันการรับพัสดุด้วยรูปภาพ
- * Design: Minimalist Logistics
-n */
+ * Design: Premium Stepper UI
+ */
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useParcelStore } from '@/hooks/useParcelStore';
 import { getBranches, getParcel } from '@/lib/parcelService';
 import { toast } from 'sonner';
-import { Upload, Search, Camera, ClipboardPaste } from 'lucide-react';
+import { Upload, Search, Camera, ClipboardPaste, ArrowRight, ArrowLeft, CheckCircle2, Package, User, MapPin } from 'lucide-react';
 import type { Parcel } from '@/types/parcel';
 
 const OTHER_BRANCH_VALUE = '__OTHER_BRANCH__';
@@ -25,6 +25,8 @@ export default function ConfirmReceipt() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const branches = getBranches();
 
+  // Steps: 1 (Check), 2 (Photo), 3 (Confirm)
+  const [currentStep, setCurrentStep] = useState(1);
   const [trackingId, setTrackingId] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -46,8 +48,6 @@ export default function ConfirmReceipt() {
   const [customForwardFromBranch, setCustomForwardFromBranch] = useState('');
   const [customForwardToBranch, setCustomForwardToBranch] = useState('');
   const [isDelivered, setIsDelivered] = useState(false);
-
-  // No need for forwardFromSelectValue and forwardToSelectValue anymore
 
   const handleCheckParcel = async () => {
     if (!trackingId.trim()) {
@@ -72,43 +72,37 @@ export default function ConfirmReceipt() {
         setForwardFromBranch(branches.includes(currentBranch) ? currentBranch : OTHER_BRANCH_VALUE);
         if (!branches.includes(currentBranch)) {
           setCustomForwardFromBranch(currentBranch);
-        } else {
-          setCustomForwardFromBranch('');
         }
+        
         setParcelDest(p['สาขาผู้รับ']);
-        setForwardToBranch(''); // Reset
-        setCustomForwardToBranch('');
         setCheckedParcel(p);
 
-        // Check if actually delivered
         const currentStatus = p['สถานะ'];
         const noteStr = String(p['หมายเหตุ'] || "");
         let actuallyDelivered = currentStatus === "ส่งถึงแล้ว";
         if (actuallyDelivered) {
-          const lastForwardIdx = noteStr.lastIndexOf('[ส่งต่อโดย:');
-          const lastProxyIdx = noteStr.lastIndexOf('[รับแทนโดย:');
-          const lastNormalIdx = noteStr.lastIndexOf('[รับพัสดุเรียบร้อย');
-          const maxIdx = Math.max(lastForwardIdx, lastProxyIdx, lastNormalIdx);
-          if (maxIdx >= 0 && maxIdx === lastForwardIdx) {
-            actuallyDelivered = false; // it is in transit (forwarded)
+          const maxIdx = Math.max(
+            noteStr.lastIndexOf('[ส่งต่อโดย:'),
+            noteStr.lastIndexOf('[รับแทนโดย:'),
+            noteStr.lastIndexOf('[รับพัสดุเรียบร้อย')
+          );
+          if (maxIdx >= 0 && maxIdx === noteStr.lastIndexOf('[ส่งต่อโดย:')) {
+            actuallyDelivered = false;
           }
         }
         setIsDelivered(actuallyDelivered);
         
         if (actuallyDelivered) {
-          toast.warning(`พัสดุนี้ถูกจัดส่งถึงที่หมายเรียบร้อยแล้ว ไม่สามารถยืนยันรับซ้ำได้`);
+          toast.warning(`พัสดุนี้ถูกจัดส่งถึงที่หมายเรียบร้อยแล้ว`);
         } else {
-          toast.success(`พบข้อมูลพัสดุ (ปลายทาง: ${p['สาขาผู้รับ']})`);
+          toast.success(`พบข้อมูลพัสดุ ปลายทาง: ${p['สาขาผู้รับ']}`);
+          setCurrentStep(2); // Auto move to photo step
         }
       } else {
-        toast.error(res.error === "Invalid trackingID format" ? "รูปแบบ Tracking ID ไม่ถูกต้อง" : 'ไม่พบข้อมูลพัสดุ หรือ Tracking ID ไม่ถูกต้อง');
-        setParcelDest(null);
-        setCheckedParcel(null);
-        setIsDelivered(false);
+        toast.error('ไม่พบข้อมูลพัสดุ หรือ Tracking ID ไม่ถูกต้อง');
       }
     } catch (e: any) {
-      console.error('Check Parcel Error:', e);
-      toast.error(`เกิดข้อผิดพลาดในการตรวจสอบ: ${e.message || 'ไม่ทราบสาเหตุ'}`);
+      toast.error(`เกิดข้อผิดพลาดในการตรวจสอบ`);
     } finally {
       setIsChecking(false);
     }
@@ -120,11 +114,9 @@ export default function ConfirmReceipt() {
       if (text) {
         setTrackingId(text.trim().toUpperCase());
         toast.success('วาง Tracking ID เรียบร้อย');
-      } else {
-        toast.error('ไม่มีข้อมูลในคลิปบอร์ด');
       }
     } catch (e) {
-      toast.error('ไม่สามารถอ่านข้อมูลจากคลิปบอร์ดได้ (โปรดอนุญาตสิทธิ์การเข้าถึง)');
+      toast.error('ไม่สามารถวางข้อมูลได้');
     }
   };
 
@@ -141,8 +133,6 @@ export default function ConfirmReceipt() {
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
-        
-        // Max dimensions
         const MAX_WIDTH = 1200;
         const MAX_HEIGHT = 1200;
 
@@ -163,17 +153,11 @@ export default function ConfirmReceipt() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          // Compress to JPEG with 70% quality
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
           setPhotoPreview(compressedDataUrl);
           setPhotoUrl(compressedDataUrl);
           toast.success('เลือกรูปภาพสำเร็จ');
-        } else {
-          toast.error('ไม่สามารถประมวลผลรูปภาพได้');
         }
-      };
-      img.onerror = () => {
-        toast.error('ไม่สามารถอ่านรูปภาพได้');
       };
       img.src = event.target?.result as string;
     };
@@ -182,68 +166,11 @@ export default function ConfirmReceipt() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    processImageFile(file);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      processImageFile(files[0]);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!trackingId.trim()) {
-      toast.error('กรุณากรอก Tracking ID');
-      return;
-    }
-
-    if (!checkedParcel || checkedParcel.TrackingID !== trackingId.trim()) {
-      toast.error('กรุณากดปุ่ม 🔍 เพื่อตรวจสอบ Tracking ID ให้ถูกต้องก่อนทำรายการ');
-      return;
-    }
-
-    if (isDelivered) {
-      toast.error('ไม่สามารถยืนยันรับพัสดุนี้ได้ เนื่องจากถูกจัดส่งเรียบร้อยแล้ว');
-      return;
-    }
-
-    if (!photoUrl) {
-      toast.error('กรุณาเลือกรูปภาพ');
-      return;
-    }
-
-    if (isForwarding) {
-      const finalForwardFromBranch = forwardFromBranch === OTHER_BRANCH_VALUE ? customForwardFromBranch.trim() : forwardFromBranch.trim();
-      const finalForwardToBranch = forwardToBranch === OTHER_BRANCH_VALUE ? customForwardToBranch.trim() : forwardToBranch.trim();
-      if (!forwardSender.trim() || !finalForwardFromBranch || !finalForwardToBranch) {
-        toast.error('กรุณากรอกข้อมูลการส่งต่อให้ครบ (ชื่อผู้ส่ง, สาขาต้นทาง, สาขาปลายทาง)');
-        return;
-      }
-    }
-
-    if (isProxy && !proxyName.trim()) {
-      toast.error('กรุณาระบุชื่อผู้รับแทน');
-      return;
-    }
-
-    setIsConfirmDialogOpen(true);
+    if (file) processImageFile(file);
   };
 
   const executeConfirm = async () => {
     setIsConfirmDialogOpen(false);
-
     setIsLoading(true);
     try {
       let finalNote = note;
@@ -255,11 +182,9 @@ export default function ConfirmReceipt() {
       if (isForwarding && finalForwardToBranch) {
         additionalNotes.push(`[ส่งต่อโดย: ${forwardSender} จากสาขา: ${finalForwardFromBranch} ไปสาขา: ${finalForwardToBranch} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
       }
-      
       if (isProxy && proxyName) {
         additionalNotes.push(`[รับแทนโดย: ${proxyName} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
       }
-
       if (!isForwarding && !isProxy) {
         additionalNotes.push(`[รับพัสดุเรียบร้อย เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
       }
@@ -270,383 +195,284 @@ export default function ConfirmReceipt() {
 
       const response = await confirmReceipt(trackingId, photoUrl, finalNote);
       if (response && response.success) {
-        toast.success('ยืนยันการส่งสำเร็จ');
+        toast.success('ยืนยันรายการสำเร็จ');
+        // Reset
+        setCurrentStep(1);
         setTrackingId('');
         setPhotoUrl('');
         setPhotoPreview(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
         setNote('');
         setIsForwarding(false);
-        setForwardSender('');
-        setForwardFromBranch('');
-        setForwardToBranch('');
-        setCustomForwardFromBranch('');
-        setCustomForwardToBranch('');
-        setParcelDest(null);
-        setCheckedParcel(null);
         setIsProxy(false);
-        setProxyName('');
+        setCheckedParcel(null);
       } else {
-        toast.error(`ไม่สามารถยืนยันการส่งได้: ${response?.error || 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ'}`);
+        toast.error(`เกิดข้อผิดพลาด: ${response?.error}`);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const StepIndicator = () => (
+    <div className="flex items-center justify-center mb-8">
+      {[1, 2, 3].map((step) => (
+        <div key={step} className="flex items-center">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+            currentStep === step 
+              ? 'bg-primary text-white shadow-lg scale-110' 
+              : currentStep > step 
+                ? 'bg-emerald-500 text-white' 
+                : 'bg-slate-100 text-slate-400'
+          }`}>
+            {currentStep > step ? <CheckCircle2 className="w-6 h-6" /> : step}
+          </div>
+          {step < 3 && (
+            <div className={`w-12 h-1 mx-2 rounded ${
+              currentStep > step ? 'bg-emerald-500' : 'bg-slate-100'
+            }`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">ยืนยันการส่งพัสดุ</h1>
-        <p className="text-sm text-muted-foreground mt-1">อัปโหลดรูปภาพเพื่อยืนยันการส่ง/รับพัสดุ</p>
+    <div className="max-w-2xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
+      <div className="text-center space-y-2 mb-8">
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">ยืนยันรับพัสดุ</h1>
+        <p className="text-slate-500">ทำตามขั้นตอนเพื่อยืนยันการรับหรือส่งต่อพัสดุ</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Form */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>ยืนยันการส่ง</CardTitle>
-              <CardDescription>กรอก Tracking ID และอัปโหลดรูปภาพหลักฐาน</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Tracking ID */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Tracking ID <span className="text-red-500">*</span>
-                  </label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          placeholder="เช่น TRK20260420001"
-                          value={trackingId}
-                          onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={handlePasteTrackingID}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
-                          title="วางจากคลิปบอร์ด"
-                        >
-                          <ClipboardPaste className="w-4 h-4" />
-                        </button>
+      <StepIndicator />
+
+      {/* Step 1: Check Tracking ID */}
+      {currentStep === 1 && (
+        <Card className="border-none shadow-xl rounded-3xl overflow-hidden animate-in slide-in-from-right-4 duration-300">
+          <CardHeader className="bg-slate-50/50 p-8 border-b border-slate-100 text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle>ระบุ Tracking ID</CardTitle>
+            <CardDescription>กรอกเลขที่พัสดุเพื่อเริ่มต้นทำรายการ</CardDescription>
+          </CardHeader>
+          <CardContent className="p-8 space-y-6">
+            <div className="space-y-4">
+              <div className="relative group">
+                <Input
+                  placeholder="เช่น TRK20260420001"
+                  value={trackingId}
+                  onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
+                  className="h-14 text-lg font-mono tracking-widest pl-5 pr-14 rounded-2xl border-slate-200 focus:ring-primary/20 transition-all"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handlePasteTrackingID}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-xl text-slate-400 hover:text-primary hover:bg-slate-100 transition-all"
+                >
+                  <ClipboardPaste className="w-5 h-5" />
+                </button>
+              </div>
+
+              {checkedParcel && isDelivered && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-900 text-sm flex items-start gap-3">
+                  <span className="text-xl shrink-0">🚫</span>
+                  <div>
+                    <p className="font-bold">พัสดุนี้ถูกส่งถึงที่หมายแล้ว</p>
+                    <p className="opacity-80">ไม่สามารถยืนยันซ้ำได้ กรุณาตรวจสอบ ID อีกครั้ง</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button 
+              onClick={handleCheckParcel} 
+              disabled={isChecking || !trackingId || isDelivered} 
+              className="w-full h-14 rounded-2xl text-lg font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all"
+            >
+              {isChecking ? 'กำลังตรวจสอบ...' : 'ตรวจสอบพัสดุ'}
+              {!isChecking && <ArrowRight className="w-5 h-5 ml-2" />}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2: Photo Evidence */}
+      {currentStep === 2 && (
+        <Card className="border-none shadow-xl rounded-3xl overflow-hidden animate-in slide-in-from-right-4 duration-300">
+          <CardHeader className="bg-slate-50/50 p-8 border-b border-slate-100 text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Camera className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle>ถ่ายรูปหลักฐาน</CardTitle>
+            <CardDescription>อัปโหลดรูปภาพพัสดุหรือหลักฐานการรับ</CardDescription>
+          </CardHeader>
+          <CardContent className="p-8 space-y-6">
+            {!photoPreview ? (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center cursor-pointer hover:border-primary hover:bg-slate-50 transition-all group"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Camera className="w-10 h-10 text-slate-400 group-hover:text-primary" />
+                </div>
+                <p className="text-lg font-bold text-slate-700">คลิกเพื่อเปิดกล้อง / เลือกรูป</p>
+                <p className="text-slate-400 mt-2 text-sm">รูปภาพจะถูกปรับขนาดให้อัตโนมัติ</p>
+              </div>
+            ) : (
+              <div className="relative rounded-3xl overflow-hidden border border-slate-100 shadow-inner group">
+                <img src={photoPreview} alt="Preview" className="w-full aspect-[4/3] object-cover" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                  <Button variant="secondary" className="rounded-xl font-bold" onClick={() => setPhotoPreview(null)}>
+                    ถ่ายใหม่
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={() => setCurrentStep(1)} className="h-14 flex-1 rounded-2xl font-bold border-slate-200">
+                <ArrowLeft className="w-5 h-5 mr-2" /> ย้อนกลับ
+              </Button>
+              <Button 
+                onClick={() => setCurrentStep(3)} 
+                disabled={!photoPreview} 
+                className="h-14 flex-[2] rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all"
+              >
+                ถัดไป <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 3: Final Details & Confirm */}
+      {currentStep === 3 && (
+        <Card className="border-none shadow-xl rounded-3xl overflow-hidden animate-in slide-in-from-right-4 duration-300">
+          <CardHeader className="bg-slate-50/50 p-8 border-b border-slate-100 text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-primary" />
+            </div>
+            <CardTitle>ข้อมูลเพิ่มเติมและยืนยัน</CardTitle>
+            <CardDescription>ระบุรายละเอียดการรับพัสดุให้ครบถ้วน</CardDescription>
+          </CardHeader>
+          <CardContent className="p-8 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl text-sm">
+              <div className="flex items-center gap-2 text-slate-600">
+                <Package className="w-4 h-4" />
+                <span>Tracking ID: <b className="text-slate-900 font-mono">{trackingId}</b></span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <User className="w-4 h-4" />
+                <span>ผู้รับ: <b className="text-slate-900">{checkedParcel?.['ผู้รับ']}</b></span>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className={`p-4 rounded-2xl border transition-all ${isForwarding ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-100'}`}>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="isForwarding" checked={isForwarding} onCheckedChange={(v) => setIsForwarding(!!v)} className="w-5 h-5" />
+                    <label htmlFor="isForwarding" className="text-sm font-bold cursor-pointer select-none flex-1">ต้องการส่งต่อพัสดุไปสาขาอื่น</label>
+                  </div>
+                  {isForwarding && (
+                    <div className="mt-4 space-y-3 animate-in fade-in duration-300">
+                      <Input placeholder="ชื่อผู้ส่งต่อ" value={forwardSender} onChange={(e) => setForwardSender(e.target.value)} className="rounded-xl border-amber-200 bg-white" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select value={forwardFromBranch} onValueChange={setForwardFromBranch}>
+                          <SelectTrigger className="rounded-xl border-amber-200 bg-white">
+                            <SelectValue placeholder="จากสาขา" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branches.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                            <SelectItem value={OTHER_BRANCH_VALUE}>อื่นๆ</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select value={forwardToBranch} onValueChange={setForwardToBranch}>
+                          <SelectTrigger className="rounded-xl border-amber-200 bg-white">
+                            <SelectValue placeholder="ไปสาขา" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {branches.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                            <SelectItem value={OTHER_BRANCH_VALUE}>อื่นๆ</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Button 
-                        type="button" 
-                        variant="secondary" 
-                        onClick={handleCheckParcel}
-                        disabled={isChecking}
-                        className="w-full sm:w-auto gap-2"
-                      >
-                        {isChecking ? '⏳' : <Search className="w-4 h-4" />}
-                        ตรวจสอบ
-                      </Button>
-                    </div>
-                  
-                  {checkedParcel && (
-                    <div className={`mt-3 p-3 border rounded-md text-sm space-y-1 animate-in fade-in slide-in-from-top-2 ${isDelivered ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'}`}>
-                      {isDelivered ? (
-                        <div className="flex items-center gap-2 text-red-900 font-bold mb-1">
-                          <span className="text-lg">🚫</span>
-                          <span>พัสดุนี้ถูกจัดส่งเรียบร้อยแล้ว</span>
-                        </div>
-                      ) : null}
-                      <p className={isDelivered ? 'text-red-900' : 'text-blue-900'}><span className="font-semibold">ผู้รับ:</span> {checkedParcel['ผู้รับ']}</p>
-                      <p className={isDelivered ? 'text-red-900' : 'text-blue-900'}><span className="font-semibold">สาขาปลายทาง:</span> {checkedParcel['สาขาผู้รับ']}</p>
-                      {isDelivered && (
-                        <p className="text-red-700 text-xs mt-2 italic">* ไม่สามารถยืนยันรับพัสดุรายการนี้ซ้ำได้</p>
-                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Photo Upload */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">
-                    รูปภาพหลักฐาน <span className="text-red-500">*</span>
-                  </label>
-                  <div
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    <Camera className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-foreground font-medium">ลากรูปภาพมาที่นี่</p>
-                    <p className="text-xs text-muted-foreground mt-1">หรือคลิกเพื่อเลือกไฟล์</p>
-                    <p className="text-xs text-muted-foreground mt-2">ไฟล์ต้องเป็นรูปภาพเท่านั้น ระบบจะปรับขนาดอัตโนมัติ</p>
+                <div className={`p-4 rounded-2xl border transition-all ${isProxy ? 'bg-sky-50 border-sky-200' : 'bg-white border-slate-100'}`}>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="isProxy" checked={isProxy} onCheckedChange={(v) => setIsProxy(!!v)} className="w-5 h-5" />
+                    <label htmlFor="isProxy" className="text-sm font-bold cursor-pointer select-none flex-1">มีผู้รับแทน (Proxy)</label>
                   </div>
-                </div>
-
-                {/* Photo Preview */}
-                {photoPreview && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">ตัวอย่างรูปภาพ</label>
-                    <div className="relative">
-                      <img
-                        src={photoPreview}
-                        alt="Preview"
-                        className="max-w-full rounded border border-border max-h-64 object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setPhotoPreview(null);
-                          setPhotoUrl('');
-                        }}
-                        className="absolute top-2 right-2"
-                      >
-                        ✕ ลบ
-                      </Button>
+                  {isProxy && (
+                    <div className="mt-4 animate-in fade-in duration-300">
+                      <Input placeholder="ระบุชื่อผู้รับแทน" value={proxyName} onChange={(e) => setProxyName(e.target.value)} className="rounded-xl border-sky-200 bg-white" />
                     </div>
-                  </div>
-                )}
-
-                {/* Additional Options */}
-                <div className="space-y-4 pt-2">
-                  {/* Forwarding Option */}
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="forwarding" 
-                        checked={isForwarding} 
-                        onCheckedChange={(checked) => setIsForwarding(checked as boolean)} 
-                      />
-                      <label 
-                        htmlFor="forwarding" 
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        ส่งต่อพัสดุไปสาขาอื่น
-                      </label>
-                    </div>
-                    {isForwarding && (
-                      <div className="pl-6 space-y-3 animate-in fade-in slide-in-from-top-2">
-                        <Input 
-                          placeholder="ชื่อผู้ส่งต่อ (ผู้ส่งใหม่)" 
-                          value={forwardSender}
-                          onChange={(e) => setForwardSender(e.target.value)}
-                        />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <Select
-                            value={forwardFromBranch}
-                            onValueChange={(value) => {
-                              setForwardFromBranch(value);
-                              if (value !== OTHER_BRANCH_VALUE) setCustomForwardFromBranch('');
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="จากสาขา" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {branches.map((branch) => (
-                                <SelectItem key={branch} value={branch}>
-                                  {branch}
-                                </SelectItem>
-                              ))}
-                              <SelectItem value={OTHER_BRANCH_VALUE}>อื่นๆ (ระบุเอง)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {forwardFromBranch === OTHER_BRANCH_VALUE && (
-                            <div className="mt-2">
-                              <Input
-                                placeholder="ระบุสาขาต้นทาง"
-                                value={customForwardFromBranch}
-                                onChange={(e) => setCustomForwardFromBranch(e.target.value)}
-                              />
-                              <p className="text-[11px] text-amber-600 mt-1">* สาขาที่ระบุเองนี้จะไม่แสดงพิกัดบนแผนที่ติดตามพัสดุ</p>
-                            </div>
-                          )}
-                          
-                          <Select
-                            value={forwardToBranch}
-                            onValueChange={(value) => {
-                              setForwardToBranch(value);
-                              if (value !== OTHER_BRANCH_VALUE) setCustomForwardToBranch('');
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="ไปสาขา" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {branches.map((branch) => {
-                                const isDest = parcelDest === branch;
-                                return (
-                                  <SelectItem 
-                                    key={branch} 
-                                    value={branch}
-                                    disabled={isDest}
-                                    className={isDest ? 'opacity-50' : ''}
-                                  >
-                                    {branch} {isDest && '(ปลายทาง - ให้กดยืนยันปกติ)'}
-                                  </SelectItem>
-                                );
-                              })}
-                              <SelectItem value={OTHER_BRANCH_VALUE}>อื่นๆ (ระบุเอง)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {forwardToBranch === OTHER_BRANCH_VALUE && (
-                            <div className="mt-2">
-                              <Input
-                                placeholder="ระบุสาขาปลายทาง"
-                                value={customForwardToBranch}
-                                onChange={(e) => setCustomForwardToBranch(e.target.value)}
-                              />
-                              <p className="text-[11px] text-amber-600 mt-1">* สาขาที่ระบุเองนี้จะไม่แสดงพิกัดบนแผนที่ติดตามพัสดุ</p>
-                            </div>
-                          )}
-                        </div>
-                        {parcelDest && (
-                          <p className="text-xs text-muted-foreground font-medium mt-1 bg-muted/50 p-2 rounded">
-                            * หากพัสดุถึงสาขาปลายทาง (<b>{parcelDest}</b>) แล้ว ไม่ต้องติ๊กส่งต่อ ให้กดยืนยันการรับพัสดุได้ตามปกติเลยครับ
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Proxy Receiver Option */}
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="proxy" 
-                        checked={isProxy} 
-                        onCheckedChange={(checked) => setIsProxy(checked as boolean)} 
-                      />
-                      <label 
-                        htmlFor="proxy" 
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
-                        มีผู้รับแทน
-                      </label>
-                    </div>
-                    {isProxy && (
-                      <div className="pl-6 animate-in fade-in slide-in-from-top-2">
-                        <Input 
-                          placeholder="ระบุชื่อผู้รับแทน" 
-                          value={proxyName} 
-                          onChange={(e) => setProxyName(e.target.value)} 
-                        />
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-
-                {/* Note */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">หมายเหตุ (ไม่บังคับ)</label>
-                  <Textarea
-                    placeholder="เช่น สภาพดี, ไม่มีความเสียหาย"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                  <Button type="submit" disabled={isLoading || !photoUrl || isDelivered} className="gap-2 flex-1">
-                    <Upload className="w-4 h-4" />
-                    {isLoading ? 'กำลังส่ง...' : isDelivered ? 'ไม่สามารถทำรายการได้' : 'ยืนยันการส่ง'}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Info Card */}
-        <div className="lg:col-span-1">
-          <Card className="bg-blue-50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="text-blue-900">💡 เคล็ดลับ</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-blue-800">
-              <div>
-                <p className="font-medium mb-1">✓ ถ่ายรูปที่ชัดเจน</p>
-                <p>ถ่ายรูปพัสดุในแสงสว่างเพื่อให้เห็นรายละเอียดชัดเจน</p>
               </div>
-              <div>
-                <p className="font-medium mb-1">✓ แสดงหลักฐาน</p>
-                <p>ถ่ายรูปที่แสดงสภาพพัสดุและหลักฐานการรับ</p>
-              </div>
-              <div>
-                <p className="font-medium mb-1">✓ บันทึกหมายเหตุ</p>
-                <p>เพิ่มหมายเหตุเกี่ยวกับสภาพพัสดุหากมีความเสียหาย</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
 
-      {/* Confirmation Dialog */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">หมายเหตุ (ไม่บังคับ)</label>
+                <Textarea placeholder="เช่น กล่องบุบนิดหน่อย, วางไว้ที่ป้อมยาม..." value={note} onChange={(e) => setNote(e.target.value)} className="rounded-2xl border-slate-200 min-h-[80px]" />
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={() => setCurrentStep(2)} className="h-14 flex-1 rounded-2xl font-bold border-slate-200">
+                ย้อนกลับ
+              </Button>
+              <Button 
+                onClick={() => setIsConfirmDialogOpen(true)} 
+                disabled={isLoading || (isForwarding && (!forwardSender || !forwardToBranch)) || (isProxy && !proxyName)}
+                className="h-14 flex-[2] rounded-2xl font-bold bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 active:scale-95 transition-all"
+              >
+                ยืนยันการทำรายการ <CheckCircle2 className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Success Modal */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>ตรวจสอบข้อมูลก่อนยืนยัน</DialogTitle>
-            <DialogDescription>
-              โปรดตรวจสอบข้อมูลที่คุณกรอกให้ถูกต้อง ข้อมูลจะไม่สามารถแก้ไขได้ภายหลัง
+        <DialogContent className="sm:max-w-md rounded-3xl p-8 border-none shadow-2xl">
+          <DialogHeader className="text-center">
+            <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-12 h-12 text-emerald-600" />
+            </div>
+            <DialogTitle className="text-2xl font-extrabold text-slate-900">ยืนยันข้อมูลอีกครั้ง?</DialogTitle>
+            <DialogDescription className="text-slate-500 pt-2">
+              ตรวจสอบข้อมูลทั้งหมดให้เรียบร้อยก่อนกดยืนยัน ข้อมูลจะไม่สามารถแก้ไขได้
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-3 items-center gap-4">
-              <span className="font-semibold text-sm text-muted-foreground text-right">Tracking ID:</span>
-              <span className="col-span-2 font-mono font-bold text-primary">{trackingId}</span>
+          <div className="py-6 space-y-4">
+            <div className="flex items-center justify-between py-3 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">Tracking ID:</span>
+              <span className="font-mono font-bold text-primary">{trackingId}</span>
             </div>
-            
-            {isForwarding && (
-              <div className="bg-amber-50 p-3 rounded-md text-sm border border-amber-200 space-y-2">
-                <p className="font-bold text-amber-800">📦 ส่งต่อพัสดุ</p>
-                <p className="text-amber-900"><span className="font-semibold">ผู้ส่งต่อ:</span> {forwardSender}</p>
-                <p className="text-amber-900"><span className="font-semibold">จากสาขา:</span> {forwardFromBranch === OTHER_BRANCH_VALUE ? customForwardFromBranch : forwardFromBranch} <span className="font-semibold">→ ไปสาขา:</span> {forwardToBranch === OTHER_BRANCH_VALUE ? customForwardToBranch : forwardToBranch}</p>
-              </div>
-            )}
-            
-            {!isForwarding && isProxy && (
-              <div className="bg-blue-50 p-3 rounded-md text-sm border border-blue-200 space-y-2">
-                <p className="font-bold text-blue-800">👤 มีผู้รับแทน</p>
-                <p className="text-blue-900"><span className="font-semibold">ชื่อผู้รับแทน:</span> {proxyName}</p>
-              </div>
-            )}
-            
-            {!isForwarding && !isProxy && (
-              <div className="bg-green-50 p-3 rounded-md text-sm border border-green-200 space-y-2">
-                <p className="font-bold text-green-800">✅ ยืนยันการรับพัสดุตามปกติ<br/><span className="text-xs font-normal">(ผู้รับตัวจริง / ถึงปลายทางแล้ว)</span></p>
-              </div>
-            )}
-
-            {note && (
-              <div className="grid grid-cols-3 items-start gap-4">
-                <span className="font-semibold text-sm text-muted-foreground text-right">หมายเหตุ:</span>
-                <span className="col-span-2 text-sm">{note}</span>
-              </div>
-            )}
-
-            {photoPreview && (
-              <div className="flex flex-col items-center mt-2">
-                <span className="font-semibold text-sm text-muted-foreground mb-2">รูปภาพหลักฐาน:</span>
-                <img src={photoPreview} alt="Preview" className="w-32 h-32 object-cover rounded-md border border-border shadow-sm" />
-              </div>
-            )}
+            <div className="flex items-center justify-between py-3 border-b border-slate-50">
+              <span className="text-slate-400 font-medium">การดำเนินการ:</span>
+              <span className="font-bold">
+                {isForwarding ? '📦 ส่งต่อพัสดุ' : isProxy ? '👤 รับพัสดุแทน' : '✅ รับพัสดุสำเร็จ'}
+              </span>
+            </div>
           </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)} className="flex-1">
-              ยกเลิก
-            </Button>
-            <Button onClick={executeConfirm} disabled={isLoading} className="flex-1 gap-2">
-              <Upload className="w-4 h-4" />
-              ยืนยันการส่ง
+          <DialogFooter className="flex gap-3">
+            <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)} className="flex-1 rounded-xl h-12">ยกเลิก</Button>
+            <Button onClick={executeConfirm} disabled={isLoading} className="flex-1 rounded-xl h-12 bg-primary font-bold shadow-lg shadow-primary/20">
+              {isLoading ? 'กำลังประมวลผล...' : 'ใช่, ยืนยันข้อมูล'}
             </Button>
           </DialogFooter>
         </DialogContent>
