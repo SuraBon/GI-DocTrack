@@ -192,6 +192,8 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     toast.success(`Export สำเร็จ (${rows.length} รายการ)`);
   };
 
+  const selectedTimelineEvents = selectedParcel ? parseParcelTimeline(selectedParcel) : [];
+
   if (!isConfigured) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
