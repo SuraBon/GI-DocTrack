@@ -120,12 +120,12 @@ function TrackingMap({ events }: TrackingMapProps) {
     polylineRef.current = L.polyline(
       pathCoordinates.map((coord) => [coord.lat, coord.lng] as [number, number]),
       {
-        color: '#fea619',
-        opacity: 0.6,
-        weight: 6,
+        color: '#ff6b00',
+        opacity: 0.85,
+        weight: 8,
         lineCap: 'round',
         lineJoin: 'round',
-        dashArray: '10, 15',
+        dashArray: '12, 16',
       }
     );
     polylineRef.current.addTo(map);

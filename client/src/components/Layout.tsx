@@ -1,20 +1,19 @@
 import React from "react";
+import { useParcelStore } from '@/hooks/useParcelStore';
 
 interface LayoutProps {
   children: React.ReactNode;
   currentPage: string;
   setCurrentPage: (page: string) => void;
-  userName?: string;
-  userRole?: string;
 }
 
 const Layout: React.FC<LayoutProps> = ({
   children,
   currentPage,
   setCurrentPage,
-  userName = "Alex Rivera",
-  userRole = "Logistics Manager",
 }) => {
+  const { parcels } = useParcelStore();
+  const hasNotifications = parcels && parcels.length > 0;
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: "dashboard" },
     { id: "create", label: "Create Parcel", icon: "add_box" },
@@ -73,10 +72,6 @@ const Layout: React.FC<LayoutProps> = ({
             <span className="material-symbols-outlined">contact_support</span>
             Support
           </a>
-          <a className="flex items-center gap-3 px-3 py-2.5 text-primary-fixed-dim hover:text-white font-display text-sm font-semibold cursor-pointer active:opacity-80 hover:bg-white/10 transition-all">
-            <span className="material-symbols-outlined">logout</span>
-            Log Out
-          </a>
         </div>
       </aside>
 
@@ -98,25 +93,13 @@ const Layout: React.FC<LayoutProps> = ({
           <div className="flex items-center gap-4">
             <button className="p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-full relative">
               <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+              {hasNotifications && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+              )}
             </button>
             <button className="p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-full">
               <span className="material-symbols-outlined">help_outline</span>
             </button>
-            <div className="h-8 w-[1px] bg-outline-variant mx-2"></div>
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-on-surface dark:text-white font-semibold font-display text-sm leading-none">
-                  {userName}
-                </p>
-                <p className="text-on-surface-variant font-display text-[11px] font-medium">
-                  {userRole}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold">
-                {userName.charAt(0)}
-              </div>
-            </div>
           </div>
         </header>
 
