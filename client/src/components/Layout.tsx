@@ -36,7 +36,7 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
           <div className="flex flex-col">
             <span className="text-white font-black text-lg font-display">
-              LogiTrack
+              DocTrack
             </span>
             <span className="text-primary-fixed-dim text-[10px] font-semibold uppercase tracking-wider">
               Fleet Management
@@ -48,11 +48,10 @@ const Layout: React.FC<LayoutProps> = ({
             <a
               key={item.id}
               onClick={() => setCurrentPage(item.id)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-display text-sm font-semibold cursor-pointer active:opacity-80 transition-all ${
-                currentPage === item.id
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-display text-sm font-semibold cursor-pointer active:opacity-80 transition-all ${currentPage === item.id
                   ? "bg-secondary-container text-primary"
                   : "text-primary-fixed-dim hover:text-white hover:bg-white/10"
-              }`}
+                }`}
             >
               <span
                 className="material-symbols-outlined"
