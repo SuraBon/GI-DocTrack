@@ -50,14 +50,13 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Recompute summary from client-side parcels (which already have derived statuses applied)
+  // instead of fetching raw backend counts that don't account for forwarded parcels
   const loadSummary = useCallback(async () => {
-    try {
-      const data = await parcelService.exportSummary();
-      if (data) setSummary(data);
-    } catch (err) {
-      console.error('Failed to load summary:', err);
+    if (parcels.length > 0) {
+      setSummary(summarizeParcels(parcels));
     }
-  }, []);
+  }, [parcels]);
 
   const createParcel = useCallback<ParcelStoreValue['createParcel']>(
     async (senderName, senderBranch, receiverName, receiverBranch, docType, description, note) => {
