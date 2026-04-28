@@ -78,7 +78,7 @@ export default function CreateParcel() {
       if (trackingId) {
         setCreatedTrackingId(trackingId);
         setIsResultOpen(true);
-        toast.success(`สร้างรายการสำเร็จ!`);
+        // Success toast removed to prevent scrollbar issue
         setFormData({
           senderName: '', senderBranch: '', receiverName: '', receiverBranch: '',
           docType: '', description: '', note: '',
@@ -441,7 +441,9 @@ export default function CreateParcel() {
 
       {/* Success Dialog */}
       <Dialog open={isResultOpen} onOpenChange={setIsResultOpen}>
-        <DialogContent className="w-full sm:max-w-lg rounded-3xl p-0 border-none shadow-2xl overflow-hidden bg-background">
+        <DialogContent 
+            className="w-full sm:max-w-3xl rounded-3xl p-0 border-none shadow-2xl bg-background flex flex-col justify-center items-center" 
+          >
           <div className="bg-primary p-8 text-white text-center relative">
             <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
               <span className="material-symbols-outlined text-4xl text-secondary-container">check_circle</span>

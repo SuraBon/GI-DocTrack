@@ -189,7 +189,7 @@ export default function ConfirmReceipt() {
 
       const response = await confirmReceipt(trackingId, photoUrl, finalNote);
       if (response && response.success) {
-        toast.success('ยืนยันรายการสำเร็จ');
+        // Success toast removed to prevent scrollbar issue
         // Reset
         setCurrentStep(1);
         setTrackingId('');
