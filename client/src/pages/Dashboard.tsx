@@ -86,7 +86,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-  const [refreshCountdown, setRefreshCountdown] = useState(60);
+  const [refreshCountdown, setRefreshCountdown] = useState(120);
 
   const handleRowClick = (parcel: Parcel) => {
     setSelectedParcel(parcel);
@@ -101,7 +101,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
   const fetchData = useCallback(async () => {
     await Promise.all([loadParcels(), loadSummary()]);
-    setRefreshCountdown(60);
+    setRefreshCountdown(120);
   }, [loadParcels, loadSummary]);
 
   useEffect(() => {
@@ -217,11 +217,11 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="ml-2 inline-flex items-center gap-1 text-primary-fixed-dim bg-primary/5 px-2 py-0.5 rounded-full text-[10px] hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              title="คลิกเพื่อรีเฟรชข้อมูล"
+              className="ml-2 inline-flex items-center gap-2 px-4 py-2 bg-white border border-outline-variant text-primary rounded-lg font-display text-sm font-semibold hover:bg-surface-container transition-colors shadow-sm active:scale-95 duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="รีเฟรชข้อมูล"
             >
-              <span className={`material-symbols-outlined text-[12px] ${loading ? 'animate-spin' : ''}`}>refresh</span>
-              Auto-refresh in {Math.floor(refreshCountdown / 60)}:{(refreshCountdown % 60).toString().padStart(2, '0')}
+              <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`}>refresh</span>
+              Refresh
             </button>
           </p>
         </div>
