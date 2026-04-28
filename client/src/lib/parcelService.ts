@@ -28,6 +28,13 @@ const DEFAULT_BRANCHES = [
   'มหาชัย', 'ศาลายา', 'กาญจนา', 'เซ็นทรัล พระราม 2',
 ];
 
+/** Branches that have known coordinates in TrackingMap. */
+export const BRANCHES_WITH_COORDS = [
+  'MS','พระประแดง','บางนา','มีนบุรี','เลียบด่วน','เดอะมอลล์บางกะปิ',
+  'วิภาวดี','พิบูลสงคราม','พันธุ์สงคราม','เดอะมอลล์บางแค','มหาชัย',
+  'ศาลายา','กาญจนา','เซ็นทรัล พระราม 2','เซ็นทรัลพระราม 2',
+];
+
 // Legacy branch list that was shipped in an earlier version — treat as stale
 const LEGACY_BRANCHES = [
   'ศูนย์ใหญ่บางนา', 'มหาชัย', 'ศาลายา', 'กาญจนา',

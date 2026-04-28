@@ -14,6 +14,34 @@ import type { Parcel } from '@/types/parcel';
 
 const OTHER_BRANCH_VALUE = '__OTHER_BRANCH__';
 
+/** Rendered outside the main component so it never remounts on state changes. */
+function StepIndicator({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="flex items-center justify-center mb-8 sm:mb-10">
+      {[1, 2, 3].map((step) => (
+        <div key={step} className="flex items-center">
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-500 font-display font-bold text-base sm:text-lg ${
+            currentStep === step
+              ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-110'
+              : currentStep > step
+                ? 'bg-green-500 text-white'
+                : 'bg-surface-container text-on-surface-variant/40'
+          }`}>
+            {currentStep > step
+              ? <span className="material-symbols-outlined text-xl sm:text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              : step}
+          </div>
+          {step < 3 && (
+            <div className="w-8 sm:w-12 h-1 mx-1 sm:mx-2 rounded-full overflow-hidden bg-surface-container">
+              <div className={`h-full bg-green-500 transition-all duration-500 ${currentStep > step ? 'w-full' : 'w-0'}`} />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ConfirmReceipt() {
   const { confirmReceipt } = useParcelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,7 +63,6 @@ export default function ConfirmReceipt() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
-  const [parcelDest, setParcelDest] = useState<string | null>(null);
   const [checkedParcel, setCheckedParcel] = useState<Parcel | null>(null);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
@@ -68,7 +95,6 @@ export default function ConfirmReceipt() {
           setCustomForwardFromBranch(currentBranch);
         }
 
-        setParcelDest(p['สาขาผู้รับ']);
         setCheckedParcel(p);
 
         const currentStatus = p['สถานะ'];
@@ -95,8 +121,8 @@ export default function ConfirmReceipt() {
       } else {
         toast.error('ไม่พบข้อมูลพัสดุ หรือ Tracking ID ไม่ถูกต้อง');
       }
-    } catch (e: any) {
-      toast.error(`เกิดข้อผิดพลาดในการตรวจสอบ`);
+    } catch {
+      toast.error('เกิดข้อผิดพลาดในการตรวจสอบ');
     } finally {
       setIsChecking(false);
     }
@@ -109,7 +135,7 @@ export default function ConfirmReceipt() {
         setTrackingId(text.trim().toUpperCase());
         toast.success('วาง Tracking ID เรียบร้อย');
       }
-    } catch (e) {
+    } catch {
       toast.error('ไม่สามารถวางข้อมูลได้');
     }
   };
@@ -205,7 +231,6 @@ export default function ConfirmReceipt() {
         setIsProxy(false);
         setProxyName('');
         setCheckedParcel(null);
-        setParcelDest(null);
         setIsDelivered(false);
       } else {
         toast.error(`เกิดข้อผิดพลาด: ${response?.error}`);
@@ -215,30 +240,6 @@ export default function ConfirmReceipt() {
     }
   };
 
-  const StepIndicator = () => (
-    <div className="flex items-center justify-center mb-8 sm:mb-10">
-      {[1, 2, 3].map((step) => (
-        <div key={step} className="flex items-center">
-          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-500 font-display font-bold text-base sm:text-lg ${currentStep === step
-              ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-110'
-              : currentStep > step
-                ? 'bg-green-500 text-white'
-                : 'bg-surface-container text-on-surface-variant/40'
-            }`}>
-            {currentStep > step ? (
-              <span className="material-symbols-outlined text-xl sm:text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-            ) : step}
-          </div>
-          {step < 3 && (
-            <div className={`w-8 sm:w-12 h-1 mx-1 sm:mx-2 rounded-full overflow-hidden bg-surface-container`}>
-              <div className={`h-full bg-green-500 transition-all duration-500 ${currentStep > step ? 'w-full' : 'w-0'}`} />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section */}
@@ -247,7 +248,7 @@ export default function ConfirmReceipt() {
         <p className="text-xs sm:text-sm text-on-surface-variant">ทำตามขั้นตอนเพื่อยืนยันการรับหรือส่งต่อพัสดุผ่านระบบ LogiTrack</p>
       </div>
 
-      <StepIndicator />
+      <StepIndicator currentStep={currentStep} />
 
       {isLoading && (
         <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center animate-in fade-in duration-300">
@@ -444,29 +445,51 @@ export default function ConfirmReceipt() {
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="relative">
-                          <select
-                            value={forwardFromBranch}
-                            onChange={(e) => setForwardFromBranch(e.target.value)}
-                            className="w-full bg-white border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display appearance-none"
-                          >
-                            <option value="" disabled>จากสาขา</option>
-                            {branches.map(b => <option key={b} value={b}>{b}</option>)}
-                            <option value={OTHER_BRANCH_VALUE}>อื่นๆ</option>
-                          </select>
-                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">flight_takeoff</span>
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <select
+                              value={forwardFromBranch}
+                              onChange={(e) => setForwardFromBranch(e.target.value)}
+                              className="w-full bg-white border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display appearance-none"
+                            >
+                              <option value="" disabled>จากสาขา</option>
+                              {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                              <option value={OTHER_BRANCH_VALUE}>อื่นๆ</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">flight_takeoff</span>
+                          </div>
+                          {forwardFromBranch === OTHER_BRANCH_VALUE && (
+                            <input
+                              placeholder="ระบุชื่อสาขาต้นทาง"
+                              value={customForwardFromBranch}
+                              onChange={(e) => setCustomForwardFromBranch(e.target.value)}
+                              maxLength={100}
+                              className="w-full bg-white border border-outline-variant rounded-xl px-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display animate-in slide-in-from-top-2 duration-200"
+                            />
+                          )}
                         </div>
-                        <div className="relative">
-                          <select
-                            value={forwardToBranch}
-                            onChange={(e) => setForwardToBranch(e.target.value)}
-                            className="w-full bg-white border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display appearance-none"
-                          >
-                            <option value="" disabled>ไปสาขา</option>
-                            {branches.map(b => <option key={b} value={b}>{b}</option>)}
-                            <option value={OTHER_BRANCH_VALUE}>อื่นๆ</option>
-                          </select>
-                          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">flight_land</span>
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <select
+                              value={forwardToBranch}
+                              onChange={(e) => setForwardToBranch(e.target.value)}
+                              className="w-full bg-white border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display appearance-none"
+                            >
+                              <option value="" disabled>ไปสาขา</option>
+                              {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                              <option value={OTHER_BRANCH_VALUE}>อื่นๆ</option>
+                            </select>
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">flight_land</span>
+                          </div>
+                          {forwardToBranch === OTHER_BRANCH_VALUE && (
+                            <input
+                              placeholder="ระบุชื่อสาขาปลายทาง"
+                              value={customForwardToBranch}
+                              onChange={(e) => setCustomForwardToBranch(e.target.value)}
+                              maxLength={100}
+                              className="w-full bg-white border border-outline-variant rounded-xl px-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display animate-in slide-in-from-top-2 duration-200"
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -524,7 +547,14 @@ export default function ConfirmReceipt() {
               </button>
               <button
                 onClick={() => setIsConfirmDialogOpen(true)}
-                disabled={isLoading || (isForwarding && (!forwardSender || !forwardToBranch)) || (isProxy && !proxyName)}
+                disabled={isLoading
+                  || (isForwarding && (
+                    !forwardSender.trim()
+                    || !forwardToBranch
+                    || (forwardToBranch === OTHER_BRANCH_VALUE && !customForwardToBranch.trim())
+                    || (forwardFromBranch === OTHER_BRANCH_VALUE && !customForwardFromBranch.trim())
+                  ))
+                  || (isProxy && !proxyName.trim())}
                 className="flex items-center justify-center gap-2 h-14 flex-[2] bg-green-600 text-white rounded-2xl font-display font-bold shadow-lg shadow-green-200 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
               >
                 ยืนยันทำรายการ

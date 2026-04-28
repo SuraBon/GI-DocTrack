@@ -41,48 +41,41 @@ export default function CreateParcel() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  /** Resolves the final submitted values, replacing OTHER_BRANCH_VALUE with custom inputs. */
+  const getFinalValues = () => ({
+    senderName:     formData.senderName.trim(),
+    senderBranch:   formData.senderBranch   === OTHER_BRANCH_VALUE ? customSenderBranch.trim()   : formData.senderBranch.trim(),
+    receiverName:   formData.receiverName.trim(),
+    receiverBranch: formData.receiverBranch === OTHER_BRANCH_VALUE ? customReceiverBranch.trim() : formData.receiverBranch.trim(),
+    docType:        formData.docType        === OTHER_BRANCH_VALUE ? customDocType.trim()        : formData.docType.trim(),
+    description:    formData.description.trim(),
+    note:           formData.note.trim(),
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const finalSenderBranch = formData.senderBranch === OTHER_BRANCH_VALUE ? customSenderBranch.trim() : formData.senderBranch.trim();
-    const finalReceiverBranch = formData.receiverBranch === OTHER_BRANCH_VALUE ? customReceiverBranch.trim() : formData.receiverBranch.trim();
-    const finalDocType = formData.docType === OTHER_BRANCH_VALUE ? customDocType.trim() : formData.docType.trim();
-
-    if (!formData.senderName || !finalSenderBranch || !formData.receiverName || !finalReceiverBranch || !finalDocType) {
+    const v = getFinalValues();
+    if (!v.senderName || !v.senderBranch || !v.receiverName || !v.receiverBranch || !v.docType) {
       toast.error('กรุณากรอกข้อมูลที่จำเป็นให้ครบ');
       return;
     }
-
     setIsConfirmOpen(true);
   };
 
   const handleConfirmSubmit = async () => {
     setIsConfirmOpen(false);
     setIsLoading(true);
-
-    const finalSenderBranch = formData.senderBranch === OTHER_BRANCH_VALUE ? customSenderBranch.trim() : formData.senderBranch.trim();
-    const finalReceiverBranch = formData.receiverBranch === OTHER_BRANCH_VALUE ? customReceiverBranch.trim() : formData.receiverBranch.trim();
-    const finalDocType = formData.docType === OTHER_BRANCH_VALUE ? customDocType.trim() : formData.docType.trim();
-
+    const v = getFinalValues();
     try {
       const trackingId = await createParcel(
-        formData.senderName,
-        finalSenderBranch,
-        formData.receiverName,
-        finalReceiverBranch,
-        finalDocType,
-        formData.description,
-        formData.note
+        v.senderName, v.senderBranch,
+        v.receiverName, v.receiverBranch,
+        v.docType, v.description, v.note,
       );
-
       if (trackingId) {
         setCreatedTrackingId(trackingId);
         setIsResultOpen(true);
-        // Success toast removed to prevent scrollbar issue
-        setFormData({
-          senderName: '', senderBranch: '', receiverName: '', receiverBranch: '',
-          docType: '', description: '', note: '',
-        });
+        setFormData({ senderName: '', senderBranch: '', receiverName: '', receiverBranch: '', docType: '', description: '', note: '' });
         setCustomSenderBranch('');
         setCustomReceiverBranch('');
         setCustomDocType('');
@@ -164,6 +157,7 @@ export default function CreateParcel() {
                       value={customSenderBranch}
                       onChange={(e) => setCustomSenderBranch(e.target.value)}
                       placeholder="ระบุชื่อสาขาผู้ส่ง"
+                      maxLength={100}
                       className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display"
                     />
                   </div>
@@ -223,6 +217,7 @@ export default function CreateParcel() {
                       value={customReceiverBranch}
                       onChange={(e) => setCustomReceiverBranch(e.target.value)}
                       placeholder="ระบุชื่อสาขาผู้รับ"
+                      maxLength={100}
                       className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display"
                     />
                   </div>
@@ -271,6 +266,7 @@ export default function CreateParcel() {
                       value={customDocType}
                       onChange={(e) => setCustomDocType(e.target.value)}
                       placeholder="ระบุประเภทพัสดุเอง"
+                      maxLength={100}
                       className="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display"
                     />
                   </div>
@@ -486,24 +482,25 @@ export default function CreateParcel() {
                 onClick={() => {
                   const printWindow = window.open('', '', 'width=400,height=500');
                   if (printWindow) {
+                    const v = getFinalValues();
                     printWindow.document.write(`
-                      <div style="text-align:center;font-family:sans-serif;padding:40px; border: 4px solid #091426; border-radius: 20px; max-width: 400px; margin: auto;">
-                        <div style="background:#091426; color:#fff; padding:15px; border-radius:12px; margin-bottom:20px;">
-                          <h2 style="margin:0; font-size:24px;">LogiTrack</h2>
+                      <div style="text-align:center;font-family:sans-serif;padding:40px;border:4px solid #091426;border-radius:20px;max-width:400px;margin:auto;">
+                        <div style="background:#091426;color:#fff;padding:15px;border-radius:12px;margin-bottom:20px;">
+                          <h2 style="margin:0;font-size:24px;">LogiTrack</h2>
                         </div>
-                        <h1 style="font-size: 42px; margin: 10px 0; font-family: monospace; letter-spacing: 2px;">${createdTrackingId}</h1>
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${createdTrackingId}" style="width:180px; height:180px; margin: 20px 0;" />
-                        <div style="margin-top:20px; text-align:left; border-top:2px solid #eee; padding-top:20px;">
+                        <h1 style="font-size:42px;margin:10px 0;font-family:monospace;letter-spacing:2px;">${createdTrackingId}</h1>
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${createdTrackingId}" style="width:180px;height:180px;margin:20px 0;" />
+                        <div style="margin-top:20px;text-align:left;border-top:2px solid #eee;padding-top:20px;">
                           <div style="margin-bottom:10px;">
-                             <p style="margin:0; font-size:10px; color:#666; text-transform:uppercase; font-weight:bold;">Sender</p>
-                             <p style="margin:0; font-weight:bold;">${formData.senderName} (${formData.senderBranch})</p>
+                            <p style="margin:0;font-size:10px;color:#666;text-transform:uppercase;font-weight:bold;">Sender</p>
+                            <p style="margin:0;font-weight:bold;">${v.senderName} (${v.senderBranch})</p>
                           </div>
                           <div>
-                             <p style="margin:0; font-size:10px; color:#666; text-transform:uppercase; font-weight:bold;">Receiver</p>
-                             <p style="margin:0; font-weight:bold;">${formData.receiverName} (${formData.receiverBranch})</p>
+                            <p style="margin:0;font-size:10px;color:#666;text-transform:uppercase;font-weight:bold;">Receiver</p>
+                            <p style="margin:0;font-weight:bold;">${v.receiverName} (${v.receiverBranch})</p>
                           </div>
                         </div>
-                        <p style="margin-top:30px; font-size:10px; color:#999; font-style:italic;">Generated at: ${new Date().toLocaleString()}</p>
+                        <p style="margin-top:30px;font-size:10px;color:#999;font-style:italic;">Generated at: ${new Date().toLocaleString()}</p>
                       </div>
                       <script>window.onload = () => { window.print(); window.close(); }</script>
                     `);

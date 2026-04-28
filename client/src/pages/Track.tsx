@@ -21,8 +21,18 @@ export default function Track() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('recent_searches');
-    if (saved) setRecentSearches(JSON.parse(saved));
+    try {
+      const saved = localStorage.getItem('recent_searches');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Only keep plain strings, discard anything else
+        if (Array.isArray(parsed)) {
+          setRecentSearches(parsed.filter((x): x is string => typeof x === 'string').slice(0, 5));
+        }
+      }
+    } catch {
+      localStorage.removeItem('recent_searches');
+    }
   }, []);
 
   const addToRecent = (id: string) => {
@@ -63,6 +73,20 @@ export default function Track() {
   };
 
   const timelineEvents = useMemo(() => parcel ? parseParcelTimeline(parcel) : [], [parcel]);
+
+  /** True when every branch in the parcel is unknown — map would show nothing useful. */
+  const hasKnownBranches = useMemo(() => {
+    if (!parcel) return false;
+    const BRANCH_COORDS_KEYS = [
+      'MS','พระประแดง','บางนา','มีนบุรี','เลียบด่วน','เดอะมอลล์บางกะปิ',
+      'วิภาวดี','พิบูลสงคราม','พันธุ์สงคราม','เดอะมอลล์บางแค','มหาชัย',
+      'ศาลายา','กาญจนา','เซ็นทรัล พระราม 2','เซ็นทรัลพระราม 2',
+    ];
+    return (
+      BRANCH_COORDS_KEYS.includes(parcel['สาขาผู้ส่ง']) ||
+      BRANCH_COORDS_KEYS.includes(parcel['สาขาผู้รับ'])
+    );
+  }, [parcel]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -266,9 +290,17 @@ export default function Track() {
                     </p>
                     <Timeline events={timelineEvents} />
                   </div>
-                  <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm h-[260px]">
-                    <TrackingMap events={timelineEvents} />
-                  </div>
+                  {hasKnownBranches ? (
+                    <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm h-[260px]">
+                      <TrackingMap events={timelineEvents} />
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-outline-variant/30 shadow-sm h-[260px] bg-surface-container-lowest flex flex-col items-center justify-center p-6 text-center">
+                      <span className="material-symbols-outlined text-4xl text-on-surface-variant/30 mb-3">map_off</span>
+                      <p className="text-sm font-bold text-on-surface-variant">ไม่สามารถแสดงแผนที่ได้</p>
+                      <p className="text-xs text-on-surface-variant/60 mt-1">สาขาที่ระบุไม่มีพิกัดในระบบ</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

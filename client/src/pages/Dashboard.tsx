@@ -7,6 +7,7 @@ import { useParcelStore } from '@/hooks/useParcelStore';
 import StatusBadge from '@/components/StatusBadge';
 import type { Parcel } from '@/types/parcel';
 import { toast } from 'sonner';
+import { BRANCHES_WITH_COORDS } from '@/lib/parcelService';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -135,6 +136,12 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   const selectedTimelineEvents = useMemo(() =>
     selectedParcel ? parseParcelTimeline(selectedParcel) : [], [selectedParcel]);
 
+  /** True when the selected parcel has at least one known-coordinate branch. */
+  const selectedParcelHasKnownBranches = useMemo(() => {
+    if (!selectedParcel) return false;
+    return BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้ส่ง']) || BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้รับ']);
+  }, [selectedParcel]);
+
   const clearFilters = () => { setSearchTerm(''); setDebouncedSearch(''); setStatusFilter('ทั้งหมด'); };
   const hasFilters = !!(searchTerm || statusFilter !== 'ทั้งหมด');
 
@@ -179,7 +186,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {STATS.map(s => (
           <StatsCard key={s.key} label={s.label} icon={s.icon} grad={s.grad} text={s.text}
-            count={(summary as any)?.[s.key] ?? 0} />
+            count={summary?.[s.key] ?? 0} />
         ))}
       </div>
 
@@ -264,7 +271,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/8">
-                {filteredParcels.map((parcel, idx) => (
+                {filteredParcels.map((parcel) => (
                   <tr
                     key={parcel.TrackingID}
                     onClick={() => { setSelectedParcel(parcel); setIsTimelineOpen(true); }}
@@ -361,10 +368,18 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                     </p>
                     <Timeline events={selectedTimelineEvents} />
                   </div>
-                  <div className="space-y-4">
-                    <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm h-[220px] sm:h-[260px]">
-                      <TrackingMap events={selectedTimelineEvents} />
-                    </div>
+                    <div className="space-y-4">
+                    {selectedParcelHasKnownBranches ? (
+                      <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm h-[220px] sm:h-[260px]">
+                        <TrackingMap events={selectedTimelineEvents} />
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-outline-variant/30 shadow-sm h-[220px] sm:h-[260px] bg-surface-container-lowest flex flex-col items-center justify-center p-6 text-center">
+                        <span className="material-symbols-outlined text-4xl text-on-surface-variant/30 mb-3">map_off</span>
+                        <p className="text-sm font-bold text-on-surface-variant">ไม่สามารถแสดงแผนที่ได้</p>
+                        <p className="text-xs text-on-surface-variant/60 mt-1">สาขาที่ระบุไม่มีพิกัดในระบบ</p>
+                      </div>
+                    )}
                     <div className="bg-white rounded-2xl p-4 sm:p-5 border border-outline-variant/30 shadow-sm">
                       <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-sm">info</span>
