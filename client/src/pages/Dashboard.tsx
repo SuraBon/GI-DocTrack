@@ -225,16 +225,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
             </button>
           </p>
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-display text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm active:scale-95 duration-150"
-          >
-            <span className="material-symbols-outlined text-sm">download</span>
-            Export CSV
-          </button>
-        </div>
-      </div>
+              </div>
 
       {/* Stats Overview - Bento Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
