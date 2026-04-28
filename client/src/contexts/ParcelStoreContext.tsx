@@ -16,7 +16,6 @@ interface ParcelStoreValue {
   loading: boolean;
   error: string | null;
   loadParcels: (status?: string) => Promise<void>;
-  loadSummary: () => Promise<void>;
   createParcel: (
     senderName: string,
     senderBranch: string,
@@ -63,15 +62,6 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /**
-   * Recomputes the summary from the already-loaded parcels array.
-   * This avoids an extra network round-trip and keeps counts consistent
-   * with the derived statuses applied on the client.
-   */
-  const loadSummary = useCallback(async () => {
-    setSummary(summarizeParcels(parcels));
-  }, [parcels]);
-
   const createParcel = useCallback<ParcelStoreValue['createParcel']>(
     async (senderName, senderBranch, receiverName, receiverBranch, docType, description, note) => {
       setError(null);
@@ -115,8 +105,8 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<ParcelStoreValue>(
-    () => ({ parcels, summary, loading, error, loadParcels, loadSummary, createParcel, confirmReceipt }),
-    [parcels, summary, loading, error, loadParcels, loadSummary, createParcel, confirmReceipt],
+    () => ({ parcels, summary, loading, error, loadParcels, createParcel, confirmReceipt }),
+    [parcels, summary, loading, error, loadParcels, createParcel, confirmReceipt],
   );
 
   return <ParcelStoreContext.Provider value={value}>{children}</ParcelStoreContext.Provider>;

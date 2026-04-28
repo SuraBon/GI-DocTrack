@@ -63,7 +63,7 @@ const TableSkeleton = () => (
 );
 
 export default function Dashboard({ isConfigured }: DashboardProps) {
-  const { parcels, summary, loading, loadParcels, loadSummary } = useParcelStore();
+  const { parcels, summary, loading, loadParcels } = useParcelStore();
   const [filteredParcels, setFilteredParcels] = useState<Parcel[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ทั้งหมด');
@@ -72,6 +72,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   const [refreshCountdown, setRefreshCountdown] = useState(120);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFetchingRef = useRef(false);
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
@@ -79,17 +80,33 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     debounceRef.current = setTimeout(() => setDebouncedSearch(value), 300);
   };
 
+  // Single fetch function — loadParcels already recomputes summary internally
   const fetchData = useCallback(async () => {
-    await Promise.all([loadParcels(), loadSummary()]);
-    setRefreshCountdown(120);
-  }, [loadParcels, loadSummary]);
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    try {
+      await loadParcels();
+    } finally {
+      isFetchingRef.current = false;
+      setRefreshCountdown(120);
+    }
+  }, [loadParcels]);
 
+  // Initial load
   useEffect(() => {
     if (!isConfigured) return;
     fetchData();
+  }, [isConfigured, fetchData]);
+
+  // Countdown tick — completely separate from fetchData to avoid recreating the interval
+  useEffect(() => {
+    if (!isConfigured) return;
     const timer = setInterval(() => {
       setRefreshCountdown(prev => {
-        if (prev <= 1) { fetchData(); return 120; }
+        if (prev <= 1) {
+          fetchData();
+          return 120;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -110,7 +127,10 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     setFilteredParcels(f);
   }, [parcels, statusFilter, debouncedSearch]);
 
-  const handleRefresh = async () => { await fetchData(); toast.success('อัปเดตข้อมูลเรียบร้อย'); };
+  const handleRefresh = async () => {
+    await fetchData();
+    toast.success('อัปเดตข้อมูลเรียบร้อย');
+  };
 
   const selectedTimelineEvents = useMemo(() =>
     selectedParcel ? parseParcelTimeline(selectedParcel) : [], [selectedParcel]);
