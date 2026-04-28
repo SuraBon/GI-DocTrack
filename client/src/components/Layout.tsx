@@ -87,16 +87,7 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
       </aside>
 
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-primary text-white rounded-lg shadow-lg"
-      >
-        <span className="material-symbols-outlined">
-          {isSidebarOpen ? 'close' : 'menu'}
-        </span>
-      </button>
-
+      
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div
@@ -105,10 +96,21 @@ const Layout: React.FC<LayoutProps> = ({
         />
       )}
 
-      <div className={`ml-0 lg:ml-64 flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
+      <div className="flex flex-col min-h-screen lg:ml-64 transition-all duration-300">
         {/* TopAppBar */}
-        <header className="sticky top-0 left-0 right-0 flex justify-end items-center px-6 h-16 bg-white dark:bg-slate-900 border-b border-outline-variant/30 shadow-sm z-40 fixed">
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 lg:px-6 h-16 bg-white dark:bg-slate-900 border-b border-outline-variant/30 shadow-sm z-40">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="lg:hidden p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-full"
+            >
+              <span className="material-symbols-outlined">
+                {isSidebarOpen ? 'close' : 'menu'}
+              </span>
+            </button>
+            <h1 className="text-lg font-bold text-on-surface font-display hidden sm:block">DocTrack</h1>
+          </div>
+          <div className="flex items-center gap-3">
             <button className="p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-full relative">
               <span className="material-symbols-outlined">notifications</span>
               {hasNotifications && (
@@ -121,7 +123,7 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </header>
 
-        <main className="p-8 pt-24 flex-1">{children}</main>
+        <main className="px-4 sm:px-6 lg:px-8 pt-20 pb-8 flex-1 max-w-7xl mx-auto w-full">{children}</main>
       </div>
     </div>
   );
