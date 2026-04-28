@@ -104,10 +104,10 @@ export default function CreateParcel() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
         <div>
-          <h1 className="font-display text-3xl font-bold text-primary mb-1">สร้างรายการใหม่</h1>
-          <p className="text-sm text-on-surface-variant">กรอกข้อมูลรายละเอียดของพัสดุหรือเอกสารเพื่อเริ่มต้นการจัดส่ง</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary mb-1">สร้างรายการใหม่</h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant">กรอกข้อมูลรายละเอียดของพัสดุหรือเอกสารเพื่อเริ่มต้นการจัดส่ง</p>
         </div>
       </div>
 
@@ -377,7 +377,7 @@ export default function CreateParcel() {
                 <div className="border-t border-dashed border-outline-variant/40" />
 
                 {/* Parcel Details */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-surface-container-low/50 p-4 rounded-2xl">
                     <div className="flex items-center gap-2 mb-2 text-primary opacity-80">
                       <span className="material-symbols-outlined text-sm">category</span>

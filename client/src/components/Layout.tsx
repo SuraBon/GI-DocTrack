@@ -14,7 +14,7 @@ const Layout: React.FC<LayoutProps> = ({
 }) => {
   const { parcels } = useParcelStore();
   const hasNotifications = parcels && parcels.length > 0;
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navItems = [
     { id: "dashboard", label: "ภาพรวมระบบ", icon: "dashboard" },
     { id: "create", label: "สร้างรายการใหม่", icon: "add_box" },
@@ -25,7 +25,7 @@ const Layout: React.FC<LayoutProps> = ({
   return (
     <div className="min-h-screen bg-background font-body text-on-background">
       {/* SideNavBar */}
-      <aside className={`h-screen ${isSidebarOpen ? 'w-64' : 'w-16'} fixed left-0 top-0 bg-primary dark:bg-slate-950 flex flex-col py-6 ${isSidebarOpen ? 'px-4' : 'px-2'} gap-2 border-r border-outline-variant/20 z-50 transition-all duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`h-screen fixed left-0 top-0 bg-primary dark:bg-slate-950 flex flex-col py-6 gap-2 border-r border-outline-variant/20 z-50 transition-all duration-300 ease-in-out ${isSidebarOpen ? 'w-64 px-4 translate-x-0' : 'w-16 px-2 -translate-x-full lg:translate-x-0'}`}>
         <div className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'justify-center'} px-2 mb-8`}>
           <div className="w-10 h-10 bg-secondary-container rounded-xl flex items-center justify-center shadow-lg">
             <span
@@ -96,7 +96,7 @@ const Layout: React.FC<LayoutProps> = ({
         />
       )}
 
-      <div className="flex flex-col min-h-screen md:ml-64 transition-all duration-300">
+      <div className={`flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
         {/* TopAppBar */}
         <header className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 lg:px-6 h-16 bg-white dark:bg-slate-900 border-b border-outline-variant/30 shadow-sm z-40">
           <div className="flex items-center gap-3">

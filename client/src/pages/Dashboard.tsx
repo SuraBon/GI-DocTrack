@@ -209,14 +209,14 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
         <div>
-          <h1 className="font-display text-3xl font-bold text-primary mb-1">Dashboard</h1>
-          <p className="text-sm text-on-surface-variant">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary mb-1">Dashboard</h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant">
             ภาพรวมการจัดส่งเอกสารและพัสดุแบบเรียลไทม์
-                      </p>
+          </p>
         </div>
-              </div>
+      </div>
 
       {/* Stats Overview - Bento Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
@@ -255,8 +255,8 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
       </div>
 
       {/* Filter Section */}
-      <div className="bg-white border border-outline-variant rounded-xl p-4 flex flex-wrap items-center gap-4 shadow-sm">
-        <div className="flex-1 min-w-[200px]">
+      <div className="bg-white border border-outline-variant rounded-xl p-3 sm:p-4 flex flex-col sm:flex-wrap sm:flex-row items-stretch sm:items-center gap-3 shadow-sm">
+        <div className="flex-1 min-w-0 sm:min-w-[200px]">
           <div className="relative">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
             <input 
@@ -268,12 +268,12 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
             />
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative">
             <select 
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-white border border-outline-variant rounded-lg pl-4 pr-10 py-2 text-sm font-display focus:ring-1 focus:ring-primary outline-none cursor-pointer"
+              className="appearance-none w-full sm:w-auto bg-white border border-outline-variant rounded-lg pl-4 pr-10 py-2 text-sm font-display focus:ring-1 focus:ring-primary outline-none cursor-pointer"
             >
               <option value="ทั้งหมด">สถานะทั้งหมด</option>
               <option value="รอจัดส่ง">รอจัดส่ง</option>
@@ -283,21 +283,21 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
             <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm pointer-events-none">expand_more</span>
           </div>
           
-          <div className="flex items-center bg-white border border-outline-variant rounded-lg overflow-hidden w-full sm:w-auto">
-            <div className="flex items-center px-3 border-r border-outline-variant/30 min-w-0 flex-1">
+          <div className="flex items-center bg-white border border-outline-variant rounded-lg overflow-hidden">
+            <div className="flex items-center px-3 border-r border-outline-variant/30 flex-1 sm:flex-none">
               <span className="text-[10px] font-bold text-on-surface-variant mr-2 whitespace-nowrap">START</span>
               <input 
                 type="date" 
-                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8 min-w-0" 
+                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8 min-w-0 w-full sm:w-auto" 
                 value={exportStartDate}
                 onChange={(e) => setExportStartDate(e.target.value)}
               />
             </div>
-            <div className="flex items-center px-3 min-w-0 flex-1">
+            <div className="flex items-center px-3 flex-1 sm:flex-none">
               <span className="text-[10px] font-bold text-on-surface-variant mr-2 whitespace-nowrap">END</span>
               <input 
                 type="date" 
-                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8 min-w-0" 
+                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8 min-w-0 w-full sm:w-auto" 
                 value={exportEndDate}
                 onChange={(e) => setExportEndDate(e.target.value)}
               />
@@ -308,8 +308,8 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
       {/* Data Table Section */}
       <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-low/30">
-          <h2 className="font-display text-base font-bold text-primary">รายการพัสดุล่าสุด</h2>
+        <div className="px-4 sm:px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-low/30">
+          <h2 className="font-display text-sm sm:text-base font-bold text-primary">รายการพัสดุล่าสุด</h2>
           <div className="flex gap-1">
             <button className="p-1.5 hover:bg-white rounded border border-transparent hover:border-outline-variant/30">
               <span className="material-symbols-outlined text-[20px]">more_horiz</span>
@@ -388,7 +388,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
           )}
         </div>
         
-        <div className="px-6 py-4 bg-surface-container-low/30 border-t border-outline-variant/10 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 bg-surface-container-low/30 border-t border-outline-variant/10 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-xs text-on-surface-variant font-medium">Showing {filteredParcels.length} entries</span>
           <div className="flex gap-2">
             <button className="px-3 py-1 border border-outline-variant rounded bg-white text-xs font-semibold hover:bg-surface-container">Previous</button>
@@ -398,69 +398,68 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
         </div>
       </div>
 
-      {/* Timeline Dialog */}
       <Dialog open={isTimelineOpen} onOpenChange={setIsTimelineOpen}>
         <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-hidden p-0 rounded-2xl border-none shadow-2xl">
           <div className="flex flex-col h-full max-h-[90vh]">
-            <DialogHeader className="p-6 bg-primary text-white shrink-0">
+            <DialogHeader className="p-4 sm:p-6 bg-primary text-white shrink-0">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle className="text-2xl font-bold font-display">Tracking Journey</DialogTitle>
-                <DialogDescription className="text-primary-fixed-dim mt-1">
+                <DialogTitle className="text-xl sm:text-2xl font-bold font-display">Tracking Journey</DialogTitle>
+                <DialogDescription className="text-primary-fixed-dim mt-1 text-xs sm:text-sm">
                   Tracking ID: <span className="font-mono text-white font-bold">{selectedParcel?.TrackingID}</span>
                 </DialogDescription>
               </div>
               <button
                 onClick={() => setIsTimelineOpen(false)}
-                className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                className="p-2 sm:p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
               >
-                <span className="material-symbols-outlined text-3xl text-secondary-container">close</span>
+                <span className="material-symbols-outlined text-2xl sm:text-3xl text-secondary-container">close</span>
               </button>
             </div>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-8 bg-background">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-background">
             {selectedParcel && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                 <div>
-                  <h3 className="font-display font-bold text-lg mb-6 flex items-center gap-2 text-primary">
+                  <h3 className="font-display font-bold text-base sm:text-lg mb-4 sm:mb-6 flex items-center gap-2 text-primary">
                     <span className="material-symbols-outlined">history</span>
                     ไทม์ไลน์การจัดส่ง
                   </h3>
                   <Timeline events={selectedTimelineEvents} />
                 </div>
-                <div className="space-y-6">
-                  <div className="rounded-xl overflow-hidden border border-outline-variant shadow-sm h-[300px]">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="rounded-xl overflow-hidden border border-outline-variant shadow-sm h-[250px] sm:h-[300px]">
                     <TrackingMap events={selectedTimelineEvents} />
                   </div>
-                  <div className="bg-white rounded-2xl p-6 border border-outline-variant shadow-sm space-y-6">
+                  <div className="bg-white rounded-2xl p-4 sm:p-6 border border-outline-variant shadow-sm space-y-4 sm:space-y-6">
                     <h4 className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em] flex items-center gap-2">
                       <span className="material-symbols-outlined text-sm">info</span>
                       Parcel Details
                     </h4>
-                    <div className="grid grid-cols-2 gap-y-6 gap-x-4 text-sm">
+                    <div className="grid grid-cols-2 gap-y-4 sm:gap-y-6 gap-x-4 text-sm">
                       <div className="space-y-1">
                         <p className="text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-wider">ประเภท</p>
-                        <p className="font-display font-black text-primary text-base">{selectedParcel['ประเภทเอกสาร']}</p>
+                        <p className="font-display font-black text-primary text-sm sm:text-base">{selectedParcel['ประเภทเอกสาร']}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-wider">สถานะปัจจุบัน</p>
                         <div className="flex items-center gap-1.5">
-                           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                           <p className="font-display font-black text-primary text-base">{selectedParcel['สถานะ']}</p>
+                           <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shrink-0"></span>
+                           <p className="font-display font-black text-primary text-sm sm:text-base">{selectedParcel['สถานะ']}</p>
                         </div>
                       </div>
                       <div className="space-y-1">
                         <p className="text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-wider">ต้นทาง</p>
                         <div className="flex items-center gap-1.5">
-                           <span className="material-symbols-outlined text-sm text-on-surface-variant/40">location_on</span>
-                           <p className="font-display font-bold text-primary">{selectedParcel['สาขาผู้ส่ง']}</p>
+                           <span className="material-symbols-outlined text-sm text-on-surface-variant/40 shrink-0">location_on</span>
+                           <p className="font-display font-bold text-primary text-sm">{selectedParcel['สาขาผู้ส่ง']}</p>
                         </div>
                       </div>
                       <div className="space-y-1">
                         <p className="text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-wider">ปลายทาง</p>
                         <div className="flex items-center gap-1.5">
-                           <span className="material-symbols-outlined text-sm text-secondary">home_pin</span>
-                           <p className="font-display font-bold text-primary">{selectedParcel['สาขาผู้รับ']}</p>
+                           <span className="material-symbols-outlined text-sm text-secondary shrink-0">home_pin</span>
+                           <p className="font-display font-bold text-primary text-sm">{selectedParcel['สาขาผู้รับ']}</p>
                         </div>
                       </div>
                     </div>

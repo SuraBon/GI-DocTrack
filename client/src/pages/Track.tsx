@@ -104,10 +104,10 @@ export default function Track() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
         <div>
-          <h1 className="font-display text-3xl font-bold text-primary mb-1">ติดตามพัสดุ</h1>
-          <p className="text-sm text-on-surface-variant">ค้นหาและติดตามสถานะการจัดส่งแบบ Real-time ของ LogiTrack</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary mb-1">ติดตามพัสดุ</h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant">ค้นหาและติดตามสถานะการจัดส่งแบบ Real-time ของ LogiTrack</p>
         </div>
       </div>
 
@@ -202,11 +202,11 @@ export default function Track() {
         <div className="space-y-8 animate-in zoom-in-95 duration-500">
           <div className="bg-white border border-outline-variant rounded-3xl overflow-hidden shadow-xl">
             {/* Parcel Card Header */}
-            <div className="bg-primary p-8 text-white">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="bg-primary p-5 sm:p-8 text-white">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-3xl font-black tracking-wider font-mono">{parcel.TrackingID}</h2>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <h2 className="text-xl sm:text-3xl font-black tracking-wider font-mono">{parcel.TrackingID}</h2>
                     <button
                       onClick={(e) => handleCopyTrackingID(e, parcel.TrackingID)}
                       className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
@@ -227,8 +227,8 @@ export default function Track() {
             </div>
 
             {/* Parcel Card Body */}
-            <div className="p-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="p-4 sm:p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
                 {/* Information Column */}
                 <div className="space-y-8">
                   <div className="bg-surface-container-low/30 rounded-2xl p-6 border border-outline-variant/30 space-y-6">
@@ -236,7 +236,7 @@ export default function Track() {
                       <span className="material-symbols-outlined text-sm">info</span>
                       Parcel Details
                     </h4>
-                    <div className="grid grid-cols-2 gap-y-6 gap-x-8 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 text-sm">
                       <div className="space-y-1">
                         <p className="text-on-surface-variant/60 text-[10px] font-bold uppercase tracking-wider">ชื่อผู้ส่ง</p>
                         <p className="font-display font-black text-primary text-base leading-tight">{parcel['ผู้ส่ง']}</p>

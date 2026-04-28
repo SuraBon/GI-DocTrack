@@ -208,21 +208,21 @@ export default function ConfirmReceipt() {
   };
 
   const StepIndicator = () => (
-    <div className="flex items-center justify-center mb-10">
+    <div className="flex items-center justify-center mb-8 sm:mb-10">
       {[1, 2, 3].map((step) => (
         <div key={step} className="flex items-center">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 font-display font-bold text-lg ${currentStep === step
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-500 font-display font-bold text-base sm:text-lg ${currentStep === step
               ? 'bg-primary text-white shadow-xl shadow-primary/20 scale-110'
               : currentStep > step
                 ? 'bg-green-500 text-white'
                 : 'bg-surface-container text-on-surface-variant/40'
             }`}>
             {currentStep > step ? (
-              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <span className="material-symbols-outlined text-xl sm:text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
             ) : step}
           </div>
           {step < 3 && (
-            <div className={`w-12 h-1 mx-2 rounded-full overflow-hidden bg-surface-container`}>
+            <div className={`w-8 sm:w-12 h-1 mx-1 sm:mx-2 rounded-full overflow-hidden bg-surface-container`}>
               <div className={`h-full bg-green-500 transition-all duration-500 ${currentStep > step ? 'w-full' : 'w-0'}`} />
             </div>
           )}
@@ -234,9 +234,9 @@ export default function ConfirmReceipt() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header Section */}
-      <div className="text-center space-y-2 mb-10">
-        <h1 className="font-display text-3xl font-bold text-primary tracking-tight">ยืนยันรับพัสดุ</h1>
-        <p className="text-sm text-on-surface-variant">ทำตามขั้นตอนเพื่อยืนยันการรับหรือส่งต่อพัสดุผ่านระบบ LogiTrack</p>
+      <div className="text-center space-y-2 mb-8 sm:mb-10">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary tracking-tight">ยืนยันรับพัสดุ</h1>
+        <p className="text-xs sm:text-sm text-on-surface-variant">ทำตามขั้นตอนเพื่อยืนยันการรับหรือส่งต่อพัสดุผ่านระบบ LogiTrack</p>
       </div>
 
       <StepIndicator />
@@ -254,21 +254,21 @@ export default function ConfirmReceipt() {
       {/* Step 1: Check Tracking ID */}
       {currentStep === 1 && (
         <div className="bg-white border border-outline-variant rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-surface-container-low/30 p-8 border-b border-outline-variant/10 text-center">
+          <div className="bg-surface-container-low/30 p-5 sm:p-8 border-b border-outline-variant/10 text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary">
               <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>search</span>
             </div>
             <h2 className="font-display text-xl font-bold text-primary">ระบุ Tracking ID</h2>
             <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">กรอกเลขที่พัสดุเพื่อเริ่มต้นทำรายการ</p>
           </div>
-          <div className="p-8 space-y-6">
+          <div className="p-5 sm:p-8 space-y-6">
             <div className="space-y-4">
               <div className="relative group">
                 <input
                   placeholder="เช่น TRK20260420001"
                   value={trackingId}
                   onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
-                  className="w-full h-16 text-2xl font-mono tracking-[0.2em] pl-6 pr-14 rounded-2xl border-2 border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all text-primary placeholder:text-outline-variant placeholder:font-sans placeholder:text-lg placeholder:tracking-normal"
+                  className="w-full h-14 sm:h-16 text-xl sm:text-2xl font-mono tracking-[0.2em] pl-6 pr-14 rounded-2xl border-2 border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all text-primary placeholder:text-outline-variant placeholder:font-sans placeholder:text-base sm:placeholder:text-lg placeholder:tracking-normal"
                   autoFocus
                 />
                 <button
@@ -316,18 +316,18 @@ export default function ConfirmReceipt() {
       {/* Step 2: Photo Evidence */}
       {currentStep === 2 && (
         <div className="bg-white border border-outline-variant rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-surface-container-low/30 p-8 border-b border-outline-variant/10 text-center">
+          <div className="bg-surface-container-low/30 p-5 sm:p-8 border-b border-outline-variant/10 text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary">
               <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
             </div>
             <h2 className="font-display text-xl font-bold text-primary">ถ่ายรูปหลักฐาน</h2>
             <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">อัปโหลดรูปภาพพัสดุหรือหลักฐานการรับ</p>
           </div>
-          <div className="p-8 space-y-6">
+          <div className="p-5 sm:p-8 space-y-6">
             {!photoPreview ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-outline-variant rounded-3xl p-12 text-center cursor-pointer hover:border-primary hover:bg-surface-container-lowest transition-all group relative overflow-hidden"
+                className="border-2 border-dashed border-outline-variant rounded-3xl p-8 sm:p-12 text-center cursor-pointer hover:border-primary hover:bg-surface-container-lowest transition-all group relative overflow-hidden"
               >
                 <input
                   ref={fileInputRef}
@@ -382,14 +382,14 @@ export default function ConfirmReceipt() {
       {/* Step 3: Final Details & Confirm */}
       {currentStep === 3 && (
         <div className="bg-white border border-outline-variant rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-surface-container-low/30 p-8 border-b border-outline-variant/10 text-center">
+          <div className="bg-surface-container-low/30 p-5 sm:p-8 border-b border-outline-variant/10 text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary">
               <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
             </div>
             <h2 className="font-display text-xl font-bold text-primary">ข้อมูลเพิ่มเติมและยืนยัน</h2>
             <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">ระบุรายละเอียดการรับพัสดุให้ครบถ้วน</p>
           </div>
-          <div className="p-8 space-y-8">
+          <div className="p-5 sm:p-8 space-y-6 sm:space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-container-lowest border border-outline-variant p-5 rounded-2xl text-sm">
               <div className="flex items-center gap-3 text-on-surface-variant">
                 <span className="material-symbols-outlined text-primary text-xl">barcode_scanner</span>
@@ -435,7 +435,7 @@ export default function ConfirmReceipt() {
                           className="w-full bg-white border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display"
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="relative">
                           <select
                             value={forwardFromBranch}
