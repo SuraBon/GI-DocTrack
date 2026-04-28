@@ -101,29 +101,16 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
       </div>
 
       <div className="relative space-y-0">
-        {/* Main Continuous Vertical Line */}
-        <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-outline-variant/20 rounded-full" />
-
         {events.map((event, index) => {
           const nextEvent = events[index + 1];
           return (
             <div
               key={event.id}
-              className="flex gap-8 pb-10 relative group"
+              className="pb-10 relative group"
             >
-              {/* Dynamic Line Connector */}
-              {index < events.length - 1 && (
-                <div className={`absolute left-[15px] top-8 w-[2px] bottom-0 z-0 transition-colors duration-500 ${getLineStyle(event.status, nextEvent?.status)}`} />
-              )}
-
-              {/* Status Icon Container */}
-              <div className="relative z-10 flex-shrink-0">
-                {getStatusIcon(event.status, event.title)}
-              </div>
-
               {/* Event Card */}
-              <div className={`flex-1 p-6 rounded-3xl border transition-all duration-300 ${getCardStyle(event.status, event.title)}`}>
-                <div className="flex items-start justify-between gap-3">
+              <div className={`p-6 rounded-3xl border transition-all duration-300 ${getCardStyle(event.status, event.title)}`}>
+                <div className="flex items-start gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2.5 mb-1.5">
                       <h4 className={`font-display font-black text-lg leading-tight ${event.status === 'pending' ? 'text-on-surface-variant/40' : 'text-primary'}`}>
@@ -142,43 +129,51 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
                       </p>
                     )}
                   </div>
+                  <div className="flex-shrink-0">
+                    {getStatusIcon(event.status, event.title)}
+                  </div>
+                </div>
+                
+                <div className="mt-4 space-y-4">
                   {event.status === 'current' && (
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest ${
-                      event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') 
-                        ? 'bg-blue-50 text-blue-700 border-blue-100' 
-                        : 'bg-secondary/10 text-primary border-secondary/20'
-                    }`}>
-                      <span className="material-symbols-outlined text-sm">
-                        {event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') ? 'local_shipping' : 'auto_awesome'}
+                    <div>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest ${
+                        event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') 
+                          ? 'bg-blue-50 text-blue-700 border-blue-100' 
+                          : 'bg-secondary/10 text-primary border-secondary/20'
+                      }`}>
+                        <span className="material-symbols-outlined text-sm">
+                          {event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') ? 'local_shipping' : 'auto_awesome'}
+                        </span>
+                        {event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') ? 'In Transit' : 'In Process'}
                       </span>
-                      {event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') ? 'In Transit' : 'In Process'}
-                    </span>
+                    </div>
                   )}
-                </div>
 
-                {/* Metadata Row */}
-                <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-outline-variant/10 pt-4">
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant/60">
-                    <span className="material-symbols-outlined text-base">schedule</span>
-                    <time className="tracking-tight uppercase">{event.timestamp ? formatThaiDateTime(event.timestamp) : '-'}</time>
+                  {/* Metadata Row */}
+                  <div className="flex flex-wrap items-center gap-4 border-t border-outline-variant/10 pt-4">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant/60">
+                      <span className="material-symbols-outlined text-base">schedule</span>
+                      <time className="tracking-tight uppercase">{event.timestamp ? formatThaiDateTime(event.timestamp) : '-'}</time>
+                    </div>
+                    {event.location && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant/40">
+                        <span className="material-symbols-outlined text-base text-secondary">location_on</span>
+                        <span className="tracking-tight text-on-surface-variant/60">{event.location}</span>
+                      </div>
+                    )}
                   </div>
-                  {event.location && (
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant/40">
-                      <span className="material-symbols-outlined text-base text-secondary">location_on</span>
-                      <span className="tracking-tight text-on-surface-variant/60">{event.location}</span>
+
+                  {/* Proof Image */}
+                  {event.imageUrl && (
+                    <div className="p-1 bg-surface-container-low rounded-2xl inline-block border border-outline-variant/30 overflow-hidden group/img transition-transform hover:scale-[1.02]">
+                      <div className="relative">
+                        <ImagePopup url={event.imageUrl} className="rounded-xl overflow-hidden" />
+                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none" />
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Proof Image */}
-                {event.imageUrl && (
-                  <div className="mt-6 p-1 bg-surface-container-low rounded-2xl inline-block border border-outline-variant/30 overflow-hidden group/img transition-transform hover:scale-[1.02]">
-                    <div className="relative">
-                      <ImagePopup url={event.imageUrl} className="rounded-xl overflow-hidden" />
-                      <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none" />
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           );
