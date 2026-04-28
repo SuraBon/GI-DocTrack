@@ -81,13 +81,13 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
   return (
     <div className={`relative px-1 ${className}`}>
       {/* Header Summary */}
-      <div className="mb-10 rounded-3xl border border-outline-variant/20 bg-white p-6 shadow-md flex items-center gap-4">
+      <div className="mb-10 rounded-3xl border border-outline-variant/20 bg-white p-6 shadow-md flex flex-col items-center gap-4">
         <div className={`flex items-center justify-center w-10 h-10 rounded-xl ${headerStyle.color} text-white ${headerStyle.shadow} shadow-lg`}>
           <span className="material-symbols-outlined text-xl">
             {headerStyle.icon}
           </span>
         </div>
-        <div className="flex-1">
+        <div className="text-center">
           <h3 className="font-display font-black text-primary text-xl leading-tight uppercase tracking-tight">
             {headerStyle.text}
           </h3>
