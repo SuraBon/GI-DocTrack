@@ -120,7 +120,7 @@ export default function Track() {
               placeholder="กรอก Tracking ID หรือชื่อผู้รับ..."
               value={trackingId}
               onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
-              className="w-full h-16 pl-12 pr-14 text-xl font-display bg-surface-container-lowest border-2 border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/5 rounded-2xl outline-none transition-all placeholder:text-outline-variant/60"
+              className="w-full h-12 sm:h-16 pl-12 pr-14 text-lg sm:text-xl font-display bg-surface-container-lowest border-2 border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/5 rounded-2xl outline-none transition-all placeholder:text-outline-variant/60"
             />
             <button
               type="button"
@@ -133,7 +133,7 @@ export default function Track() {
           <button
             type="submit"
             disabled={isLoading}
-            className="h-16 px-10 bg-primary text-white rounded-2xl font-display font-bold text-lg shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+            className="h-12 sm:h-16 px-6 sm:px-10 bg-primary text-white rounded-2xl font-display font-bold text-base sm:text-lg shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
           >
             {isLoading ? (
               <span className="material-symbols-outlined animate-spin text-2xl">progress_activity</span>

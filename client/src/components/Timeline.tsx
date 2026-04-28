@@ -152,12 +152,12 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
 
                   {/* Metadata Row */}
                   <div className="flex flex-wrap items-center gap-4 border-t border-outline-variant/10 pt-4">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant/60">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant/60">
                       <span className="material-symbols-outlined text-base">schedule</span>
                       <time className="tracking-tight uppercase">{event.timestamp ? formatThaiDateTime(event.timestamp) : '-'}</time>
                     </div>
                     {event.location && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-on-surface-variant/40">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant/40">
                         <span className="material-symbols-outlined text-base text-secondary">location_on</span>
                         <span className="tracking-tight text-on-surface-variant/60">{event.location}</span>
                       </div>

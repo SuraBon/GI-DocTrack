@@ -91,18 +91,18 @@ const Layout: React.FC<LayoutProps> = ({
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      <div className="flex flex-col min-h-screen lg:ml-64 transition-all duration-300">
+      <div className="flex flex-col min-h-screen md:ml-64 transition-all duration-300">
         {/* TopAppBar */}
         <header className="sticky top-0 left-0 right-0 flex justify-between items-center px-4 lg:px-6 h-16 bg-white dark:bg-slate-900 border-b border-outline-variant/30 shadow-sm z-40">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-full"
+              className="lg:hidden p-2.5 min-w-[44px] min-h-[44px] text-on-surface-variant hover:bg-surface-container transition-colors rounded-full"
             >
               <span className="material-symbols-outlined">
                 {isSidebarOpen ? 'close' : 'menu'}

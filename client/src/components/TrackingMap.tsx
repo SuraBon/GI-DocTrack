@@ -164,7 +164,7 @@ function TrackingMap({ events }: TrackingMapProps) {
         </div>
       )}
       <MapView 
-        className="h-[300px] md:h-[400px] w-full"
+        className="h-[250px] sm:h-[300px] md:h-[400px] max-h-[50vh] w-full"
         initialCenter={DEFAULT_CENTER}
         initialZoom={7}
         onMapReady={handleMapReady} 

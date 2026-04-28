@@ -283,21 +283,21 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
             <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm pointer-events-none">expand_more</span>
           </div>
           
-          <div className="flex items-center bg-white border border-outline-variant rounded-lg overflow-hidden">
-            <div className="flex items-center px-3 border-r border-outline-variant/30">
-              <span className="text-[10px] font-bold text-on-surface-variant mr-2">START</span>
+          <div className="flex items-center bg-white border border-outline-variant rounded-lg overflow-hidden w-full sm:w-auto">
+            <div className="flex items-center px-3 border-r border-outline-variant/30 min-w-0 flex-1">
+              <span className="text-[10px] font-bold text-on-surface-variant mr-2 whitespace-nowrap">START</span>
               <input 
                 type="date" 
-                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8" 
+                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8 min-w-0" 
                 value={exportStartDate}
                 onChange={(e) => setExportStartDate(e.target.value)}
               />
             </div>
-            <div className="flex items-center px-3">
-              <span className="text-[10px] font-bold text-on-surface-variant mr-2">END</span>
+            <div className="flex items-center px-3 min-w-0 flex-1">
+              <span className="text-[10px] font-bold text-on-surface-variant mr-2 whitespace-nowrap">END</span>
               <input 
                 type="date" 
-                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8" 
+                className="text-xs bg-transparent border-none focus:ring-0 p-0 h-8 min-w-0" 
                 value={exportEndDate}
                 onChange={(e) => setExportEndDate(e.target.value)}
               />
@@ -329,7 +329,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
               <p className="text-sm">ลองปรับตัวกรองหรือคำค้นหาของคุณ</p>
             </div>
           ) : (
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-primary text-white font-display text-[10px] uppercase tracking-widest">
                   <th className="px-4 py-4 font-black rounded-tl-xl">Tracking ID</th>
@@ -351,7 +351,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                         <span className="font-mono text-primary bg-surface-container px-2 py-1 rounded text-xs font-medium">{parcel.TrackingID}</span>
                         <button 
                           onClick={(e) => handleCopyTrackingID(e, parcel.TrackingID)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-primary sm:opacity-100"
+                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-primary"
                         >
                           <span className="material-symbols-outlined text-sm">content_copy</span>
                         </button>

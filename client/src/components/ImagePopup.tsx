@@ -36,7 +36,7 @@ export default function ImagePopup({ url, title = 'รูปภาพหลั�
           ดู{title}
         </button>
       </DialogTrigger>
-      <DialogContent className="w-full sm:max-w-5xl h-[85vh] flex flex-col p-0 rounded-3xl overflow-hidden border-none shadow-2xl">
+      <DialogContent className="w-full sm:max-w-5xl h-[70vh] sm:h-[85vh] flex flex-col p-0 rounded-3xl overflow-hidden border-none shadow-2xl">
         <DialogHeader className="px-6 py-4 border-b border-outline-variant/10 flex-none bg-primary text-white">
           <DialogTitle className="flex items-center justify-between text-lg font-display font-black uppercase tracking-tight">
             <span className="flex items-center gap-3">
