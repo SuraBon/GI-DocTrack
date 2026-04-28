@@ -13,6 +13,7 @@ import { isConfigured, onConfigUpdated } from "./lib/parcelService";
 function App() {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [isConfiguredState, setIsConfiguredState] = useState(isConfigured());
+  const [confirmTrackingId, setConfirmTrackingId] = useState<string | null>(null);
 
   useEffect(() => {
     const updateConfig = () => setIsConfiguredState(isConfigured());
@@ -21,21 +22,28 @@ function App() {
     return unsubscribe;
   }, []);
 
+  const navigateToConfirm = (trackingId: string) => {
+    setConfirmTrackingId(trackingId);
+    setCurrentPage("confirm");
+  };
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
           <Layout currentPage={currentPage} setCurrentPage={setCurrentPage}>
-            {/* ใช้ hidden แทน unmount เพื่อ preserve state ของแต่ละหน้า */}
             <div className={currentPage === "dashboard" ? '' : 'hidden'}>
-              <Dashboard isConfigured={isConfiguredState} />
+              <Dashboard isConfigured={isConfiguredState} onConfirmParcel={navigateToConfirm} />
             </div>
             <div className={currentPage === "create" ? '' : 'hidden'}>
               <CreateParcel />
             </div>
             <div className={currentPage === "confirm" ? '' : 'hidden'}>
-              <ConfirmReceipt />
+              <ConfirmReceipt
+                initialTrackingId={confirmTrackingId}
+                onInitialTrackingIdConsumed={() => setConfirmTrackingId(null)}
+              />
             </div>
             <div className={currentPage === "track" ? '' : 'hidden'}>
               <Track />

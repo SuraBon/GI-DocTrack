@@ -4,7 +4,7 @@
  * Design: Premium Stepper UI
  */
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useParcelStore } from '@/hooks/useParcelStore';
 import { getBranches, getParcel } from '@/lib/parcelService';
@@ -42,7 +42,13 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
   );
 }
 
-export default function ConfirmReceipt() {
+export default function ConfirmReceipt({
+  initialTrackingId,
+  onInitialTrackingIdConsumed,
+}: {
+  initialTrackingId?: string | null;
+  onInitialTrackingIdConsumed?: () => void;
+}) {
   const { confirmReceipt } = useParcelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const branches = getBranches();
@@ -69,6 +75,33 @@ export default function ConfirmReceipt() {
   const [customForwardFromBranch, setCustomForwardFromBranch] = useState('');
   const [customForwardToBranch, setCustomForwardToBranch] = useState('');
   const [isDelivered, setIsDelivered] = useState(false);
+
+  // Auto-fill tracking ID เมื่อถูก navigate มาจาก Dashboard
+  // Reset state ทั้งหมดก่อนเพื่อไม่ให้ค้างจากรายการก่อนหน้า
+  useEffect(() => {
+    if (!initialTrackingId) return;
+
+    // Reset ทุก state กลับ default
+    setCurrentStep(1);
+    setTrackingId(initialTrackingId);
+    setPhotoUrl('');
+    setPhotoPreview(null);
+    setNote('');
+    setIsForwarding(false);
+    setForwardSender('');
+    setForwardFromBranch('');
+    setForwardToBranch('');
+    setCustomForwardFromBranch('');
+    setCustomForwardToBranch('');
+    setIsProxy(false);
+    setProxyName('');
+    setCheckedParcel(null);
+    setIsDelivered(false);
+    setIsConfirmDialogOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    onInitialTrackingIdConsumed?.();
+  }, [initialTrackingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckParcel = async () => {
     if (!trackingId.trim()) {
@@ -365,11 +398,11 @@ export default function ConfirmReceipt() {
                 <p className="text-on-surface-variant mt-2 text-sm">ระบบจะบีบอัดรูปภาพให้อัตโนมัติเพื่อประหยัดพื้นที่</p>
               </div>
             ) : (
-              <div className="relative rounded-3xl overflow-hidden border border-outline-variant shadow-inner group aspect-video">
-                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-primary/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 backdrop-blur-[2px]">
+              <div className="relative rounded-3xl overflow-hidden border border-outline-variant shadow-inner group aspect-video bg-surface-container-lowest">
+                <img src={photoPreview} alt="Preview" className="w-full h-full object-contain" />
+                <div className="absolute inset-0 bg-primary/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4 backdrop-blur-[2px]">
                   <button
-                    className="flex items-center gap-2 px-6 py-2.5 bg-white text-primary rounded-xl font-bold active:scale-95 transition-all shadow-lg"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-white text-primary rounded-xl font-bold active:scale-95 transition-all shadow-lg hover:bg-primary hover:text-white"
                     onClick={() => {
                       setPhotoPreview(null);
                       setPhotoUrl('');
@@ -379,6 +412,10 @@ export default function ConfirmReceipt() {
                     <span className="material-symbols-outlined">restart_alt</span>
                     ถ่ายใหม่
                   </button>
+                  <p className="text-white font-medium text-sm flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg">zoom_out_map</span>
+                    แสดงภาพเต็ม
+                  </p>
                 </div>
               </div>
             )}
@@ -589,7 +626,7 @@ export default function ConfirmReceipt() {
 
       {/* Confirmation Modal */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-lg rounded-3xl p-0 border-none shadow-2xl bg-white overflow-hidden">
+        <DialogContent showCloseButton={false} className="w-full max-w-[92vw] sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl bg-white overflow-hidden">
           {/* Header */}
           <div className={`px-6 pt-6 pb-5 flex items-center gap-4 ${
             isForwarding ? 'bg-gradient-to-br from-secondary/15 to-secondary/5' :
@@ -611,6 +648,12 @@ export default function ConfirmReceipt() {
               </DialogTitle>
               <p className="text-xs text-on-surface-variant mt-0.5">กรุณาตรวจสอบข้อมูลก่อนยืนยัน</p>
             </div>
+            <button
+              onClick={() => setIsConfirmDialogOpen(false)}
+              className="p-2 rounded-xl text-on-surface-variant/50 hover:bg-black/5 transition-colors shrink-0"
+            >
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
           </div>
 
           {/* Body */}
@@ -673,12 +716,22 @@ export default function ConfirmReceipt() {
 
             {/* Photo preview */}
             {photoPreview && (
-              <div className="relative h-32 rounded-2xl overflow-hidden border border-outline-variant/20">
-                <img src={photoPreview} alt="หลักฐาน" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                <div className="absolute bottom-2 left-3 flex items-center gap-1.5 text-white">
-                  <span className="material-symbols-outlined text-sm">photo_camera</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider">รูปหลักฐาน</span>
+              <div className="relative h-48 sm:h-56 rounded-2xl overflow-hidden border border-outline-variant/20 bg-surface-container-lowest group cursor-pointer transition-all hover:border-primary/50" onClick={() => {
+                // If user wants to see popup, we can open it in a new window or just rely on object-contain
+                const w = window.open();
+                if(w) w.document.write(`<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;"><img src="${photoPreview}" style="max-width:100%;max-height:100%;object-fit:contain;" /></body>`);
+              }}>
+                <img src={photoPreview} alt="หลักฐาน" className="w-full h-full object-contain" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-2 rounded-xl text-white">
+                    <span className="material-symbols-outlined">zoom_in</span>
+                    <span className="text-sm font-bold tracking-wide">คลิกเพื่อดูภาพขยาย</span>
+                  </div>
+                </div>
+                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-white pointer-events-none">
+                  <span className="material-symbols-outlined text-base shadow-sm">photo_camera</span>
+                  <span className="text-xs font-bold uppercase tracking-wider drop-shadow-md">รูปหลักฐาน</span>
                 </div>
               </div>
             )}

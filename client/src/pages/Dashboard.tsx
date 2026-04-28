@@ -17,7 +17,7 @@ import { parseParcelTimeline } from '@/lib/timeline';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatThaiDate } from '@/lib/dateUtils';
 
-interface DashboardProps { isConfigured: boolean; }
+interface DashboardProps { isConfigured: boolean; onConfirmParcel: (trackingId: string) => void; }
 
 const STATS = [
   { key: 'total',     label: 'พัสดุทั้งหมด',  icon: 'inventory_2',    grad: 'from-[#091426] to-[#1e3a5f]',  text: 'text-white' },
@@ -63,7 +63,7 @@ const TableSkeleton = () => (
   </div>
 );
 
-export default function Dashboard({ isConfigured }: DashboardProps) {
+export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardProps) {
   const { parcels, summary, loading, loadParcels } = useParcelStore();
   const [filteredParcels, setFilteredParcels] = useState<Parcel[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -436,7 +436,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
       {/* ── Timeline Dialog ── */}
       <Dialog open={isTimelineOpen} onOpenChange={setIsTimelineOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-hidden p-0 rounded-3xl border-none shadow-2xl">
+        <DialogContent className="w-full max-w-[92vw] sm:max-w-4xl max-h-[90vh] overflow-hidden p-0 rounded-3xl border-none shadow-2xl">
           <div className="flex flex-col max-h-[90vh]">
             <DialogHeader className="shrink-0 p-5 sm:p-6 text-white"
               style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #091426 100%)' }}>
@@ -452,10 +452,21 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                     </div>
                   )}
                 </div>
-                <button onClick={() => setIsTimelineOpen(false)}
-                  className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors shrink-0">
-                  <span className="material-symbols-outlined text-white text-xl">close</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {selectedParcel && selectedParcel['สถานะ'] !== 'ส่งถึงแล้ว' && (
+                    <button
+                      onClick={() => { setIsTimelineOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-base">local_shipping</span>
+                      ส่งพัสดุ
+                    </button>
+                  )}
+                  <button onClick={() => setIsTimelineOpen(false)}
+                    className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors">
+                    <span className="material-symbols-outlined text-white text-xl">close</span>
+                  </button>
+                </div>
               </div>
             </DialogHeader>
 

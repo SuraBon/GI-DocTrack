@@ -334,7 +334,7 @@ export default function CreateParcel() {
 
       {/* Confirmation Modal */}
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-3xl rounded-3xl p-0 border-none shadow-2xl bg-background overflow-hidden max-h-[90vh] md:max-h-[85vh]">
+        <DialogContent className="w-full max-w-[92vw] sm:max-w-3xl rounded-3xl p-0 border-none shadow-2xl bg-background overflow-hidden max-h-[90vh] md:max-h-[85vh]">
           <div className="flex flex-col h-full max-h-[90vh] md:max-h-[85vh]">
             {/* Header (Fixed) */}
             <div className="bg-primary p-6 text-white text-center relative shrink-0">
@@ -463,7 +463,7 @@ export default function CreateParcel() {
       {/* Success Dialog */}
       <Dialog open={isResultOpen} onOpenChange={setIsResultOpen}>
         <DialogContent 
-            className="w-full sm:max-w-3xl rounded-3xl p-0 border-none shadow-2xl bg-background flex flex-col justify-center items-center" 
+            className="w-full max-w-[92vw] sm:max-w-3xl rounded-3xl p-0 border-none shadow-2xl bg-background flex flex-col justify-center items-center" 
           >
           <div className="bg-primary p-8 text-white text-center relative">
             <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
