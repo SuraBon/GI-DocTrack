@@ -5,6 +5,7 @@
  */
 
 import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useParcelStore } from '@/hooks/useParcelStore';
 import { getBranches, getParcel } from '@/lib/parcelService';
@@ -295,14 +296,15 @@ export default function ConfirmReceipt({
 
       <StepIndicator currentStep={currentStep} />
 
-      {isLoading && (
+      {isLoading && createPortal(
         <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center animate-in fade-in duration-300">
           <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-4">
             <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
           </div>
           <p className="text-lg font-bold text-primary font-display">กำลังบันทึกข้อมูล...</p>
           <p className="text-on-surface-variant text-sm">กรุณารอสักครู่ ระบบกำลังประมวลผล</p>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Step 1: Check Tracking ID */}
