@@ -86,7 +86,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
-  const [refreshCountdown, setRefreshCountdown] = useState(180);
+  const [refreshCountdown, setRefreshCountdown] = useState(60);
 
   const handleRowClick = (parcel: Parcel) => {
     setSelectedParcel(parcel);
@@ -101,7 +101,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
   const fetchData = useCallback(async () => {
     await Promise.all([loadParcels(), loadSummary()]);
-    setRefreshCountdown(180);
+    setRefreshCountdown(60);
   }, [loadParcels, loadSummary]);
 
   useEffect(() => {
@@ -214,21 +214,18 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
           <h1 className="font-display text-3xl font-bold text-primary mb-1">Dashboard</h1>
           <p className="text-sm text-on-surface-variant">
             ภาพรวมการจัดส่งเอกสารและพัสดุแบบเรียลไทม์
-            <span className="ml-2 inline-flex items-center gap-1 text-primary-fixed-dim bg-primary/5 px-2 py-0.5 rounded-full text-[10px]">
-              <span className="material-symbols-outlined text-[12px] animate-spin">refresh</span>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="ml-2 inline-flex items-center gap-1 text-primary-fixed-dim bg-primary/5 px-2 py-0.5 rounded-full text-[10px] hover:bg-primary/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="คลิกเพื่อรีเฟรชข้อมูล"
+            >
+              <span className={`material-symbols-outlined text-[12px] ${loading ? 'animate-spin' : ''}`}>refresh</span>
               Auto-refresh in {Math.floor(refreshCountdown / 60)}:{(refreshCountdown % 60).toString().padStart(2, '0')}
-            </span>
+            </button>
           </p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={handleRefresh}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-outline-variant text-primary rounded-lg font-display text-sm font-semibold hover:bg-surface-container transition-colors shadow-sm active:scale-95 duration-150"
-          >
-            <span className={`material-symbols-outlined text-sm ${loading ? 'animate-spin' : ''}`}>refresh</span>
-            Refresh
-          </button>
           <button 
             onClick={handleExport}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg font-display text-sm font-semibold hover:opacity-90 transition-opacity shadow-sm active:scale-95 duration-150"
@@ -431,9 +428,12 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                   Tracking ID: <span className="font-mono text-white font-bold">{selectedParcel?.TrackingID}</span>
                 </DialogDescription>
               </div>
-              <div className="p-3 bg-white/10 rounded-xl">
-                <span className="material-symbols-outlined text-3xl text-secondary-container">local_shipping</span>
-              </div>
+              <button
+                onClick={() => setIsTimelineOpen(false)}
+                className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+              >
+                <span className="material-symbols-outlined text-3xl text-secondary-container">close</span>
+              </button>
             </div>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-8 bg-background">
