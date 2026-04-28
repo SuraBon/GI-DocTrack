@@ -351,7 +351,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                         <span className="font-mono text-primary bg-surface-container px-2 py-1 rounded text-xs font-medium">{parcel.TrackingID}</span>
                         <button 
                           onClick={(e) => handleCopyTrackingID(e, parcel.TrackingID)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-primary"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant hover:text-primary sm:opacity-100"
                         >
                           <span className="material-symbols-outlined text-sm">content_copy</span>
                         </button>
