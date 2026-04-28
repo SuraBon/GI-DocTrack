@@ -567,163 +567,131 @@ export default function ConfirmReceipt() {
 
       {/* Confirmation Modal */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-3xl rounded-3xl p-0 border-none shadow-2xl bg-background overflow-hidden max-h-[90vh] md:max-h-[85vh]">
-          <div className="flex flex-col h-full max-h-[90vh] md:max-h-[85vh]">
-            {/* Header (Fixed) */}
-            <div className="bg-primary p-6 text-white text-center relative shrink-0">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-              <span className="material-symbols-outlined text-4xl text-secondary-container">fact_check</span>
+        <DialogContent className="w-[95vw] sm:max-w-lg rounded-3xl p-0 border-none shadow-2xl bg-white overflow-hidden">
+          {/* Header */}
+          <div className={`px-6 pt-6 pb-5 flex items-center gap-4 ${
+            isForwarding ? 'bg-gradient-to-br from-secondary/15 to-secondary/5' :
+            isProxy ? 'bg-gradient-to-br from-blue-500/15 to-blue-500/5' :
+            'bg-gradient-to-br from-green-500/15 to-green-500/5'
+          }`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
+              isForwarding ? 'bg-secondary text-white' :
+              isProxy ? 'bg-blue-600 text-white' :
+              'bg-green-600 text-white'
+            }`}>
+              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+                {isForwarding ? 'fork_right' : isProxy ? 'account_circle' : 'check_circle'}
+              </span>
             </div>
-            <DialogTitle className="text-2xl font-bold font-display">ตรวจสอบข้อมูล</DialogTitle>
-            <p className="text-primary-fixed-dim text-xs mt-1 uppercase tracking-wider font-medium">กรุณายืนยันความถูกต้องก่อนบันทึก</p>
+            <div className="flex-1">
+              <DialogTitle className="text-lg font-black font-display text-primary leading-tight">
+                {isForwarding ? 'ยืนยันส่งต่อพัสดุ' : isProxy ? 'ยืนยันรับแทน' : 'ยืนยันรับพัสดุ'}
+              </DialogTitle>
+              <p className="text-xs text-on-surface-variant mt-0.5">กรุณาตรวจสอบข้อมูลก่อนยืนยัน</p>
+            </div>
           </div>
 
-          <div className="p-4 md:p-6 space-y-6 bg-surface-container-lowest overflow-y-auto">
-            <div className="bg-white rounded-3xl border border-outline-variant/40 shadow-sm overflow-hidden">
-              
-              {/* Header Status Bar */}
-              <div className={`px-6 py-4 flex items-center gap-4 ${
-                  isForwarding ? 'bg-secondary/10' : 
-                  isProxy ? 'bg-blue-500/10' : 
-                  'bg-green-500/10'
-              }`}>
-                 <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-white shadow-sm ${
-                     isForwarding ? 'text-secondary' : isProxy ? 'text-blue-600' : 'text-green-600'
-                 }`}>
-                    <span className="material-symbols-outlined text-2xl">
-                       {isForwarding ? 'fork_right' : isProxy ? 'account_circle' : 'check_circle'}
-                    </span>
-                 </div>
-                 <div>
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-0.5">สถานะการทำรายการ</p>
-                    <p className="text-xl font-bold font-display text-on-surface leading-none">
-                       {isForwarding ? 'ส่งต่อพัสดุ' : isProxy ? 'มีผู้รับแทน' : 'รับพัสดุเรียบร้อย'}
-                    </p>
-                 </div>
+          {/* Body */}
+          <div className="px-6 py-5 space-y-4">
+            {/* Tracking ID row */}
+            <div className="flex items-center justify-between bg-surface-container-lowest rounded-2xl px-4 py-3 border border-outline-variant/20">
+              <div className="flex items-center gap-2 text-on-surface-variant">
+                <span className="material-symbols-outlined text-base">barcode_scanner</span>
+                <span className="text-xs font-bold uppercase tracking-wider">หมายเลขติดตาม</span>
               </div>
+              <code className="font-mono font-black text-primary text-base tracking-wider">{trackingId}</code>
+            </div>
 
-              <div className="p-4 sm:p-6 space-y-6">
-                {/* Tracking ID */}
-                <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4">
-                  <span className="text-sm font-bold text-on-surface-variant">หมายเลขติดตาม</span>
-                  <span className="font-mono text-lg sm:text-xl font-black text-primary tracking-wider">{trackingId}</span>
+            {/* Forwarding details */}
+            {isForwarding && (
+              <div className="bg-secondary/5 rounded-2xl p-4 border border-secondary/15 space-y-3">
+                <div className="flex items-center gap-2 text-secondary">
+                  <span className="material-symbols-outlined text-base">person</span>
+                  <span className="text-xs font-bold">ผู้ส่งต่อ: <span className="text-primary">{forwardSender || '-'}</span></span>
                 </div>
-
-                {/* Conditional Details */}
-                {isForwarding && (
-                  <div className="bg-surface-container-low p-4 sm:p-5 rounded-2xl flex flex-col">
-                    <div className="flex justify-start mb-4">
-                      <div className="bg-white px-3 py-1.5 rounded-full text-[10px] font-bold text-primary shadow-sm border border-outline-variant/20 flex items-center gap-1 w-max">
-                         <span className="material-symbols-outlined text-sm">person</span>
-                         ผู้ส่งต่อ: {forwardSender || '-'}
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row items-center justify-between relative gap-3 sm:gap-0">
-                       <div className="w-full sm:flex-1 text-center z-10 flex flex-row sm:flex-col items-center justify-between sm:justify-center bg-white sm:bg-transparent p-2 sm:p-0 rounded-xl border border-outline-variant/20 sm:border-none">
-                          <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mb-0 sm:mb-1">จากสาขา</p>
-                          <p className="text-sm sm:text-base font-bold text-primary sm:bg-white sm:py-1 sm:px-2 rounded-lg sm:border sm:border-outline-variant/20">
-                             {forwardFromBranch === OTHER_BRANCH_VALUE ? customForwardFromBranch : forwardFromBranch}
-                          </p>
-                       </div>
-                       
-                       {/* Connecting Line (Desktop) */}
-                       <div className="hidden sm:flex flex-1 flex-col items-center justify-center px-2 relative z-0">
-                          <div className="w-full border-t-2 border-dashed border-outline-variant/60 absolute top-1/2 -translate-y-1/2" />
-                          <div className="bg-surface-container-low px-3 relative z-10 text-outline-variant">
-                             <span className="material-symbols-outlined text-3xl">local_shipping</span>
-                          </div>
-                       </div>
-
-                       {/* Arrow (Mobile) */}
-                       <div className="sm:hidden flex items-center justify-center w-full py-1 text-outline-variant">
-                          <span className="material-symbols-outlined">south</span>
-                       </div>
-
-                       <div className="w-full sm:flex-1 text-center z-10 flex flex-row sm:flex-col items-center justify-between sm:justify-center bg-white sm:bg-transparent p-2 sm:p-0 rounded-xl border border-outline-variant/20 sm:border-none">
-                          <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mb-0 sm:mb-1">ไปสาขา</p>
-                          <p className="text-sm sm:text-base font-bold text-primary sm:bg-white sm:py-1 sm:px-2 rounded-lg sm:border sm:border-outline-variant/20">
-                             {forwardToBranch === OTHER_BRANCH_VALUE ? customForwardToBranch : forwardToBranch}
-                          </p>
-                       </div>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 bg-white rounded-xl px-3 py-2 border border-outline-variant/20 text-center">
+                    <p className="text-[9px] text-on-surface-variant/50 font-bold uppercase tracking-wider mb-0.5">จากสาขา</p>
+                    <p className="text-sm font-black text-primary truncate">
+                      {forwardFromBranch === OTHER_BRANCH_VALUE ? customForwardFromBranch : forwardFromBranch}
+                    </p>
                   </div>
-                )}
-
-                {isProxy && (
-                  <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 flex items-center gap-4">
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-500 shadow-sm">
-                       <span className="material-symbols-outlined">how_to_reg</span>
-                    </div>
-                    <div>
-                       <p className="text-[10px] text-blue-600/70 uppercase font-bold tracking-widest mb-1">ชื่อผู้รับแทน</p>
-                       <p className="text-lg font-bold text-blue-900 leading-none">{proxyName || '-'}</p>
-                    </div>
+                  <span className="material-symbols-outlined text-outline-variant text-xl shrink-0">arrow_forward</span>
+                  <div className="flex-1 bg-white rounded-xl px-3 py-2 border border-outline-variant/20 text-center">
+                    <p className="text-[9px] text-on-surface-variant/50 font-bold uppercase tracking-wider mb-0.5">ไปสาขา</p>
+                    <p className="text-sm font-black text-primary truncate">
+                      {forwardToBranch === OTHER_BRANCH_VALUE ? customForwardToBranch : forwardToBranch}
+                    </p>
                   </div>
-                )}
-
-                {!isForwarding && !isProxy && (
-                  <div className="bg-green-50/50 p-5 rounded-2xl border border-green-100 flex items-center gap-4">
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-green-500 shadow-sm">
-                       <span className="material-symbols-outlined">verified_user</span>
-                    </div>
-                    <div>
-                       <p className="text-[10px] text-green-600/70 uppercase font-bold tracking-widest mb-1">ชื่อผู้รับต้นฉบับ</p>
-                       <p className="text-lg font-bold text-green-900 leading-none">{checkedParcel?.['ผู้รับ'] || '-'}</p>
-                    </div>
-                  </div>
-                )}
-
-                {note && (
-                  <div className="bg-surface-container-low/50 p-4 rounded-2xl border border-outline-variant/30">
-                    <div className="flex items-center gap-2 mb-2 text-on-surface-variant">
-                      <span className="material-symbols-outlined text-sm">edit_note</span>
-                      <p className="text-[10px] font-bold uppercase tracking-widest">หมายเหตุเพิ่มเติม</p>
-                    </div>
-                    <p className="text-sm text-on-surface italic">{note}</p>
-                  </div>
-                )}
-
-                {/* Photo Preview in Modal */}
-                {photoPreview && (
-                  <div className="h-40 w-full relative group rounded-2xl overflow-hidden border border-outline-variant/30">
-                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-3 left-3 flex items-center gap-2 text-white">
-                      <span className="material-symbols-outlined text-sm">photo_camera</span>
-                      <span className="text-[10px] font-bold uppercase tracking-widest">หลักฐานรูปภาพที่แนบ</span>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Proxy details */}
+            {isProxy && (
+              <div className="bg-blue-50 rounded-2xl px-4 py-3 border border-blue-100 flex items-center gap-3">
+                <span className="material-symbols-outlined text-blue-500 text-xl">how_to_reg</span>
+                <div>
+                  <p className="text-[10px] text-blue-600/70 font-bold uppercase tracking-wider">ผู้รับแทน</p>
+                  <p className="font-bold text-blue-900 text-sm">{proxyName || '-'}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Normal receipt */}
+            {!isForwarding && !isProxy && (
+              <div className="bg-green-50 rounded-2xl px-4 py-3 border border-green-100 flex items-center gap-3">
+                <span className="material-symbols-outlined text-green-600 text-xl">verified_user</span>
+                <div>
+                  <p className="text-[10px] text-green-600/70 font-bold uppercase tracking-wider">ผู้รับ</p>
+                  <p className="font-bold text-green-900 text-sm">{checkedParcel?.['ผู้รับ'] || '-'}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Photo preview */}
+            {photoPreview && (
+              <div className="relative h-32 rounded-2xl overflow-hidden border border-outline-variant/20">
+                <img src={photoPreview} alt="หลักฐาน" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                <div className="absolute bottom-2 left-3 flex items-center gap-1.5 text-white">
+                  <span className="material-symbols-outlined text-sm">photo_camera</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider">รูปหลักฐาน</span>
+                </div>
+              </div>
+            )}
+
+            {/* Note */}
+            {note && (
+              <div className="bg-surface-container-low rounded-2xl px-4 py-3 border border-outline-variant/20">
+                <p className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider mb-1">หมายเหตุ</p>
+                <p className="text-sm text-on-surface italic">{note}</p>
+              </div>
+            )}
           </div>
 
-          {/* Footer (Fixed) */}
-          <div className="p-4 md:p-6 bg-surface-container-lowest border-t border-outline-variant/20 shrink-0">
-            <div className="flex gap-4">
-              <button
-                onClick={() => setIsConfirmDialogOpen(false)}
-                className="flex-1 h-14 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors text-base"
-              >
-                แก้ไข
-              </button>
-              <button
-                onClick={executeConfirm}
-                disabled={isLoading}
-                className="flex-[2] flex items-center justify-center gap-2 h-14 bg-primary text-white rounded-2xl font-display font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 text-base"
-              >
-                {isLoading ? (
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                ) : (
-                  <>
-                    ยืนยันรายการ
-                    <span className="material-symbols-outlined text-xl">verified</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
+          {/* Footer */}
+          <div className="px-6 pb-6 flex gap-3">
+            <button
+              onClick={() => setIsConfirmDialogOpen(false)}
+              className="flex-1 h-12 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
+            >
+              แก้ไข
+            </button>
+            <button
+              onClick={executeConfirm}
+              disabled={isLoading}
+              className="flex-[2] flex items-center justify-center gap-2 h-12 bg-primary text-white rounded-2xl font-display font-bold shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {isLoading ? (
+                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              ) : (
+                <>
+                  ยืนยันรายการ
+                  <span className="material-symbols-outlined text-xl">verified</span>
+                </>
+              )}
+            </button>
           </div>
         </DialogContent>
       </Dialog>

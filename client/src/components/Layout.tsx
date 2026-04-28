@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useParcelStore } from '@/hooks/useParcelStore';
+import type { Parcel } from '@/types/parcel';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,8 +10,52 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }) => {
   const { parcels } = useParcelStore();
-  const hasNotifications = parcels && parcels.length > 0;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [seenIds, setSeenIds] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('seen_parcel_ids') ?? '[]')); }
+    catch { return new Set(); }
+  });
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // พัสดุที่อัพเดทล่าสุด — เรียงตามวันที่รับ/สร้าง ล่าสุดก่อน
+  const recentParcels = [...parcels]
+    .sort((a, b) => {
+      const da = a['วันที่รับ'] || a['วันที่สร้าง'];
+      const db = b['วันที่รับ'] || b['วันที่สร้าง'];
+      return db.localeCompare(da);
+    })
+    .slice(0, 8);
+
+  const unreadCount = recentParcels.filter(p => !seenIds.has(p.TrackingID)).length;
+
+  const markAllSeen = () => {
+    const next = new Set([...seenIds, ...recentParcels.map(p => p.TrackingID)]);
+    setSeenIds(next);
+    localStorage.setItem('seen_parcel_ids', JSON.stringify([...next]));
+  };
+
+  const handleBellClick = () => {
+    setIsNotifOpen(v => !v);
+    if (!isNotifOpen) markAllSeen();
+  };
+
+  // ปิด dropdown เมื่อคลิกนอก
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const getStatusColor = (status: Parcel['สถานะ']) => {
+    if (status === 'ส่งถึงแล้ว') return 'bg-emerald-500';
+    if (status === 'กำลังจัดส่ง') return 'bg-blue-500';
+    return 'bg-amber-500';
+  };
 
   const navItems = [
     { id: "dashboard", label: "ภาพรวมระบบ", icon: "dashboard", badge: null },
@@ -77,8 +122,9 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                 onClick={() => handleNav(item.id)}
                 title={isSidebarOpen ? undefined : item.label}
                 className={`
-                  flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center px-0'}
-                  py-2.5 rounded-xl font-display text-sm font-semibold cursor-pointer
+                  flex items-center
+                  ${isSidebarOpen ? 'gap-3 px-3 rounded-xl' : 'justify-center rounded-xl mx-auto w-10'}
+                  py-2.5 font-display text-sm font-semibold cursor-pointer
                   transition-all duration-200 relative group
                   ${active
                     ? 'text-white'
@@ -90,8 +136,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                   boxShadow: 'inset 0 0 0 1px rgba(254,166,25,0.2)',
                 } : {}}
               >
-                {/* Active indicator bar */}
-                {active && (
+                {/* Active indicator bar — only when expanded */}
+                {active && isSidebarOpen && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-r-full bg-secondary-container" />
                 )}
                 <span
@@ -159,19 +205,57 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
           </div>
 
           <div className="flex items-center gap-1.5">
-            <button className="relative p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-xl">
-              <span className="material-symbols-outlined text-xl">notifications</span>
-              {hasNotifications && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full border-2 border-white" />
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={handleBellClick}
+                className="relative p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-xl"
+              >
+                <span className="material-symbols-outlined text-xl">notifications</span>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-0.5 bg-error rounded-full border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {isNotifOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-outline-variant/20 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base text-primary">notifications_active</span>
+                      <span className="font-display font-bold text-sm text-primary">อัพเดทล่าสุด</span>
+                    </div>
+                    <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">{recentParcels.length} รายการ</span>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-outline-variant/8">
+                    {recentParcels.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-on-surface-variant/50">
+                        <span className="material-symbols-outlined text-3xl block mb-2 opacity-30">inbox</span>
+                        ยังไม่มีรายการ
+                      </div>
+                    ) : recentParcels.map(p => (
+                      <div key={p.TrackingID} className="px-4 py-3 hover:bg-surface-container-lowest transition-colors cursor-default">
+                        <div className="flex items-start gap-3">
+                          <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${getStatusColor(p['สถานะ'])}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <code className="text-xs font-mono font-black text-primary">{p.TrackingID}</code>
+                              <span className="text-[10px] text-on-surface-variant/40 shrink-0">{p['สถานะ']}</span>
+                            </div>
+                            <p className="text-xs text-on-surface-variant mt-0.5 truncate">
+                              {p['ผู้ส่ง']} → {p['ผู้รับ']}
+                            </p>
+                            <p className="text-[10px] text-on-surface-variant/40 mt-0.5">
+                              {p['วันที่รับ'] || p['วันที่สร้าง']}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-            </button>
-            <button className="p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-xl">
-              <span className="material-symbols-outlined text-xl">help_outline</span>
-            </button>
-            {/* Avatar */}
-            <div className="w-8 h-8 rounded-xl ml-1 flex items-center justify-center text-white text-xs font-black shadow-sm"
-              style={{ background: 'linear-gradient(135deg, #091426 0%, #1e293b 100%)' }}>
-              A
             </div>
           </div>
         </header>

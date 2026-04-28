@@ -72,6 +72,8 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [refreshCountdown, setRefreshCountdown] = useState(120);
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFetchingRef = useRef(false);
 
@@ -126,7 +128,14 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
       );
     }
     setFilteredParcels(f);
+    setCurrentPage(1); // รีเซ็ตหน้าเมื่อ filter เปลี่ยน
   }, [parcels, statusFilter, debouncedSearch]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredParcels.length / pageSize);
+  const paginatedParcels = filteredParcels.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const startIndex = (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, filteredParcels.length);
 
   const handleRefresh = async () => {
     await fetchData();
@@ -142,7 +151,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     return BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้ส่ง']) || BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้รับ']);
   }, [selectedParcel]);
 
-  const clearFilters = () => { setSearchTerm(''); setDebouncedSearch(''); setStatusFilter('ทั้งหมด'); };
+  const clearFilters = () => { setSearchTerm(''); setDebouncedSearch(''); setStatusFilter('ทั้งหมด'); setCurrentPage(1); };
   const hasFilters = !!(searchTerm || statusFilter !== 'ทั้งหมด');
 
   if (!isConfigured) {
@@ -271,7 +280,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/8">
-                {filteredParcels.map((parcel) => (
+                {paginatedParcels.map((parcel) => (
                   <tr
                     key={parcel.TrackingID}
                     onClick={() => { setSelectedParcel(parcel); setIsTimelineOpen(true); }}
@@ -322,13 +331,88 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer + Pagination */}
         {filteredParcels.length > 0 && (
-          <div className="px-5 py-3 border-t border-outline-variant/10 bg-surface-container-lowest/40">
-            <span className="text-xs text-on-surface-variant/60">
-              แสดง <span className="font-bold text-primary">{filteredParcels.length}</span> รายการ
-              {filteredParcels.length !== parcels.length && ` จาก ${parcels.length} ทั้งหมด`}
-            </span>
+          <div className="px-5 py-3 border-t border-outline-variant/10 bg-surface-container-lowest/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Info + page size */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-on-surface-variant/60">
+                แสดง <span className="font-bold text-primary">{startIndex}–{endIndex}</span> จาก <span className="font-bold text-primary">{filteredParcels.length}</span> รายการ
+                {filteredParcels.length !== parcels.length && <span className="text-on-surface-variant/40"> (กรองจาก {parcels.length})</span>}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-on-surface-variant/50">แสดง</span>
+                <select
+                  value={pageSize}
+                  onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="text-xs font-bold text-primary bg-white border border-outline-variant/40 rounded-lg px-2 py-1 outline-none cursor-pointer"
+                >
+                  {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+                <span className="text-xs text-on-surface-variant/50">ต่อหน้า</span>
+              </div>
+            </div>
+
+            {/* Page controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <span className="material-symbols-outlined text-base">first_page</span>
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <span className="material-symbols-outlined text-base">chevron_left</span>
+                </button>
+
+                {/* Page numbers */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                  .reduce<(number | '...')[]>((acc, p, i, arr) => {
+                    if (i > 0 && (p as number) - (arr[i - 1] as number) > 1) acc.push('...');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${i}`} className="px-1 text-xs text-on-surface-variant/30">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setCurrentPage(p as number)}
+                        className={`min-w-[30px] h-[30px] rounded-lg text-xs font-bold transition-all ${
+                          currentPage === p
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-on-surface-variant/60 hover:text-primary hover:bg-surface-container'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <span className="material-symbols-outlined text-base">chevron_right</span>
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-lg text-on-surface-variant/50 hover:text-primary hover:bg-surface-container disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  <span className="material-symbols-outlined text-base">last_page</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
