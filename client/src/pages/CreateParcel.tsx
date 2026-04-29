@@ -321,7 +321,7 @@ export default function CreateParcel() {
           <button
             type="submit"
             disabled={isLoading}
-            className="group flex items-center gap-3 h-13 px-10 text-white rounded-2xl font-display font-bold shadow-lg hover:shadow-xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+            className="group flex items-center gap-3 h-14 px-10 text-white rounded-2xl font-display font-bold shadow-lg hover:shadow-xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg, #091426 0%, #1e3a5f 100%)' }}
           >
             <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>
@@ -481,10 +481,20 @@ export default function CreateParcel() {
               </div>
               <div className="bg-surface-container-low p-3 rounded-2xl border border-outline-variant/20">
                 <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${createdTrackingId}`}
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(createdTrackingId ?? '')}`}
                   className="w-32 h-32 mix-blend-multiply"
                   alt="คิวอาร์โค้ด"
+                  onError={(e) => {
+                    const target = e.currentTarget;
+                    target.style.display = 'none';
+                    const fallback = target.nextElementSibling as HTMLElement | null;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
                 />
+                <div className="w-32 h-32 hidden flex-col items-center justify-center text-on-surface-variant/40 text-center">
+                  <span className="material-symbols-outlined text-3xl mb-1">qr_code</span>
+                  <span className="text-[10px]">ไม่สามารถโหลด QR ได้</span>
+                </div>
               </div>
             </div>
 

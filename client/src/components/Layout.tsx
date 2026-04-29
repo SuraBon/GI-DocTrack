@@ -59,15 +59,22 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
     if (opening) markAllSeen(); // mark seen เมื่อเปิด dropdown
   };
 
-  // ปิด dropdown เมื่อคลิกนอก
+  // ปิด dropdown เมื่อคลิกนอก หรือกด Escape
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handleMouse = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setIsNotifOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsNotifOpen(false);
+    };
+    document.addEventListener('mousedown', handleMouse);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleMouse);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, []);
 
   const getStatusColor = (status: Parcel['สถานะ']) => {

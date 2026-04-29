@@ -41,6 +41,12 @@ export default function Track() {
     localStorage.setItem('recent_searches', JSON.stringify(next));
   };
 
+  const removeFromRecent = (id: string) => {
+    const next = recentSearches.filter(i => i !== id);
+    setRecentSearches(next);
+    localStorage.setItem('recent_searches', JSON.stringify(next));
+  };
+
   const handleSearch = async (e?: React.FormEvent, searchId?: string) => {
     if (e) e.preventDefault();
     const id = (searchId ?? trackingId).trim();
@@ -103,6 +109,7 @@ export default function Track() {
               placeholder="กรอกหมายเลขติดตาม หรือชื่อผู้รับ..."
               value={trackingId}
               onChange={e => setTrackingId(e.target.value.toUpperCase())}
+              autoFocus
               className="w-full h-12 sm:h-14 pl-11 pr-12 text-base sm:text-lg font-display bg-surface-container-lowest border-2 border-outline-variant/60 focus:border-primary focus:ring-4 focus:ring-primary/8 rounded-xl outline-none transition-all placeholder:text-outline-variant/50"
             />
             <button type="button" onClick={handlePaste}
@@ -126,10 +133,19 @@ export default function Track() {
               <span className="material-symbols-outlined text-sm">history</span>ล่าสุด:
             </span>
             {recentSearches.map(id => (
-              <button key={id} onClick={() => { setTrackingId(id); handleSearch(undefined, id); }}
-                className="px-3 py-1 bg-surface-container-low hover:bg-surface-container text-xs font-mono font-bold text-primary rounded-lg border border-outline-variant/30 transition-all active:scale-95">
-                {id}
-              </button>
+              <div key={id} className="flex items-center gap-0.5">
+                <button onClick={() => { setTrackingId(id); handleSearch(undefined, id); }}
+                  className="px-3 py-1 bg-surface-container-low hover:bg-surface-container text-xs font-mono font-bold text-primary rounded-l-lg border border-outline-variant/30 transition-all active:scale-95">
+                  {id}
+                </button>
+                <button
+                  onClick={() => removeFromRecent(id)}
+                  className="px-1.5 py-1 bg-surface-container-low hover:bg-error/10 hover:text-error text-on-surface-variant/40 rounded-r-lg border border-l-0 border-outline-variant/30 transition-all"
+                  title="ลบออกจากประวัติ"
+                >
+                  <span className="material-symbols-outlined text-sm">close</span>
+                </button>
+              </div>
             ))}
           </div>
         )}

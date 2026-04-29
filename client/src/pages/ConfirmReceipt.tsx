@@ -385,11 +385,11 @@ export default function ConfirmReceipt({
                 onClick={() => fileInputRef.current?.click()}
                 className="border-2 border-dashed border-outline-variant rounded-3xl p-8 sm:p-12 text-center cursor-pointer hover:border-primary hover:bg-surface-container-lowest transition-all group relative overflow-hidden"
               >
+                {/* hidden file input — no capture so desktop gets file picker, mobile gets both options */}
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   onChange={handleFileSelect}
                   className="hidden"
                 />

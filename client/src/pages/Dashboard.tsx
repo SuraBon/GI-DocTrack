@@ -308,7 +308,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
                         </code>
                         <button
                           onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(parcel.TrackingID); toast.success(`คัดลอก ${parcel.TrackingID}`); }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant/40 hover:text-primary p-0.5 rounded"
+                          className="opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 opacity-100 transition-opacity text-on-surface-variant/40 hover:text-primary p-0.5 rounded"
                         >
                           <span className="material-symbols-outlined text-sm">content_copy</span>
                         </button>
@@ -482,7 +482,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
                   </div>
                     <div className="space-y-4">
                     {selectedParcelHasKnownBranches ? (
-                      <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm h-[220px] sm:h-[260px]">
+                      <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm">
                         <TrackingMap events={selectedTimelineEvents} />
                       </div>
                     ) : (

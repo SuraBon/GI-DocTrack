@@ -18,7 +18,7 @@ export default function StatusBadge({ status, className = '' }: StatusBadgeProps
       case 'กำลังจัดส่ง':
         return 'bg-blue-100 text-blue-900 border border-blue-200/50 shadow-sm';
       case 'ส่งถึงแล้ว':
-        return 'bg-emerald-100 text-emerald-900 border border-emerald-200/50 shadow-sm';
+        return 'bg-emerald-100 text-emerald-900 border border-emerald-200/50 shadow-sm pl-3';
       default:
         return 'bg-slate-100 text-slate-700 border border-slate-200/50';
     }
@@ -37,11 +37,17 @@ export default function StatusBadge({ status, className = '' }: StatusBadgeProps
     }
   };
 
+  const isDelivered = status === 'ส่งถึงแล้ว';
+
   return (
     <span
       className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-display font-bold transition-all duration-300 ${getStatusStyles(status)} ${className}`}
     >
-      <span className={`inline-block w-2 h-2 rounded-full ${getStatusDot(status)} ${status === 'กำลังจัดส่ง' ? 'animate-pulse' : ''}`} />
+      {isDelivered ? (
+        <span className="material-symbols-outlined text-sm text-emerald-600" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+      ) : (
+        <span className={`inline-block w-2 h-2 rounded-full ${getStatusDot(status)} ${status === 'กำลังจัดส่ง' ? 'animate-pulse' : ''}`} />
+      )}
       {status}
     </span>
   );
