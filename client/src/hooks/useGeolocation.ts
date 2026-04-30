@@ -3,7 +3,7 @@
  * ขอพิกัด GPS แบบ real-time ผ่าน Geolocation API
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export interface GeoPosition {
   latitude: number;
@@ -25,6 +25,17 @@ export function useGeolocation(): UseGeolocationReturn {
   const [position, setPosition] = useState<GeoPosition | null>(null);
   const [status, setStatus] = useState<GeoStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  const watchIdRef = useRef<number | null>(null);
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      if (timeoutIdRef.current !== null) clearTimeout(timeoutIdRef.current);
+    };
+  }, []);
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -36,44 +47,122 @@ export function useGeolocation(): UseGeolocationReturn {
     setStatus('loading');
     setErrorMessage(null);
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+    // Clear any existing watchers
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+    if (timeoutIdRef.current !== null) clearTimeout(timeoutIdRef.current);
+
+    let bestPosition: GeolocationPosition | null = null;
+
+    const finishWatch = (finalPos: GeolocationPosition | null) => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (timeoutIdRef.current !== null) {
+        clearTimeout(timeoutIdRef.current);
+        timeoutIdRef.current = null;
+      }
+
+      if (finalPos) {
         setPosition({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
+          latitude: finalPos.coords.latitude,
+          longitude: finalPos.coords.longitude,
+          accuracy: finalPos.coords.accuracy,
         });
         setStatus('success');
         setErrorMessage(null);
-      },
-      (err) => {
-        switch (err.code) {
-          case err.PERMISSION_DENIED:
-            setStatus('denied');
-            setErrorMessage('กรุณาเปิด GPS (Location Services) เพื่อดำเนินการต่อ');
-            break;
-          case err.POSITION_UNAVAILABLE:
-            setStatus('error');
-            setErrorMessage('ไม่สามารถระบุตำแหน่งได้ กรุณาลองใหม่');
-            break;
-          case err.TIMEOUT:
-            setStatus('error');
-            setErrorMessage('หมดเวลาในการระบุตำแหน่ง กรุณาลองใหม่');
-            break;
-          default:
-            setStatus('error');
-            setErrorMessage('เกิดข้อผิดพลาดในการระบุตำแหน่ง');
-        }
-      },
+      } else {
+        setStatus('error');
+        setErrorMessage('ไม่สามารถดึงพิกัดที่แม่นยำได้ กรุณาลองใหม่');
+      }
+    };
+
+    const handleSuccess = (pos: GeolocationPosition) => {
+      // Keep track of the most accurate position received
+      if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
+        bestPosition = pos;
+      }
+
+      // If accuracy is good enough (<= 40 meters), stop watching and use it immediately
+      if (pos.coords.accuracy <= 40) {
+        finishWatch(bestPosition);
+      }
+      // Otherwise, we keep watching. The UI will show "loading" until the timeout hits.
+    };
+
+    const handleError = (err: GeolocationPositionError) => {
+      // If we already have a reasonably good position, just use it rather than failing completely
+      if (bestPosition) {
+        finishWatch(bestPosition);
+        return;
+      }
+
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      if (timeoutIdRef.current !== null) {
+        clearTimeout(timeoutIdRef.current);
+        timeoutIdRef.current = null;
+      }
+
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          setStatus('denied');
+          setErrorMessage('กรุณาเปิด GPS (Location Services) และอนุญาตการเข้าถึงเพื่อดำเนินการต่อ');
+          break;
+        case err.POSITION_UNAVAILABLE:
+          setStatus('error');
+          setErrorMessage('ไม่สามารถรับสัญญาณ GPS ได้ (อาจอยู่ในที่อับสัญญาณ)');
+          break;
+        case err.TIMEOUT:
+          setStatus('error');
+          setErrorMessage('หมดเวลาในการระบุตำแหน่งสัญญาณ GPS');
+          break;
+        default:
+          setStatus('error');
+          setErrorMessage('เกิดข้อผิดพลาดในการดึงตำแหน่ง');
+      }
+    };
+
+    // Start watching position. Using maximumAge: 0 forces the device to get fresh data, bypassing cache.
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      handleSuccess,
+      handleError,
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 60000,
-      },
+        maximumAge: 0, 
+      }
     );
+
+    // Set a timeout to accept the best location we've found after 10 seconds,
+    // even if it hasn't reached our desired accuracy threshold (40m).
+    timeoutIdRef.current = setTimeout(() => {
+      if (bestPosition) {
+        finishWatch(bestPosition);
+      } else {
+        // If we got nothing after 10s, trigger an error
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+        setStatus('error');
+        setErrorMessage('ไม่สามารถระบุพิกัดได้ในเวลาที่กำหนด ลองเดินออกไปในที่โล่งและลองใหม่');
+      }
+    }, 10000);
+
   }, []);
 
   const reset = useCallback(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    if (timeoutIdRef.current !== null) {
+      clearTimeout(timeoutIdRef.current);
+      timeoutIdRef.current = null;
+    }
     setPosition(null);
     setStatus('idle');
     setErrorMessage(null);
