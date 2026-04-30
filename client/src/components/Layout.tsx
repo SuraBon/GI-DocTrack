@@ -142,7 +142,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
           <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-sm shrink-0 ring-1 ring-white/15"
             style={{ background: 'linear-gradient(135deg, #fea619 0%, #ff8c00 100%)' }}>
             <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
-              local_shipping
+              description
             </span>
           </div>
           {isSidebarOpen && (
