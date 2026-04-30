@@ -15,8 +15,7 @@ const MAX_NOTE_LENGTH = 2000;
 const MAX_BASE64_LENGTH = 6 * 1024 * 1024;
 const TRACKING_ID_REGEX = /^TRK\d{8}\d{4,}$/;
 
-// นำลิงก์ Google Sheet ของคุณมาใส่ตรงนี้ (ในเครื่องหมายคำพูด)
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EiIWLpHupOzkrh_Oft74U21XTeAc2KSah8H1t0ufNoQ/edit?gid=0#gid=0";
+const SHEET_URL = "";
 const DOC_TRACK_FOLDER_ID = "19OGCWa52JD6nFSBYcesfx51i7KjuAOT-";
 const YEAR_SPREADSHEETS_PROPERTY = "YEAR_SPREADSHEETS";
 const YEAR_SPREADSHEET_PREFIX = "DocTrack";
