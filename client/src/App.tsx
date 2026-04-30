@@ -81,7 +81,7 @@ function App() {
             <div className={currentPage === "track" ? '' : 'hidden'}>
               <Track />
             </div>
-            {user.role === 'Admin' && (
+            {user?.role === 'Admin' && (
               <div className={currentPage === "users" ? '' : 'hidden'}>
                 <UserManagement />
               </div>
