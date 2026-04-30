@@ -145,10 +145,16 @@ function TrackingMap({ events }: TrackingMapProps) {
           ? 'bg-green-600'
           : 'bg-blue-600';
 
-      const html = `<div class="min-w-[70px] h-10 px-3 rounded-2xl border-2 border-white shadow-xl text-[10px] font-black text-white flex items-center justify-center gap-2 uppercase tracking-tighter ${bgClass}"><span class="material-symbols-outlined text-sm">${iconName}</span><span class="truncate">${safeLabel.slice(0, 10)}</span></div>`;
+      const html = `<div class="min-w-[80px] h-auto px-2 py-1.5 rounded-xl border-2 border-white shadow-xl flex flex-col items-center justify-center uppercase tracking-tighter ${bgClass}">
+        <div class="flex items-center gap-1 text-white font-black text-[10px]">
+          <span class="material-symbols-outlined text-xs">${iconName}</span>
+          <span class="truncate max-w-[80px]">${safeLabel}</span>
+        </div>
+        ${event.timestamp ? `<div class="text-[8px] text-white/90 font-bold mt-0.5 whitespace-nowrap">${event.timestamp}</div>` : ''}
+      </div>`;
 
       const marker = L.marker([lat, lng], {
-        icon: L.divIcon({ html, className: 'branch-marker', iconSize: [100, 40], iconAnchor: [50, 20] }),
+        icon: L.divIcon({ html, className: 'branch-marker bg-transparent', iconSize: [100, 46], iconAnchor: [50, 23] }),
       });
 
       // Safe popup — use textContent via DOM, not innerHTML
@@ -199,8 +205,35 @@ function TrackingMap({ events }: TrackingMapProps) {
     const coords = pathEntries.map(e => [e.lat, e.lng] as [number, number]);
     polylineRef.current = L.polyline(
       coords,
-      { color: '#ff6b00', opacity: 0.85, weight: 8, lineCap: 'round', lineJoin: 'round', dashArray: '12, 16' },
+      { color: '#ff6b00', opacity: 0.85, weight: 6, lineCap: 'round', lineJoin: 'round', dashArray: '10, 12' },
     ).addTo(map);
+
+    // Draw directional arrows along the path
+    for (let i = 0; i < pathEntries.length - 1; i++) {
+      const p1 = pathEntries[i];
+      const p2 = pathEntries[i + 1];
+
+      // Calculate midpoint
+      const midLat = (p1.lat + p2.lat) / 2;
+      const midLng = (p1.lng + p2.lng) / 2;
+
+      // Calculate bearing (angle)
+      const dLng = p2.lng - p1.lng;
+      const dLat = p2.lat - p1.lat;
+      const angle = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+
+      const arrowHtml = `<div style="transform: rotate(${angle}deg); display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
+        <span class="material-symbols-outlined" style="color: #ff6b00; font-size: 20px; font-weight: 900; text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0px 2px 4px rgba(0,0,0,0.3);">navigation</span>
+      </div>`;
+
+      const arrowMarker = L.marker([midLat, midLng], {
+        icon: L.divIcon({ html: arrowHtml, className: 'bg-transparent border-none', iconSize: [24, 24], iconAnchor: [12, 12] }),
+        interactive: false,
+        keyboard: false
+      });
+      arrowMarker.addTo(map);
+      markersRef.current.push(arrowMarker);
+    }
 
     if (coords.length > 1) {
       const bounds = L.latLngBounds(coords);
