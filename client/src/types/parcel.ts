@@ -18,6 +18,8 @@ export interface Parcel {
   'วันที่รับ'?: string;
   'หมายเหตุ'?: string;
   'รูปยืนยัน'?: string;
+  'Latitude'?: number;
+  'Longitude'?: number;
 }
 
 export interface ParcelSummary {
@@ -83,6 +85,8 @@ export interface ConfirmReceiptPayload {
   trackingID: string;
   photoUrl: string;
   note?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ConfirmReceiptResponse {

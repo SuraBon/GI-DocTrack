@@ -181,8 +181,10 @@ export async function confirmReceipt(
   trackingID: string,
   photoUrl: string,
   note?: string,
+  latitude?: number,
+  longitude?: number,
 ): Promise<ConfirmReceiptResponse> {
-  const payload: ConfirmReceiptPayload = { action: 'confirmReceipt', trackingID, photoUrl, note };
+  const payload: ConfirmReceiptPayload = { action: 'confirmReceipt', trackingID, photoUrl, note, latitude, longitude };
   try {
     return await callAPI<ConfirmReceiptResponse>(payload);
   } catch (err) {

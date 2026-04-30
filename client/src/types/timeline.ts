@@ -14,6 +14,8 @@ export interface TimelineEvent {
   location?: string;
   icon?: string;
   imageUrl?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface ParcelTimeline {

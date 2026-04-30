@@ -59,10 +59,12 @@ function setup() {
       "รายละเอียด",
       "หมายเหตุ",
       "สถานะ",
-      "รูปยืนยัน"
+      "รูปยืนยัน",
+      "Latitude",
+      "Longitude"
     ]);
-    sheet.getRange("A1:K1").setFontWeight("bold");
-    sheet.getRange("A1:K1").setBackground("#f3f4f6");
+    sheet.getRange("A1:M1").setFontWeight("bold");
+    sheet.getRange("A1:M1").setBackground("#f3f4f6");
   }
 }
 
@@ -134,6 +136,8 @@ function handleCreateParcel(payload) {
     payload.description || "",
     payload.note || "",
     "รอจัดส่ง",
+    "",
+    "",
     ""
   ]);
 
@@ -317,8 +321,23 @@ function handleConfirmReceipt(payload) {
         } else {
           noteToSave = noteToSave.replace(/ รูปภาพ: \|IMAGE_URL\|/g, '');
         }
+        
+        // Handle GPS coordinate replacement in the note string
+        if (payload.latitude && payload.longitude) {
+          noteToSave = noteToSave.replace(/\|LAT\|/g, payload.latitude);
+          noteToSave = noteToSave.replace(/\|LNG\|/g, payload.longitude);
+        } else {
+          noteToSave = noteToSave.replace(/ GPS: \|LAT\|,\|LNG\|/g, '');
+        }
+
         const existingNote = sheet.getRange(rowIndex, 9).getValue();
         sheet.getRange(rowIndex, 9).setValue(existingNote ? existingNote + "\n" + noteToSave : noteToSave);
+      }
+
+      // Save raw coordinates into new columns (if provided)
+      if (typeof payload.latitude === 'number' && typeof payload.longitude === 'number') {
+        sheet.getRange(rowIndex, 12).setValue(payload.latitude);
+        sheet.getRange(rowIndex, 13).setValue(payload.longitude);
       }
 
       return createJsonResponse({ success: true });

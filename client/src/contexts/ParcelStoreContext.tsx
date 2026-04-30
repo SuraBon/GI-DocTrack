@@ -29,6 +29,8 @@ interface ParcelStoreValue {
     trackingID: string,
     photoUrl: string,
     note?: string,
+    latitude?: number,
+    longitude?: number,
   ) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -82,10 +84,10 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const confirmReceipt = useCallback<ParcelStoreValue['confirmReceipt']>(
-    async (trackingID, photoUrl, note) => {
+    async (trackingID, photoUrl, note, latitude, longitude) => {
       setError(null);
       try {
-        const res = await parcelService.confirmReceipt(trackingID, photoUrl, note);
+        const res = await parcelService.confirmReceipt(trackingID, photoUrl, note, latitude, longitude);
         if (res.success) {
           await loadParcels();
         } else {

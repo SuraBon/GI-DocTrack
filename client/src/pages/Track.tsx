@@ -82,9 +82,12 @@ export default function Track() {
 
   const timelineEvents = useMemo(() => parcel ? parseParcelTimeline(parcel) : [], [parcel]);
 
-  /** True when every branch in the parcel is unknown — map would show nothing useful. */
-  const hasKnownBranches = useMemo(() => {
+  /** True when we have location data to display on the map. */
+  const hasLocationData = useMemo(() => {
     if (!parcel) return false;
+    // GPS coordinates available?
+    if (typeof parcel['Latitude'] === 'number' && typeof parcel['Longitude'] === 'number') return true;
+    // Known branch coordinates available?
     return (
       BRANCHES_WITH_COORDS.includes(parcel['สาขาผู้ส่ง']) ||
       BRANCHES_WITH_COORDS.includes(parcel['สาขาผู้รับ'])
@@ -303,7 +306,7 @@ export default function Track() {
                     </p>
                     <Timeline events={timelineEvents} />
                   </div>
-                  {hasKnownBranches ? (
+                  {hasLocationData ? (
                     <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm h-[260px]">
                       <TrackingMap events={timelineEvents} />
                     </div>

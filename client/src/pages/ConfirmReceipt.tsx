@@ -12,6 +12,8 @@ import { getBranches, getParcel } from '@/lib/parcelService';
 import { formatThaiDateTime } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 import type { Parcel } from '@/types/parcel';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { MapView } from '@/components/Map';
 
 const OTHER_BRANCH_VALUE = '__OTHER_BRANCH__';
 
@@ -61,6 +63,8 @@ export default function ConfirmReceipt({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
+  const { position, status: geoStatus, errorMessage: geoError, requestLocation, reset: resetGeo } = useGeolocation();
+
   const [isForwarding, setIsForwarding] = useState(false);
   const [forwardSender, setForwardSender] = useState('');
   const [forwardFromBranch, setForwardFromBranch] = useState('');
@@ -99,6 +103,7 @@ export default function ConfirmReceipt({
     setCheckedParcel(null);
     setIsDelivered(false);
     setIsConfirmDialogOpen(false);
+    resetGeo();
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     onInitialTrackingIdConsumed?.();
@@ -151,6 +156,7 @@ export default function ConfirmReceipt({
         } else {
           toast.success(`พบข้อมูลพัสดุ ปลายทาง: ${p['สาขาผู้รับ']}`);
           setCurrentStep(2); // Auto move to photo step
+          requestLocation(); // Request GPS automatically on step 2
         }
       } else {
         toast.error('ไม่พบข้อมูลพัสดุ หรือหมายเลขติดตามไม่ถูกต้อง');
@@ -245,21 +251,29 @@ export default function ConfirmReceipt({
       const finalForwardFromBranch = forwardFromBranch === OTHER_BRANCH_VALUE ? customForwardFromBranch.trim() : forwardFromBranch.trim();
       const finalForwardToBranch = forwardToBranch === OTHER_BRANCH_VALUE ? customForwardToBranch.trim() : forwardToBranch.trim();
 
+      const gpsToken = position ? ` GPS: |LAT|,|LNG|` : '';
+
       if (isForwarding && finalForwardToBranch) {
-        additionalNotes.push(`[ส่งต่อโดย: ${forwardSender} จากสาขา: ${finalForwardFromBranch} ไปสาขา: ${finalForwardToBranch} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
+        additionalNotes.push(`[ส่งต่อโดย: ${forwardSender} จากสาขา: ${finalForwardFromBranch} ไปสาขา: ${finalForwardToBranch} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|${gpsToken}]`);
       }
       if (isProxy && proxyName) {
-        additionalNotes.push(`[รับแทนโดย: ${proxyName} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
+        additionalNotes.push(`[รับแทนโดย: ${proxyName} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|${gpsToken}]`);
       }
       if (!isForwarding && !isProxy) {
-        additionalNotes.push(`[รับพัสดุเรียบร้อย เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|]`);
+        additionalNotes.push(`[รับพัสดุเรียบร้อย เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|${gpsToken}]`);
       }
 
       if (additionalNotes.length > 0) {
         finalNote = additionalNotes.join(' ') + (note ? ` ${note}` : '');
       }
 
-      const response = await confirmReceipt(trackingId, photoUrl, finalNote);
+      const response = await confirmReceipt(
+        trackingId,
+        photoUrl,
+        finalNote,
+        position?.latitude,
+        position?.longitude
+      );
       if (response && response.success) {
         toast.success('บันทึกข้อมูลเรียบร้อยแล้ว');
         // Reset all state
@@ -278,6 +292,7 @@ export default function ConfirmReceipt({
         setProxyName('');
         setCheckedParcel(null);
         setIsDelivered(false);
+        resetGeo();
       } else {
         toast.error(response?.error ? `เกิดข้อผิดพลาด: ${response.error}` : 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่');
       }
@@ -422,6 +437,46 @@ export default function ConfirmReceipt({
               </div>
             )}
 
+            {/* GPS Status Indicator */}
+            <div className={`p-4 rounded-2xl flex items-start gap-3 border ${
+              geoStatus === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+              geoStatus === 'error' || geoStatus === 'denied' ? 'bg-error-container/30 border-error/20 text-error' :
+              'bg-surface-container-low border-outline-variant text-on-surface-variant'
+            }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                geoStatus === 'success' ? 'bg-green-100 text-green-700' :
+                geoStatus === 'error' || geoStatus === 'denied' ? 'bg-error-container text-error' :
+                'bg-surface-container text-on-surface-variant'
+              }`}>
+                <span className={`material-symbols-outlined text-lg ${geoStatus === 'loading' ? 'animate-spin' : ''}`}>
+                  {geoStatus === 'success' ? 'my_location' :
+                   geoStatus === 'loading' ? 'progress_activity' :
+                   geoStatus === 'error' || geoStatus === 'denied' ? 'location_disabled' : 'location_searching'}
+                </span>
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-sm">
+                  {geoStatus === 'success' ? 'ดึงพิกัด GPS สำเร็จ' :
+                   geoStatus === 'loading' ? 'กำลังดึงพิกัด GPS...' :
+                   geoStatus === 'denied' ? 'ไม่ได้รับอนุญาตให้เข้าถึง GPS' :
+                   geoStatus === 'error' ? 'ไม่สามารถดึงพิกัด GPS ได้' : 'รอการดึงพิกัด GPS'}
+                </p>
+                <p className="text-xs mt-0.5 opacity-80">
+                  {geoStatus === 'success' && position ? `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)} (ความแม่นยำ ~${Math.round(position.accuracy)}m)` :
+                   geoError ? geoError :
+                   'ระบบต้องการพิกัด GPS ในการยืนยันพัสดุ'}
+                </p>
+                {(geoStatus === 'error' || geoStatus === 'denied') && (
+                  <button
+                    onClick={requestLocation}
+                    className="mt-2 text-xs font-bold underline underline-offset-2 hover:opacity-80"
+                  >
+                    ลองใหม่อีกครั้ง
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="flex gap-4">
               <button
                 onClick={() => {
@@ -429,6 +484,7 @@ export default function ConfirmReceipt({
                   // reset photo state เมื่อย้อนกลับ
                   setPhotoPreview(null);
                   setPhotoUrl('');
+                  resetGeo();
                   if (fileInputRef.current) fileInputRef.current.value = '';
                 }}
                 className="flex items-center justify-center gap-2 h-14 flex-1 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
@@ -438,7 +494,8 @@ export default function ConfirmReceipt({
               </button>
               <button
                 onClick={() => setCurrentStep(3)}
-                disabled={!photoPreview}
+                disabled={!photoPreview || geoStatus !== 'success'}
+                title={geoStatus !== 'success' ? "กรุณาเปิดใช้งาน GPS ก่อน" : ""}
                 className="flex items-center justify-center gap-2 h-14 flex-[2] bg-primary text-white rounded-2xl font-display font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
               >
                 ขั้นตอนถัดไป
@@ -734,6 +791,47 @@ export default function ConfirmReceipt({
                 <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-white pointer-events-none">
                   <span className="material-symbols-outlined text-base shadow-sm">photo_camera</span>
                   <span className="text-xs font-bold uppercase tracking-wider drop-shadow-md">รูปหลักฐาน</span>
+                </div>
+              </div>
+            )}
+
+            {/* GPS Map Preview */}
+            {position && (
+              <div className="bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/20">
+                <div className="px-4 py-2 bg-surface-container-low/50 border-b border-outline-variant/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-on-surface-variant">
+                    <span className="material-symbols-outlined text-sm text-green-600">my_location</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">พิกัด GPS ที่บันทึก</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-on-surface-variant/60">
+                    {position.latitude.toFixed(6)}, {position.longitude.toFixed(6)}
+                  </span>
+                </div>
+                <div className="h-32 w-full relative pointer-events-none">
+                  <MapView 
+                    className="w-full h-full" 
+                    initialCenter={{ lat: position.latitude, lng: position.longitude }} 
+                    initialZoom={16}
+                    onMapReady={(map) => {
+                      // disable interactions for simple preview
+                      map.dragging.disable();
+                      map.touchZoom.disable();
+                      map.doubleClickZoom.disable();
+                      map.scrollWheelZoom.disable();
+                      map.boxZoom.disable();
+                      map.keyboard.disable();
+                      if (map.tap) map.tap.disable();
+                      
+                      const icon = L.divIcon({
+                        className: 'custom-gps-marker',
+                        html: `<div style="width:16px;height:16px;background:#16a34a;border:3px solid white;border-radius:50%;box-shadow:0 0 10px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                      });
+                      L.marker([position.latitude, position.longitude], { icon }).addTo(map);
+                    }}
+                  />
+                  <div className="absolute inset-0 shadow-[inset_0_0_20px_rgba(0,0,0,0.1)] z-[400] pointer-events-none" />
                 </div>
               </div>
             )}

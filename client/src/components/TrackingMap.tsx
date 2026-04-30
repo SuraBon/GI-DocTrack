@@ -33,6 +33,24 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Resolve coordinates for a timeline event — prefer real GPS over branch lookup. */
+function resolveCoords(event: TimelineEvent): { lat: number; lng: number } | null {
+  // Prefer real GPS coordinates
+  if (
+    typeof event.latitude === 'number' &&
+    typeof event.longitude === 'number' &&
+    isFinite(event.latitude) &&
+    isFinite(event.longitude)
+  ) {
+    return { lat: event.latitude, lng: event.longitude };
+  }
+  // Fallback to branch lookup
+  if (event.location && BRANCH_COORDS[event.location]) {
+    return BRANCH_COORDS[event.location];
+  }
+  return null;
+}
+
 interface TrackingMapProps {
   events: TimelineEvent[];
 }
@@ -43,27 +61,56 @@ function TrackingMap({ events }: TrackingMapProps) {
   const polylineRef = useRef<L.Polyline | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
 
-  // Derive the ordered list of known-coordinate branches from the timeline.
-  // Memoised so it only recomputes when events change.
-  const { pathBranches, hasUnknownBranch } = useMemo(() => {
-    const locations: string[] = [];
+  // Derive the ordered list of coordinate-bearing events from the timeline.
+  const { pathEntries, hasUnresolved } = useMemo(() => {
+    const entries: { lat: number; lng: number; label: string; isGps: boolean; isLast: boolean; event: TimelineEvent }[] = [];
+
     for (const e of events) {
-      if (e.location && BRANCH_COORDS[e.location]) {
-        locations.push(e.location);
+      const coords = resolveCoords(e);
+      if (coords) {
+        const isGps = typeof e.latitude === 'number' && typeof e.longitude === 'number';
+        entries.push({
+          ...coords,
+          label: e.location || (isGps ? 'GPS' : ''),
+          isGps,
+          isLast: false,
+          event: e,
+        });
       }
-      if (e.description?.includes('ไปยังสาขา:')) {
+
+      // Also check for forward destinations in the description
+      if (!resolveCoords(e) && e.description?.includes('ไปยังสาขา:')) {
         const match = e.description.match(/ไปยังสาขา:\s*(.*)/);
         const dest = match?.[1]?.trim();
-        if (dest && BRANCH_COORDS[dest]) locations.push(dest);
+        if (dest && BRANCH_COORDS[dest]) {
+          entries.push({
+            ...BRANCH_COORDS[dest],
+            label: dest,
+            isGps: false,
+            isLast: false,
+            event: e,
+          });
+        }
       }
     }
-    // Deduplicate consecutive identical branches
-    const path = locations.filter((loc, i, arr) => i === 0 || loc !== arr[i - 1]);
-    const hasUnknown = events.some(e => e.location && !BRANCH_COORDS[e.location]);
-    return { pathBranches: path, hasUnknownBranch: hasUnknown };
+
+    // Deduplicate consecutive identical coordinates
+    const deduped = entries.filter((entry, i, arr) => {
+      if (i === 0) return true;
+      const prev = arr[i - 1];
+      return entry.lat !== prev.lat || entry.lng !== prev.lng;
+    });
+
+    // Mark the last entry
+    if (deduped.length > 0) {
+      deduped[deduped.length - 1].isLast = true;
+    }
+
+    const hasUnresolved = events.some(e => e.location && !resolveCoords(e));
+    return { pathEntries: deduped, hasUnresolved };
   }, [events]);
 
-  const hasRouteData = pathBranches.length > 0;
+  const hasRouteData = pathEntries.length > 0;
 
   const handleMapReady = useCallback((map: L.Map) => {
     mapRef.current = map;
@@ -71,7 +118,7 @@ function TrackingMap({ events }: TrackingMapProps) {
   }, []);
 
   // Stable dep key — only changes when the actual path changes
-  const pathKey = pathBranches.join('|');
+  const pathKey = pathEntries.map(e => `${e.lat},${e.lng}`).join('|');
 
   useEffect(() => {
     if (!mapRef.current || !isMapReady) return;
@@ -88,18 +135,19 @@ function TrackingMap({ events }: TrackingMapProps) {
       return;
     }
 
-    const pathCoords = pathBranches.map(b => BRANCH_COORDS[b]);
-
-    pathCoords.forEach((coord, index) => {
-      const isLast        = index === pathCoords.length - 1;
-      const branchLabel   = pathBranches[index];
-      const safeLabel     = escapeHtml(branchLabel);
-      const iconName      = isLast ? 'local_shipping' : 'location_on';
-      const bgClass       = isLast ? 'bg-primary ring-4 ring-primary/20' : 'bg-blue-600';
+    pathEntries.forEach((entry) => {
+      const { lat, lng, label, isGps, isLast, event } = entry;
+      const safeLabel     = escapeHtml(label || 'GPS');
+      const iconName      = isLast ? 'local_shipping' : isGps ? 'my_location' : 'location_on';
+      const bgClass       = isLast
+        ? 'bg-primary ring-4 ring-primary/20'
+        : isGps
+          ? 'bg-green-600'
+          : 'bg-blue-600';
 
       const html = `<div class="min-w-[70px] h-10 px-3 rounded-2xl border-2 border-white shadow-xl text-[10px] font-black text-white flex items-center justify-center gap-2 uppercase tracking-tighter ${bgClass}"><span class="material-symbols-outlined text-sm">${iconName}</span><span class="truncate">${safeLabel.slice(0, 10)}</span></div>`;
 
-      const marker = L.marker([coord.lat, coord.lng], {
+      const marker = L.marker([lat, lng], {
         icon: L.divIcon({ html, className: 'branch-marker', iconSize: [100, 40], iconAnchor: [50, 20] }),
       });
 
@@ -109,33 +157,57 @@ function TrackingMap({ events }: TrackingMapProps) {
 
       const title = document.createElement('div');
       title.style.cssText = 'font-weight:800;color:#091426;font-size:14px;text-transform:uppercase';
-      title.textContent = branchLabel;
+      title.textContent = label || 'GPS Location';
 
       const sub = document.createElement('div');
       sub.style.cssText = 'color:#61646b;margin-top:6px;font-size:12px;font-weight:500';
-      sub.textContent = isLast ? 'จุดล่าสุดของพัสดุ' : 'จุดแวะพักระหว่างทาง';
+      if (isGps) {
+        sub.textContent = `📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      } else {
+        sub.textContent = isLast ? 'จุดล่าสุดของพัสดุ' : 'จุดแวะพักระหว่างทาง';
+      }
+
+      popupEl.append(title, sub);
+
+      // Show image if available
+      if (event.imageUrl) {
+        const img = document.createElement('img');
+        img.src = event.imageUrl;
+        img.style.cssText = 'width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-top:8px';
+        img.alt = 'หลักฐาน';
+        popupEl.appendChild(img);
+      }
+
+      // Show timestamp if available
+      if (event.timestamp) {
+        const time = document.createElement('div');
+        time.style.cssText = 'margin-top:6px;font-size:11px;color:#61646b;font-weight:500';
+        time.textContent = `🕐 ${event.timestamp}`;
+        popupEl.appendChild(time);
+      }
 
       const footer = document.createElement('div');
       footer.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:11px;color:#fea619;font-weight:700';
-      footer.textContent = 'LOGITRACK NETWORK';
+      footer.textContent = isGps ? 'GPS REAL-TIME LOCATION' : 'LOGITRACK NETWORK';
 
-      popupEl.append(title, sub, footer);
+      popupEl.appendChild(footer);
       marker.bindPopup(popupEl, { autoPanPadding: [20, 20], className: 'logitrack-popup' });
       marker.addTo(map);
       markersRef.current.push(marker);
     });
 
+    const coords = pathEntries.map(e => [e.lat, e.lng] as [number, number]);
     polylineRef.current = L.polyline(
-      pathCoords.map(c => [c.lat, c.lng] as [number, number]),
+      coords,
       { color: '#ff6b00', opacity: 0.85, weight: 8, lineCap: 'round', lineJoin: 'round', dashArray: '12, 16' },
     ).addTo(map);
 
-    if (pathCoords.length > 1) {
-      const bounds = L.latLngBounds(pathCoords.map(c => [c.lat, c.lng] as [number, number]));
+    if (coords.length > 1) {
+      const bounds = L.latLngBounds(coords);
       map.fitBounds(bounds, { padding: [40, 40] });
       if (map.getZoom() > 14) map.setZoom(14);
     } else {
-      map.setView([pathCoords[0].lat, pathCoords[0].lng], 13);
+      map.setView(coords[0], 13);
     }
 
     return () => {
@@ -155,12 +227,14 @@ function TrackingMap({ events }: TrackingMapProps) {
     return () => cancelAnimationFrame(frame);
   }, [isMapReady]);
 
+  const hasGpsMarkers = pathEntries.some(e => e.isGps);
+
   return (
     <div className="w-full rounded-3xl overflow-hidden border border-outline-variant/30 shadow-md bg-white">
       {!hasRouteData && (
         <div className="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-secondary bg-secondary-container/10 border-b border-outline-variant/10 flex items-center gap-2">
           <span className="material-symbols-outlined text-base">info</span>
-          {hasUnknownBranch
+          {hasUnresolved
             ? 'พบสาขาที่ไม่มีพิกัดในระบบ แสดงจุดศูนย์กลางหลัก'
             : 'ยังไม่มีข้อมูลตำแหน่งพัสดุ แสดงจุดศูนย์กลางหลัก'}
         </div>
@@ -176,6 +250,11 @@ function TrackingMap({ events }: TrackingMapProps) {
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-blue-600" /> จุดแวะพัก
           </span>
+          {hasGpsMarkers && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-600" /> GPS จริง
+            </span>
+          )}
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" /> จุดล่าสุด
           </span>
