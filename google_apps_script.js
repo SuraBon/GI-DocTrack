@@ -16,7 +16,8 @@ const MAX_BASE64_LENGTH = 6 * 1024 * 1024;
 const TRACKING_ID_REGEX = /^TRK\d{8}\d{4,}$/;
 
 // นำลิงก์ Google Sheet ของคุณมาใส่ตรงนี้ (ในเครื่องหมายคำพูด)
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/1mVw8ZdW5HXkSfu0CY_M1TI7fqJpt77GAA_pVC9m92AU/edit?usp=sharing";
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1EiIWLpHupOzkrh_Oft74U21XTeAc2KSah8H1t0ufNoQ/edit?gid=0#gid=0";
+const DOC_TRACK_FOLDER_ID = "19OGCWa52JD6nFSBYcesfx51i7KjuAOT-";
 const YEAR_SPREADSHEETS_PROPERTY = "YEAR_SPREADSHEETS";
 const YEAR_SPREADSHEET_PREFIX = "DocTrack";
 const LEGACY_PARCEL_SHEET_NAME = SHEET_NAME;
@@ -56,6 +57,15 @@ function getSpreadsheet() {
     return SpreadsheetApp.getActiveSpreadsheet();
   } catch (e) {
     return SpreadsheetApp.openByUrl(SHEET_URL);
+  }
+}
+
+function getDocTrackFolder() {
+  if (!DOC_TRACK_FOLDER_ID) return null;
+  try {
+    return DriveApp.getFolderById(DOC_TRACK_FOLDER_ID);
+  } catch (e) {
+    return null;
   }
 }
 
@@ -167,9 +177,10 @@ function getYearSpreadsheet(year, createIfMissing) {
     }
 
     try {
+      const configuredFolder = getDocTrackFolder();
       const parentFolders = DriveApp.getFileById(masterId).getParents();
-      if (parentFolders.hasNext()) {
-        const folder = parentFolders.next();
+      const folder = configuredFolder || (parentFolders.hasNext() ? parentFolders.next() : null);
+      if (folder) {
         const newFile = DriveApp.getFileById(ss.getId());
         folder.addFile(newFile);
         DriveApp.getRootFolder().removeFile(newFile);
@@ -841,12 +852,17 @@ function handleConfirmReceipt(payload) {
       if (payload.photoUrl && payload.photoUrl.startsWith('data:image')) {
         try {
           // ค้นหาหรือสร้างโฟลเดอร์หลักชื่อ DocTrack_Images
+          const systemFolder = getDocTrackFolder();
           let rootFolder;
-          const rootFolderIterator = DriveApp.getFoldersByName("DocTrack_Images");
+          const rootFolderIterator = systemFolder
+            ? systemFolder.getFoldersByName("DocTrack_Images")
+            : DriveApp.getFoldersByName("DocTrack_Images");
           if (rootFolderIterator.hasNext()) {
             rootFolder = rootFolderIterator.next();
           } else {
-            rootFolder = DriveApp.createFolder("DocTrack_Images");
+            rootFolder = systemFolder
+              ? systemFolder.createFolder("DocTrack_Images")
+              : DriveApp.createFolder("DocTrack_Images");
             try {
               rootFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
             } catch (e) {
