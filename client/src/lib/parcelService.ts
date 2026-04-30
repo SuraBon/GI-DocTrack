@@ -145,8 +145,8 @@ export async function createParcel(
   }
 }
 
-export async function getParcels(status = 'ทั้งหมด'): Promise<GetParcelsResponse> {
-  const payload: GetParcelsPayload = { action: 'getParcels', status };
+export async function getParcels(status: string = 'ทั้งหมด', limit: number = 50, offset: number = 0): Promise<GetParcelsResponse> {
+  const payload = { action: 'getParcels', status, limit, offset };
   try {
     const res = await callAPI<GetParcelsResponse>(payload);
     if (res.success && Array.isArray(res.parcels)) {
@@ -154,7 +154,7 @@ export async function getParcels(status = 'ทั้งหมด'): Promise<GetP
       if (status !== 'ทั้งหมด') {
         parcels = parcels.filter(p => p['สถานะ'] === status);
       }
-      return { success: true, parcels };
+      return { ...res, parcels };
     }
     return { success: false, parcels: [], error: res.error };
   } catch (err) {
@@ -183,8 +183,12 @@ export async function confirmReceipt(
   note?: string,
   latitude?: number,
   longitude?: number,
+  eventType?: 'FORWARD' | 'PROXY' | 'DELIVERED',
+  location?: string,
+  destLocation?: string,
+  person?: string,
 ): Promise<ConfirmReceiptResponse> {
-  const payload: ConfirmReceiptPayload = { action: 'confirmReceipt', trackingID, photoUrl, note, latitude, longitude };
+  const payload: ConfirmReceiptPayload = { action: 'confirmReceipt', trackingID, photoUrl, note, latitude, longitude, eventType, location, destLocation, person };
   try {
     return await callAPI<ConfirmReceiptResponse>(payload);
   } catch (err) {

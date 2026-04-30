@@ -9,14 +9,87 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
   const events: TimelineEvent[] = [];
   let idCounter = 1;
 
-  const note = parcel['หมายเหตุ'] ?? '';
-
   // Extract GPS coordinates from the parcel record
   const parcelLat = typeof parcel['Latitude'] === 'number' ? parcel['Latitude'] : undefined;
   const parcelLng = typeof parcel['Longitude'] === 'number' ? parcel['Longitude'] : undefined;
 
-  // ── 1. Creation event ──────────────────────────────────────────────────────────
-  // ✅ FIX: 'กำลังจัดส่ง' status should also show creation as completed, not current
+  // ── A. Modern Structured Events ────────────────────────────────────────────────
+  if (parcel.events && parcel.events.length > 0) {
+    for (const evt of parcel.events) {
+      if (evt.eventType === 'CREATED') {
+        events.push({
+          id: String(idCounter++),
+          status: 'completed',
+          title: 'รับพัสดุเข้าระบบ',
+          description: `ผู้ส่ง: ${evt.person} → ผู้รับ: ${evt.destLocation}`,
+          timestamp: evt.timestamp,
+          location: evt.location,
+          latitude: evt.latitude,
+          longitude: evt.longitude,
+        });
+      } else if (evt.eventType === 'FORWARD') {
+        events.push({
+          id: String(idCounter++),
+          status: 'completed',
+          title: 'ส่งต่อพัสดุ',
+          description: `ส่งต่อโดย: ${evt.person} ไปยังสาขา: ${evt.destLocation}`,
+          timestamp: evt.timestamp,
+          location: evt.location,
+          imageUrl: evt.photoUrl,
+          latitude: evt.latitude,
+          longitude: evt.longitude,
+        });
+      } else if (evt.eventType === 'PROXY') {
+        events.push({
+          id: String(idCounter++),
+          status: 'completed',
+          title: 'พัสดุส่งถึงแล้ว',
+          description: `รับแทนโดย: ${evt.person}`,
+          timestamp: evt.timestamp,
+          location: evt.location,
+          imageUrl: evt.photoUrl,
+          latitude: evt.latitude,
+          longitude: evt.longitude,
+        });
+      } else if (evt.eventType === 'DELIVERED') {
+        events.push({
+          id: String(idCounter++),
+          status: 'completed',
+          title: 'พัสดุส่งถึงแล้ว',
+          description: 'ส่งถึงผู้รับเรียบร้อย',
+          timestamp: evt.timestamp,
+          location: evt.location,
+          imageUrl: evt.photoUrl,
+          latitude: evt.latitude,
+          longitude: evt.longitude,
+        });
+      }
+    }
+
+    // Add current status indicator if in transit
+    if (parcel['สถานะ'] === 'กำลังจัดส่ง') {
+      events.push({
+        id: String(idCounter++),
+        status: 'current',
+        title: 'กำลังจัดส่ง',
+        description: 'พัสดุอยู่ระหว่างการเดินทาง',
+        timestamp: '',
+        location: '',
+      });
+    }
+
+    // Also support adding a pending state if just created
+    if (parcel['สถานะ'] === 'รอจัดส่ง' && events.length === 1) {
+       events[0].status = 'current';
+    }
+
+    return events;
+  }
+
+  // ── B. Legacy Regex Parsing Fallback ──────────────────────────────────────────
+  const note = parcel['หมายเหตุ'] ?? '';
+
+  // ── 1. Creation event
   const isCreationCurrent = parcel['สถานะ'] === 'รอจัดส่ง';
   events.push({
     id: String(idCounter++),
@@ -27,14 +100,13 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     location: parcel['สาขาผู้ส่ง'],
   });
 
-  // ── 2. Forward events ──────────────────────────────────────────────────────────
+  // ── 2. Forward events
   const forwardRegex =
     /\[ส่งต่อโดย:\s*(.*?)\s*จากสาขา:\s*(.*?)\s*ไปสาขา:\s*(.*?)\s*เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?(?:\s*GPS:\s*([\d.-]+),\s*([\d.-]+))?\]/g;
 
   const forwardEvents: TimelineEvent[] = [];
   let match: RegExpExecArray | null;
   while ((match = forwardRegex.exec(note)) !== null) {
-    // ✅ FIX: Validate all required groups before pushing
     if (match[1]?.trim() && match[2]?.trim() && match[3]?.trim() && match[4]?.trim()) {
       const fwdLat = match[6] ? parseFloat(match[6]) : undefined;
       const fwdLng = match[7] ? parseFloat(match[7]) : undefined;
@@ -52,8 +124,6 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     }
   }
 
-  // Attach the parcel's proof image to the last forward event when the
-  // parcel is still in transit (not yet delivered).
   if (
     parcel['สถานะ'] !== 'ส่งถึงแล้ว' &&
     parcel['รูปยืนยัน'] &&
@@ -64,12 +134,12 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
 
   events.push(...forwardEvents);
 
-  // ── 3. Terminal event ────────────────────────────────────────────────────
+  // ── 3. Terminal event
   if (parcel['สถานะ'] === 'ส่งถึงแล้ว') {
     const proxyRegex =
-      /\[รับแทนโดย:\s*(.*?)\s*เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?\]/;
+      /\[รับแทนโดย:\s*(.*?)\s*เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?(?:\s*GPS:\s*([\d.-]+),\s*([\d.-]+))?\]/;
     const normalRegex =
-      /\[รับพัสดุเรียบร้อย เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?\]/;
+      /\[รับพัสดุเรียบร้อย เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?(?:\s*GPS:\s*([\d.-]+),\s*([\d.-]+))?\]/;
 
     const proxyMatch  = proxyRegex.exec(note);
     const normalMatch = normalRegex.exec(note);

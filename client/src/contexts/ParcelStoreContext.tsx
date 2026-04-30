@@ -15,7 +15,10 @@ interface ParcelStoreValue {
   summary: ParcelSummary | null;
   loading: boolean;
   error: string | null;
-  loadParcels: (status?: string) => Promise<void>;
+  hasMore: boolean;
+  totalCount: number;
+  loadParcels: (status?: string, reset?: boolean) => Promise<void>;
+  loadMoreParcels: () => Promise<void>;
   createParcel: (
     senderName: string,
     senderBranch: string,
@@ -31,6 +34,10 @@ interface ParcelStoreValue {
     note?: string,
     latitude?: number,
     longitude?: number,
+    eventType?: 'FORWARD' | 'PROXY' | 'DELIVERED',
+    location?: string,
+    destLocation?: string,
+    person?: string,
   ) => Promise<{ success: boolean; error?: string }>;
 }
 
@@ -41,25 +48,50 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   const [summary, setSummary] = useState<ParcelSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentStatus, setCurrentStatus] = useState('ทั้งหมด');
+  const offsetRef = useRef(0);
 
-  const loadParcels = useCallback(async (status = 'ทั้งหมด') => {
+  const loadParcels = useCallback(async (status = 'ทั้งหมด', reset = true) => {
+    setCurrentStatus(status);
+    if (reset) {
+      offsetRef.current = 0;
+      setParcels([]);
+    }
     setLoading(true);
     setError(null);
     try {
-      const res = await parcelService.getParcels(status);
+      const [res, summaryRes] = await Promise.all([
+        parcelService.getParcels(status, 50, offsetRef.current),
+        reset ? parcelService.exportSummary() : Promise.resolve(summary)
+      ]);
+
       if (res.success) {
-        setParcels(res.parcels);
-        setSummary(summarizeParcels(res.parcels));
+        setParcels(prev => reset ? (res.parcels || []) : [...prev, ...(res.parcels || [])]);
+        setHasMore(res.hasMore || false);
+        setTotalCount(res.totalCount || 0);
+        offsetRef.current += (res.parcels || []).length;
+        
+        if (reset && summaryRes) {
+          setSummary(summaryRes);
+        }
         setError(null); // clear any previous error on success
       } else {
         setError(res.error ?? 'ไม่สามารถโหลดข้อมูลได้');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาด');
+      setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [summary]);
+
+  const loadMoreParcels = useCallback(async () => {
+    if (!hasMore || loading) return;
+    await loadParcels(currentStatus, false);
+  }, [hasMore, loading, currentStatus, loadParcels]);
 
   const createParcel = useCallback<ParcelStoreValue['createParcel']>(
     async (senderName, senderBranch, receiverName, receiverBranch, docType, description, note) => {
@@ -84,10 +116,10 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const confirmReceipt = useCallback<ParcelStoreValue['confirmReceipt']>(
-    async (trackingID, photoUrl, note, latitude, longitude) => {
+    async (trackingID, photoUrl, note, latitude, longitude, eventType, location, destLocation, person) => {
       setError(null);
       try {
-        const res = await parcelService.confirmReceipt(trackingID, photoUrl, note, latitude, longitude);
+        const res = await parcelService.confirmReceipt(trackingID, photoUrl, note, latitude, longitude, eventType, location, destLocation, person);
         if (res.success) {
           await loadParcels();
         } else {
@@ -104,8 +136,8 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<ParcelStoreValue>(
-    () => ({ parcels, summary, loading, error, loadParcels, createParcel, confirmReceipt }),
-    [parcels, summary, loading, error, loadParcels, createParcel, confirmReceipt],
+    () => ({ parcels, summary, loading, error, hasMore, totalCount, loadParcels, loadMoreParcels, createParcel, confirmReceipt }),
+    [parcels, summary, loading, error, hasMore, totalCount, loadParcels, loadMoreParcels, createParcel, confirmReceipt],
   );
 
   return <ParcelStoreContext.Provider value={value}>{children}</ParcelStoreContext.Provider>;

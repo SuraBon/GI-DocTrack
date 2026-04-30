@@ -66,6 +66,36 @@ function setup() {
     sheet.getRange("A1:M1").setFontWeight("bold");
     sheet.getRange("A1:M1").setBackground("#f3f4f6");
   }
+
+  let eventSheet = ss.getSheetByName("ParcelEvents");
+  if (!eventSheet) {
+    eventSheet = ss.insertSheet("ParcelEvents");
+    eventSheet.appendRow([
+      "EventID",
+      "TrackingID",
+      "Timestamp",
+      "EventType",
+      "Location",
+      "DestLocation",
+      "Person",
+      "PhotoUrl",
+      "Latitude",
+      "Longitude",
+      "Note"
+    ]);
+    eventSheet.getRange("A1:K1").setFontWeight("bold");
+    eventSheet.getRange("A1:K1").setBackground("#e0f2fe");
+  }
+}
+
+function getEventSheet() {
+  const ss = getSpreadsheet();
+  let eventSheet = ss.getSheetByName("ParcelEvents");
+  if (!eventSheet) {
+    setup(); // Create it via setup
+    eventSheet = ss.getSheetByName("ParcelEvents");
+  }
+  return eventSheet;
 }
 
 function doPost(e) {
@@ -141,33 +171,112 @@ function handleCreateParcel(payload) {
     ""
   ]);
 
+  const eventSheet = getEventSheet();
+  if (eventSheet) {
+    const eventId = "EVT" + Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMddHHmmssSSS") + Math.floor(Math.random() * 1000);
+    eventSheet.appendRow([
+      eventId,
+      trackingId,
+      createdDate,
+      "CREATED",
+      normalizeBranchName(payload.senderBranch || ""),
+      normalizeBranchName(payload.receiverBranch || ""),
+      payload.senderName || "",
+      "",
+      "",
+      "",
+      "รับเข้าระบบ"
+    ]);
+  }
+
   return createJsonResponse({ success: true, trackingId: trackingId });
+}
+
+function getParcelEventsMap() {
+  const eventSheet = getEventSheet();
+  if (!eventSheet) return {};
+  const data = eventSheet.getDataRange().getValues();
+  if (data.length <= 1) return {};
+  
+  const headers = data[0];
+  const eventsByTrackingId = {};
+  
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const trackingId = row[1];
+    
+    const evt = {
+      id: String(row[0]),
+      trackingId: String(trackingId),
+      timestamp: String(row[2]),
+      eventType: String(row[3]),
+      location: String(row[4]),
+      destLocation: String(row[5]),
+      person: String(row[6]),
+      photoUrl: String(row[7]),
+      latitude: row[8] !== "" ? Number(row[8]) : undefined,
+      longitude: row[9] !== "" ? Number(row[9]) : undefined,
+      note: String(row[10])
+    };
+    
+    if (!eventsByTrackingId[trackingId]) {
+      eventsByTrackingId[trackingId] = [];
+    }
+    eventsByTrackingId[trackingId].push(evt);
+  }
+  return eventsByTrackingId;
 }
 
 function handleGetParcels(payload) {
   const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
-  const parcels = [];
+  const allFiltered = [];
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const parcel = {};
-    for (let j = 0; j < headers.length; j++) {
-      parcel[headers[j]] = row[j];
+    if (payload.status === "ทั้งหมด" || !payload.status || row[9] === payload.status) {
+      allFiltered.push(row);
     }
+  }
 
-    if (parcel["วันที่สร้าง"] && parcel["วันที่สร้าง"].getTime) {
-      parcel["วันที่สร้าง"] = Utilities.formatDate(parcel["วันที่สร้าง"], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
-    }
+  const limit = parseInt(payload.limit) || 50;
+  const offset = parseInt(payload.offset) || 0;
+  const totalCount = allFiltered.length;
+  const hasMore = (offset + limit) < totalCount;
 
-    if (payload.status === "ทั้งหมด" || !payload.status || parcel["สถานะ"] === payload.status) {
+  const parcels = [];
+  if (offset < totalCount) {
+    const startIndex = totalCount - 1 - offset;
+    const endIndex = Math.max(-1, startIndex - limit);
+
+    for (let i = startIndex; i > endIndex; i--) {
+      const row = allFiltered[i];
+      const parcel = {};
+      for (let j = 0; j < headers.length; j++) {
+        parcel[headers[j]] = row[j];
+      }
+
+      if (parcel["วันที่สร้าง"] && parcel["วันที่สร้าง"].getTime) {
+        parcel["วันที่สร้าง"] = Utilities.formatDate(parcel["วันที่สร้าง"], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
+      }
+
       parcels.push(parcel);
     }
   }
 
-  parcels.reverse();
-  return createJsonResponse({ success: true, parcels: parcels });
+  // Attach events
+  const eventsMap = getParcelEventsMap();
+  for (let p of parcels) {
+    p.events = eventsMap[p.TrackingID] || [];
+  }
+
+  return createJsonResponse({ 
+    success: true, 
+    parcels: parcels,
+    totalCount: totalCount,
+    hasMore: hasMore
+  });
 }
 
 function handleGetParcel(payload) {
@@ -189,6 +298,9 @@ function handleGetParcel(payload) {
       if (parcel["วันที่สร้าง"] && parcel["วันที่สร้าง"].getTime) {
         parcel["วันที่สร้าง"] = Utilities.formatDate(parcel["วันที่สร้าง"], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
       }
+
+      const eventsMap = getParcelEventsMap();
+      parcel.events = eventsMap[payload.trackingID] || [];
 
       return createJsonResponse({ success: true, parcel: parcel });
     }
@@ -241,21 +353,24 @@ function handleConfirmReceipt(payload) {
       const noteStr = String(row[8] || "");
       
       let isActuallyDelivered = currentStatus === "ส่งถึงแล้ว";
-      if (isActuallyDelivered) {
-        const lastForwardIdx = noteStr.lastIndexOf('[ส่งต่อโดย:');
-        const lastProxyIdx = noteStr.lastIndexOf('[รับแทนโดย:');
-        const lastNormalIdx = noteStr.lastIndexOf('[รับพัสดุเรียบร้อย');
-        const maxIdx = Math.max(lastForwardIdx, lastProxyIdx, lastNormalIdx);
-        if (maxIdx >= 0 && maxIdx === lastForwardIdx) {
-          isActuallyDelivered = false; // it is in transit
-        }
-      }
-
-      if (isActuallyDelivered) {
+      // We don't need regex logic to check if it's delivered anymore if we use eventType, 
+      // but for backward compatibility, we can leave the check or simplify it.
+      if (isActuallyDelivered && payload.eventType === 'FORWARD') {
+        // cannot forward an already delivered parcel
         return createJsonResponse({ success: false, error: "Parcel already delivered" });
       }
 
-      sheet.getRange(rowIndex, 10).setValue("ส่งถึงแล้ว");
+      let newStatus = currentStatus;
+      if (payload.eventType === 'DELIVERED' || payload.eventType === 'PROXY') {
+        newStatus = "ส่งถึงแล้ว";
+      } else if (payload.eventType === 'FORWARD') {
+        newStatus = "กำลังจัดส่ง";
+      }
+
+      // Only update main status if it changed
+      if (newStatus !== currentStatus) {
+        sheet.getRange(rowIndex, 10).setValue(newStatus);
+      }
 
       let finalPhotoUrl = payload.photoUrl;
 
@@ -296,7 +411,7 @@ function handleConfirmReceipt(payload) {
           const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
           const extension = mimeType.split('/')[1] || 'jpg';
 
-          const filename = payload.trackingID + "_receipt." + extension;
+          const filename = payload.trackingID + "_" + new Date().getTime() + "." + extension;
           const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, filename);
 
           const file = folder.createFile(blob);
@@ -312,32 +427,42 @@ function handleConfirmReceipt(payload) {
         }
       }
 
-      sheet.getRange(rowIndex, 11).setValue(finalPhotoUrl);
-
-      if (payload.note) {
-        let noteToSave = payload.note;
-        if (finalPhotoUrl) {
-          noteToSave = noteToSave.replace(/\|IMAGE_URL\|/g, finalPhotoUrl);
-        } else {
-          noteToSave = noteToSave.replace(/ รูปภาพ: \|IMAGE_URL\|/g, '');
-        }
-        
-        // Handle GPS coordinate replacement in the note string
-        if (payload.latitude && payload.longitude) {
-          noteToSave = noteToSave.replace(/\|LAT\|/g, payload.latitude);
-          noteToSave = noteToSave.replace(/\|LNG\|/g, payload.longitude);
-        } else {
-          noteToSave = noteToSave.replace(/ GPS: \|LAT\|,\|LNG\|/g, '');
-        }
-
-        const existingNote = sheet.getRange(rowIndex, 9).getValue();
-        sheet.getRange(rowIndex, 9).setValue(existingNote ? existingNote + "\n" + noteToSave : noteToSave);
+      // Update main sheet's photo if delivered, or leave it. Actually, update it if it's the latest proof.
+      if (finalPhotoUrl) {
+        sheet.getRange(rowIndex, 11).setValue(finalPhotoUrl);
       }
 
-      // Save raw coordinates into new columns (if provided)
+      if (payload.note) {
+        const existingNote = sheet.getRange(rowIndex, 9).getValue();
+        sheet.getRange(rowIndex, 9).setValue(existingNote ? existingNote + "\n" + payload.note : payload.note);
+      }
+
+      // Save raw coordinates into new columns for main tracking (if provided)
       if (typeof payload.latitude === 'number' && typeof payload.longitude === 'number') {
         sheet.getRange(rowIndex, 12).setValue(payload.latitude);
         sheet.getRange(rowIndex, 13).setValue(payload.longitude);
+      }
+
+      // Insert structured event into ParcelEvents
+      if (payload.eventType) {
+        const eventSheet = getEventSheet();
+        if (eventSheet) {
+          const eventId = "EVT" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMddHHmmssSSS") + Math.floor(Math.random() * 1000);
+          const eventTimeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
+          eventSheet.appendRow([
+            eventId,
+            payload.trackingID,
+            eventTimeStr,
+            payload.eventType,
+            payload.location || "",
+            payload.destLocation || "",
+            payload.person || "",
+            finalPhotoUrl || "",
+            typeof payload.latitude === 'number' ? payload.latitude : "",
+            typeof payload.longitude === 'number' ? payload.longitude : "",
+            payload.note || ""
+          ]);
+        }
       }
 
       return createJsonResponse({ success: true });
@@ -379,6 +504,12 @@ function handleSearchParcels(payload) {
 
     parcels.push(parcel);
     if (parcels.length >= 50) break;
+  }
+
+  // Attach events
+  const eventsMap = getParcelEventsMap();
+  for (let p of parcels) {
+    p.events = eventsMap[p.TrackingID] || [];
   }
 
   return createJsonResponse({ success: true, parcels: parcels });

@@ -20,6 +20,21 @@ export interface Parcel {
   'รูปยืนยัน'?: string;
   'Latitude'?: number;
   'Longitude'?: number;
+  'events'?: ParcelEventRecord[];
+}
+
+export interface ParcelEventRecord {
+  id: string;
+  trackingId: string;
+  timestamp: string;
+  eventType: 'FORWARD' | 'PROXY' | 'DELIVERED' | 'CREATED';
+  location: string;
+  destLocation?: string;
+  person?: string;
+  photoUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  note?: string;
 }
 
 export interface ParcelSummary {
@@ -55,11 +70,15 @@ export interface CreateParcelResponse {
 export interface GetParcelsPayload {
   action: 'getParcels';
   status: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface GetParcelsResponse {
   success: boolean;
   parcels: Parcel[];
+  totalCount?: number;
+  hasMore?: boolean;
   error?: string;
 }
 
@@ -87,6 +106,10 @@ export interface ConfirmReceiptPayload {
   note?: string;
   latitude?: number;
   longitude?: number;
+  eventType?: 'FORWARD' | 'PROXY' | 'DELIVERED';
+  location?: string;
+  destLocation?: string;
+  person?: string;
 }
 
 export interface ConfirmReceiptResponse {

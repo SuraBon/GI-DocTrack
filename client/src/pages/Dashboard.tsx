@@ -64,7 +64,7 @@ const TableSkeleton = () => (
 );
 
 export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardProps) {
-  const { parcels, summary, loading, loadParcels } = useParcelStore();
+  const { parcels, summary, loading, loadParcels, hasMore, totalCount, loadMoreParcels } = useParcelStore();
   const [filteredParcels, setFilteredParcels] = useState<Parcel[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ทั้งหมด');
@@ -429,6 +429,22 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
                   <span className="material-symbols-outlined text-base">last_page</span>
                 </button>
               </div>
+            )}
+            
+            {/* Backend Load More Button */}
+            {hasMore && (
+              <button
+                onClick={loadMoreParcels}
+                disabled={loading}
+                className="text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-sm">download</span>
+                )}
+                โหลดข้อมูลเพิ่ม
+              </button>
             )}
           </div>
         )}

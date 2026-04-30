@@ -245,34 +245,39 @@ export default function ConfirmReceipt({
     setIsConfirmDialogOpen(false);
     setIsLoading(true);
     try {
-      let finalNote = note;
-      const additionalNotes = [];
-      const nowStr = formatThaiDateTime(new Date().toISOString());
+      let eventType: 'FORWARD' | 'PROXY' | 'DELIVERED' | undefined;
+      let eventLocation: string | undefined;
+      let eventDestLocation: string | undefined;
+      let eventPerson: string | undefined;
+
       const finalForwardFromBranch = forwardFromBranch === OTHER_BRANCH_VALUE ? customForwardFromBranch.trim() : forwardFromBranch.trim();
       const finalForwardToBranch = forwardToBranch === OTHER_BRANCH_VALUE ? customForwardToBranch.trim() : forwardToBranch.trim();
 
-      const gpsToken = position ? ` GPS: |LAT|,|LNG|` : '';
-
       if (isForwarding && finalForwardToBranch) {
-        additionalNotes.push(`[ส่งต่อโดย: ${forwardSender} จากสาขา: ${finalForwardFromBranch} ไปสาขา: ${finalForwardToBranch} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|${gpsToken}]`);
-      }
-      if (isProxy && proxyName) {
-        additionalNotes.push(`[รับแทนโดย: ${proxyName} เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|${gpsToken}]`);
-      }
-      if (!isForwarding && !isProxy) {
-        additionalNotes.push(`[รับพัสดุเรียบร้อย เมื่อ: ${nowStr} รูปภาพ: |IMAGE_URL|${gpsToken}]`);
-      }
-
-      if (additionalNotes.length > 0) {
-        finalNote = additionalNotes.join(' ') + (note ? ` ${note}` : '');
+        eventType = 'FORWARD';
+        eventLocation = finalForwardFromBranch;
+        eventDestLocation = finalForwardToBranch;
+        eventPerson = forwardSender;
+      } else if (isProxy && proxyName) {
+        eventType = 'PROXY';
+        eventLocation = checkedParcel?.['สาขาผู้รับ'];
+        eventPerson = proxyName;
+      } else if (!isForwarding && !isProxy) {
+        eventType = 'DELIVERED';
+        eventLocation = checkedParcel?.['สาขาผู้รับ'];
+        eventPerson = checkedParcel?.['ผู้รับ'];
       }
 
       const response = await confirmReceipt(
         trackingId,
         photoUrl,
-        finalNote,
+        note, // we only send the user's actual note now!
         position?.latitude,
-        position?.longitude
+        position?.longitude,
+        eventType,
+        eventLocation,
+        eventDestLocation,
+        eventPerson
       );
       if (response && response.success) {
         toast.success('บันทึกข้อมูลเรียบร้อยแล้ว');
