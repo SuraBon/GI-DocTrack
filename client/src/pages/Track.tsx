@@ -95,16 +95,37 @@ export default function Track() {
   }, [parcel]);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl sm:text-3xl font-black text-primary">ติดตามพัสดุ</h1>
-        <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">ค้นหาและติดตามสถานะการจัดส่งแบบเรียลไทม์</p>
-      </div>
+      <section className="relative overflow-hidden rounded-2xl border border-white/60 bg-white/75 p-5 sm:p-7 shadow-sm backdrop-blur-xl">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-primary-fixed/60 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-28 w-2/3 bg-gradient-to-r from-secondary-container/15 to-transparent" />
+        <div className="relative grid gap-6 lg:grid-cols-[1fr_340px] lg:items-end">
+          <div>
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20">
+              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_searching</span>
+            </div>
+            <h1 className="font-display text-3xl sm:text-4xl font-black text-primary">ติดตามพัสดุ</h1>
+            <p className="mt-2 max-w-xl text-sm text-on-surface-variant">ค้นหาและติดตามสถานะการจัดส่งแบบเรียลไทม์</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-outline-variant/30 bg-white/70 p-2 shadow-sm">
+            {[
+              { icon: 'manage_search', label: 'ค้นหาเร็ว' },
+              { icon: 'route', label: 'ดูเส้นทาง' },
+              { icon: 'history', label: 'ประวัติล่าสุด' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl bg-surface-container-lowest px-2 py-3 text-center">
+                <span className="material-symbols-outlined text-lg text-primary">{item.icon}</span>
+                <p className="mt-1 text-[10px] font-black text-on-surface-variant/60">{item.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* Search box */}
-      <div className="bg-white/90 backdrop-blur-sm border border-outline-variant/40 rounded-2xl p-5 sm:p-6 shadow-sm">
+      <div className="bg-white/95 backdrop-blur-sm border border-outline-variant/40 rounded-2xl p-4 sm:p-5 shadow-sm">
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 group">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-xl transition-colors group-focus-within:text-primary">search</span>
@@ -113,16 +134,16 @@ export default function Track() {
               value={trackingId}
               onChange={e => setTrackingId(e.target.value.toUpperCase())}
               autoFocus
-              className="w-full h-12 sm:h-14 pl-11 pr-12 text-base sm:text-lg font-display bg-surface-container-lowest border-2 border-outline-variant/60 focus:border-primary focus:ring-4 focus:ring-primary/8 rounded-xl outline-none transition-all placeholder:text-outline-variant/50"
+              className="w-full h-14 pl-11 pr-12 text-base sm:text-lg font-display bg-surface-container-lowest border-2 border-outline-variant/60 focus:border-primary focus:ring-4 focus:ring-primary/8 rounded-2xl outline-none transition-all placeholder:text-outline-variant/50"
             />
             <button type="button" onClick={handlePaste}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-on-surface-variant/40 hover:text-primary hover:bg-surface-container transition-all"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-xl text-on-surface-variant/40 hover:text-primary hover:bg-surface-container transition-all"
               title="วางจากคลิปบอร์ด">
               <span className="material-symbols-outlined text-xl">content_paste</span>
             </button>
           </div>
           <button type="submit" disabled={isLoading}
-            className="h-12 sm:h-14 px-6 sm:px-8 rounded-xl font-display font-bold text-sm sm:text-base text-white shadow-lg hover:shadow-xl hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+            className="h-14 px-6 sm:px-8 rounded-2xl font-display font-bold text-sm sm:text-base text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:opacity-95 active:scale-95 transition-all disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg, #091426 0%, #1e3a5f 100%)' }}>
             {isLoading
               ? <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
@@ -136,14 +157,14 @@ export default function Track() {
               <span className="material-symbols-outlined text-sm">history</span>ล่าสุด:
             </span>
             {recentSearches.map(id => (
-              <div key={id} className="flex items-center gap-0.5">
+              <div key={id} className="flex items-center gap-0.5 rounded-xl bg-primary/5 p-0.5 ring-1 ring-primary/10">
                 <button onClick={() => { setTrackingId(id); handleSearch(undefined, id); }}
-                  className="px-3 py-1 bg-surface-container-low hover:bg-surface-container text-xs font-mono font-bold text-primary rounded-l-lg border border-outline-variant/30 transition-all active:scale-95">
+                  className="px-3 py-1.5 text-xs font-mono font-bold text-primary rounded-lg transition-all active:scale-95 hover:bg-white">
                   {id}
                 </button>
                 <button
                   onClick={() => removeFromRecent(id)}
-                  className="px-1.5 py-1 bg-surface-container-low hover:bg-error/10 hover:text-error text-on-surface-variant/40 rounded-r-lg border border-l-0 border-outline-variant/30 transition-all"
+                  className="px-1.5 py-1.5 hover:bg-error/10 hover:text-error text-on-surface-variant/40 rounded-lg transition-all"
                   title="ลบออกจากประวัติ"
                 >
                   <span className="material-symbols-outlined text-sm">close</span>
@@ -168,11 +189,11 @@ export default function Track() {
               <span className="material-symbols-outlined text-sm">close</span>ล้าง
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {searchResults.map(p => (
               <div key={p.TrackingID}
                 onClick={() => { setParcel(p); setSearchResults([]); addToRecent(p.TrackingID); }}
-                className="bg-white/90 border border-outline-variant/40 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 transition-all cursor-pointer group">
+                className="bg-white/95 border border-outline-variant/40 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 transition-all cursor-pointer group">
                 <div className="flex justify-between items-start mb-3">
                   <code className="text-xs font-mono font-black text-primary bg-primary/6 px-2.5 py-1 rounded-lg">{p.TrackingID}</code>
                   <StatusBadge status={p['สถานะ']} />
@@ -200,7 +221,7 @@ export default function Track() {
             <span className="material-symbols-outlined text-base">arrow_back</span>ค้นหาใหม่
           </button>
 
-          <div className="bg-white/90 backdrop-blur-sm border border-outline-variant/40 rounded-3xl overflow-hidden shadow-xl">
+          <div className="bg-white/95 backdrop-blur-sm border border-outline-variant/40 rounded-2xl overflow-hidden shadow-xl shadow-primary/10">
             {/* Card header */}
             <div className="p-5 sm:p-7 text-white"
               style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #091426 100%)' }}>

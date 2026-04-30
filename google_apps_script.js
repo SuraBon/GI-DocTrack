@@ -17,6 +17,39 @@ const TRACKING_ID_REGEX = /^TRK\d{8}\d{4,}$/;
 
 // นำลิงก์ Google Sheet ของคุณมาใส่ตรงนี้ (ในเครื่องหมายคำพูด)
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1mVw8ZdW5HXkSfu0CY_M1TI7fqJpt77GAA_pVC9m92AU/edit?usp=sharing";
+const YEAR_SPREADSHEETS_PROPERTY = "YEAR_SPREADSHEETS";
+const YEAR_SPREADSHEET_PREFIX = "DocTrack";
+const LEGACY_PARCEL_SHEET_NAME = SHEET_NAME;
+const PARCEL_SHEET_PREFIX = "Parcels_";
+const PARCEL_HEADERS = [
+  "TrackingID",
+  "วันที่สร้าง",
+  "ผู้ส่ง",
+  "สาขาผู้ส่ง",
+  "ผู้รับ",
+  "สาขาผู้รับ",
+  "ประเภทเอกสาร",
+  "รายละเอียด",
+  "หมายเหตุ",
+  "สถานะ",
+  "รูปยืนยัน",
+  "Latitude",
+  "Longitude",
+  "CreatedBy"
+];
+const EVENT_HEADERS = [
+  "EventID",
+  "TrackingID",
+  "Timestamp",
+  "EventType",
+  "Location",
+  "DestLocation",
+  "Person",
+  "PhotoUrl",
+  "Latitude",
+  "Longitude",
+  "Note"
+];
 
 function getSpreadsheet() {
   try {
@@ -24,6 +57,239 @@ function getSpreadsheet() {
   } catch (e) {
     return SpreadsheetApp.openByUrl(SHEET_URL);
   }
+}
+
+function getYearSpreadsheetName(year) {
+  return YEAR_SPREADSHEET_PREFIX + " " + year;
+}
+
+function getStoredYearSpreadsheetMap() {
+  try {
+    return JSON.parse(PropertiesService.getScriptProperties().getProperty(YEAR_SPREADSHEETS_PROPERTY) || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+function setStoredYearSpreadsheetMap(map) {
+  PropertiesService.getScriptProperties().setProperty(YEAR_SPREADSHEETS_PROPERTY, JSON.stringify(map || {}));
+}
+
+function getMonthSheetName(dateOrYear, month) {
+  let monthNumber = month;
+  if (dateOrYear instanceof Date) {
+    monthNumber = Number(Utilities.formatDate(dateOrYear, Session.getScriptTimeZone(), "MM"));
+  }
+  return PARCEL_SHEET_PREFIX + String(monthNumber).padStart(2, "0");
+}
+
+function getYearFromDate(date) {
+  return Number(Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyy"));
+}
+
+function parseTrackingDate(trackingID) {
+  const match = String(trackingID || "").match(/^TRK(\d{4})(\d{2})(\d{2})/);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3])
+  };
+}
+
+function ensureHeaderRow(sheet, headers, background) {
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  }
+  const currentLastColumn = Math.max(sheet.getLastColumn(), 1);
+  const currentHeaders = sheet.getRange(1, 1, 1, currentLastColumn).getValues()[0].map(String);
+  headers.forEach(function(header) {
+    if (currentHeaders.indexOf(header) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+    }
+  });
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold");
+  if (background) sheet.getRange(1, 1, 1, headers.length).setBackground(background);
+}
+
+function ensureParcelSheetSchema(sheet) {
+  ensureHeaderRow(sheet, PARCEL_HEADERS, "#f3f4f6");
+}
+
+function ensureEventSheetSchema(sheet) {
+  ensureHeaderRow(sheet, EVENT_HEADERS, "#e0f2fe");
+}
+
+function getYearSpreadsheet(year, createIfMissing) {
+  const normalizedYear = Number(year || getYearFromDate(new Date()));
+  const master = getSpreadsheet();
+  const masterId = master.getId();
+  const map = getStoredYearSpreadsheetMap();
+  const mappedId = map[String(normalizedYear)];
+
+  if (mappedId) {
+    try {
+      return SpreadsheetApp.openById(mappedId);
+    } catch (e) {
+      delete map[String(normalizedYear)];
+      setStoredYearSpreadsheetMap(map);
+    }
+  }
+
+  let ss;
+  if (String(normalizedYear) === String(getYearFromDate(new Date())) && master.getName() === getYearSpreadsheetName(normalizedYear)) {
+    ss = master;
+  } else {
+    const yearName = getYearSpreadsheetName(normalizedYear);
+    try {
+      const existingFiles = DriveApp.getFilesByName(yearName);
+      while (existingFiles.hasNext()) {
+        const file = existingFiles.next();
+        if (file.getMimeType() === MimeType.GOOGLE_SHEETS) {
+          ss = SpreadsheetApp.openById(file.getId());
+          break;
+        }
+      }
+    } catch (e) {
+      ss = null;
+    }
+
+    if (ss) {
+      map[String(normalizedYear)] = ss.getId();
+      setStoredYearSpreadsheetMap(map);
+      return ss;
+    }
+
+    if (!createIfMissing) return null;
+
+    if (!ss) {
+      ss = SpreadsheetApp.create(yearName);
+    }
+
+    try {
+      const parentFolders = DriveApp.getFileById(masterId).getParents();
+      if (parentFolders.hasNext()) {
+        const folder = parentFolders.next();
+        const newFile = DriveApp.getFileById(ss.getId());
+        folder.addFile(newFile);
+        DriveApp.getRootFolder().removeFile(newFile);
+      }
+    } catch (e) {
+      // Creating in root is still valid if folder move is not available.
+    }
+  }
+
+  map[String(normalizedYear)] = ss.getId();
+  setStoredYearSpreadsheetMap(map);
+  return ss;
+}
+
+function getYearSpreadsheetsForRead() {
+  const map = getStoredYearSpreadsheetMap();
+  const years = Object.keys(map).map(Number).filter(function(year) { return !isNaN(year); });
+  const currentYear = getYearFromDate(new Date());
+  if (years.indexOf(currentYear) === -1) years.push(currentYear);
+  years.sort(function(a, b) { return b - a; });
+
+  const result = [];
+  const seenIds = {};
+  years.forEach(function(year) {
+    const ss = getYearSpreadsheet(year, year === currentYear);
+    if (ss) {
+      seenIds[ss.getId()] = true;
+      result.push({ year: year, spreadsheet: ss });
+    }
+  });
+
+  const master = getSpreadsheet();
+  const hasLegacyParcelSheets = master.getSheets().some(function(sheet) {
+    return sheet.getName() === LEGACY_PARCEL_SHEET_NAME || sheet.getName().indexOf(PARCEL_SHEET_PREFIX) === 0;
+  });
+  if (hasLegacyParcelSheets && !seenIds[master.getId()]) {
+    result.push({ year: currentYear, spreadsheet: master });
+  }
+
+  return result;
+}
+
+function getParcelSheet(date, createIfMissing) {
+  const targetDate = date || new Date();
+  const year = getYearFromDate(targetDate);
+  const ss = getYearSpreadsheet(year, createIfMissing !== false);
+  if (!ss) return null;
+  const sheetName = getMonthSheetName(targetDate);
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet && createIfMissing !== false) {
+    sheet = ss.insertSheet(sheetName);
+  }
+  if (sheet) ensureParcelSheetSchema(sheet);
+  return sheet;
+}
+
+function getParcelSheetsForRead() {
+  const result = [];
+  getYearSpreadsheetsForRead().forEach(function(entry) {
+    const sheets = entry.spreadsheet.getSheets()
+      .filter(function(sheet) {
+        return sheet.getName() === LEGACY_PARCEL_SHEET_NAME || sheet.getName().indexOf(PARCEL_SHEET_PREFIX) === 0;
+      })
+      .sort(function(a, b) {
+        if (a.getName() === LEGACY_PARCEL_SHEET_NAME) return 1;
+        if (b.getName() === LEGACY_PARCEL_SHEET_NAME) return -1;
+        return b.getName().localeCompare(a.getName());
+      });
+    sheets.forEach(function(sheet) {
+      ensureParcelSheetSchema(sheet);
+      result.push({ year: entry.year, spreadsheet: entry.spreadsheet, sheet: sheet });
+    });
+  });
+  return result;
+}
+
+function getParcelStorageByTrackingId(trackingID) {
+  const parsed = parseTrackingDate(trackingID);
+  if (parsed) {
+    const ss = getYearSpreadsheet(parsed.year, false);
+    if (ss) {
+      const sheet = ss.getSheetByName(getMonthSheetName(parsed.year, parsed.month));
+      if (sheet) {
+        ensureParcelSheetSchema(sheet);
+        return { spreadsheet: ss, sheet: sheet };
+      }
+    }
+  }
+
+  const sheets = getParcelSheetsForRead();
+  for (let i = 0; i < sheets.length; i++) {
+    const sheet = sheets[i].sheet;
+    const data = sheet.getDataRange().getValues();
+    for (let row = 1; row < data.length; row++) {
+      if (String(data[row][0]).trim() === String(trackingID).trim()) {
+        return { spreadsheet: sheets[i].spreadsheet, sheet: sheet };
+      }
+    }
+  }
+  return null;
+}
+
+function getEventSheetForSpreadsheet(ss) {
+  let eventSheet = ss.getSheetByName("ParcelEvents");
+  if (!eventSheet) {
+    eventSheet = ss.insertSheet("ParcelEvents");
+  }
+  ensureEventSheetSchema(eventSheet);
+  return eventSheet;
+}
+
+function getEventSheetForTrackingId(trackingID) {
+  const storage = getParcelStorageByTrackingId(trackingID);
+  if (storage) return getEventSheetForSpreadsheet(storage.spreadsheet);
+  const parsed = parseTrackingDate(trackingID);
+  if (parsed) {
+    const ss = getYearSpreadsheet(parsed.year, true);
+    return getEventSheetForSpreadsheet(ss);
+  }
+  return getEventSheetForSpreadsheet(getYearSpreadsheet(getYearFromDate(new Date()), true));
 }
 
 function getApiKey() {
@@ -62,48 +328,13 @@ function authorizeDrive() {
 
 function setup() {
   const ss = getSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow([
-      "TrackingID",
-      "วันที่สร้าง",
-      "ผู้ส่ง",
-      "สาขาผู้ส่ง",
-      "ผู้รับ",
-      "สาขาผู้รับ",
-      "ประเภทเอกสาร",
-      "รายละเอียด",
-      "หมายเหตุ",
-      "สถานะ",
-      "รูปยืนยัน",
-      "Latitude",
-      "Longitude",
-      "CreatedBy"
-    ]);
-    sheet.getRange("A1:N1").setFontWeight("bold");
-    sheet.getRange("A1:N1").setBackground("#f3f4f6");
-  }
+  getParcelSheet(new Date(), true);
 
   let eventSheet = ss.getSheetByName("ParcelEvents");
   if (!eventSheet) {
     eventSheet = ss.insertSheet("ParcelEvents");
-    eventSheet.appendRow([
-      "EventID",
-      "TrackingID",
-      "Timestamp",
-      "EventType",
-      "Location",
-      "DestLocation",
-      "Person",
-      "PhotoUrl",
-      "Latitude",
-      "Longitude",
-      "Note"
-    ]);
-    eventSheet.getRange("A1:K1").setFontWeight("bold");
-    eventSheet.getRange("A1:K1").setBackground("#e0f2fe");
   }
+  ensureEventSheetSchema(eventSheet);
 
   let pinSheet = ss.getSheetByName("BranchPINs");
   if (!pinSheet) {
@@ -190,50 +421,7 @@ function getUserRecord(employeeId) {
 }
 
 function getEventSheet() {
-  const ss = getSpreadsheet();
-  let eventSheet = ss.getSheetByName("ParcelEvents");
-  if (!eventSheet) {
-    setup(); // Create it via setup
-    eventSheet = ss.getSheetByName("ParcelEvents");
-  }
-  return eventSheet;
-}
-
-function getParcelSheet() {
-  const ss = getSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    setup();
-    sheet = ss.getSheetByName(SHEET_NAME);
-  }
-  ensureParcelSheetSchema(sheet);
-  return sheet;
-}
-
-function ensureParcelSheetSchema(sheet) {
-  const requiredHeaders = [
-    "TrackingID",
-    "วันที่สร้าง",
-    "ผู้ส่ง",
-    "สาขาผู้ส่ง",
-    "ผู้รับ",
-    "สาขาผู้รับ",
-    "ประเภทเอกสาร",
-    "รายละเอียด",
-    "หมายเหตุ",
-    "สถานะ",
-    "รูปยืนยัน",
-    "Latitude",
-    "Longitude",
-    "CreatedBy"
-  ];
-  const lastColumn = Math.max(sheet.getLastColumn(), 1);
-  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String);
-  requiredHeaders.forEach(function(header) {
-    if (headers.indexOf(header) === -1) {
-      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
-    }
-  });
+  return getEventSheetForSpreadsheet(getYearSpreadsheet(getYearFromDate(new Date()), true));
 }
 
 function hasAnyRole(payload, roles) {
@@ -378,8 +566,9 @@ function handleCreateParcel(payload) {
   if (payload.note && String(payload.note).length > MAX_NOTE_LENGTH) {
     return createJsonResponse({ success: false, error: "Note is too long" });
   }
-  const sheet = getParcelSheet();
   const date = new Date();
+  const sheet = getParcelSheet(date, true);
+  const yearSpreadsheet = getYearSpreadsheet(getYearFromDate(date), true);
 
   // ป้องกัน Tracking ID ซ้ำกันโดยใช้ Millisecond ต่อท้าย
   const dateStr = Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMdd");
@@ -404,7 +593,7 @@ function handleCreateParcel(payload) {
     payload.employeeId || ""
   ]);
 
-  const eventSheet = getEventSheet();
+  const eventSheet = getEventSheetForSpreadsheet(yearSpreadsheet);
   if (eventSheet) {
     const eventId = "EVT" + Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMddHHmmssSSS") + Math.floor(Math.random() * 1000);
     eventSheet.appendRow([
@@ -426,87 +615,89 @@ function handleCreateParcel(payload) {
 }
 
 function getParcelEventsMap() {
-  const eventSheet = getEventSheet();
-  if (!eventSheet) return {};
-  const data = eventSheet.getDataRange().getValues();
-  if (data.length <= 1) return {};
-  
-  const headers = data[0];
   const eventsByTrackingId = {};
-  
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const trackingId = row[1];
-    
-    const evt = {
-      id: String(row[0]),
-      trackingId: String(trackingId),
-      timestamp: String(row[2]),
-      eventType: String(row[3]),
-      location: String(row[4]),
-      destLocation: String(row[5]),
-      person: String(row[6]),
-      photoUrl: String(row[7]),
-      latitude: row[8] !== "" ? Number(row[8]) : undefined,
-      longitude: row[9] !== "" ? Number(row[9]) : undefined,
-      note: String(row[10])
-    };
-    
-    if (!eventsByTrackingId[trackingId]) {
-      eventsByTrackingId[trackingId] = [];
+
+  getYearSpreadsheetsForRead().forEach(function(entry) {
+    const eventSheet = entry.spreadsheet.getSheetByName("ParcelEvents");
+    if (!eventSheet) return;
+    const data = eventSheet.getDataRange().getValues();
+    if (data.length <= 1) return;
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const trackingId = row[1];
+
+      const evt = {
+        id: String(row[0]),
+        trackingId: String(trackingId),
+        timestamp: String(row[2]),
+        eventType: String(row[3]),
+        location: String(row[4]),
+        destLocation: String(row[5]),
+        person: String(row[6]),
+        photoUrl: String(row[7]),
+        latitude: row[8] !== "" ? Number(row[8]) : undefined,
+        longitude: row[9] !== "" ? Number(row[9]) : undefined,
+        note: String(row[10])
+      };
+
+      if (!eventsByTrackingId[trackingId]) {
+        eventsByTrackingId[trackingId] = [];
+      }
+      eventsByTrackingId[trackingId].push(evt);
     }
-    eventsByTrackingId[trackingId].push(evt);
-  }
+  });
+
   return eventsByTrackingId;
 }
 
 function handleGetParcels(payload) {
-  const sheet = getParcelSheet();
-  const lastRow = sheet.getLastRow();
-  
-  if (lastRow <= 1) {
+  const limit = parseInt(payload.limit) || 50;
+  const offset = parseInt(payload.offset) || 0;
+  const parcels = [];
+  let skipped = 0;
+  let totalCount = 0;
+  let hasMore = false;
+
+  const sheets = getParcelSheetsForRead();
+  if (!sheets.length) {
     return createJsonResponse({ success: true, parcels: [], totalCount: 0, hasMore: false });
   }
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const limit = parseInt(payload.limit) || 50;
-  const offset = parseInt(payload.offset) || 0;
+  sheets.forEach(function(entry) {
+    const sheet = entry.sheet;
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return;
 
-  const parcels = [];
-  let currentEndRow = lastRow - offset;
-  let hasMore = false;
-  
-  // To avoid hitting execution limits, we will read at most 1000 rows at a time
-  // and accumulate until we hit our 'limit' of matched items.
-  const CHUNK_SIZE = 500;
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const data = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
 
-  while (currentEndRow > 1 && parcels.length < limit) {
-    const startRow = Math.max(2, currentEndRow - CHUNK_SIZE + 1);
-    const numRows = currentEndRow - startRow + 1;
-    
-    // Read this chunk
-    const chunkData = sheet.getRange(startRow, 1, numRows, headers.length).getValues();
-    
-    // Iterate backwards through the chunk
-    for (let i = chunkData.length - 1; i >= 0; i--) {
-      const row = chunkData[i];
-      
-      // RBAC check
+    for (let i = data.length - 1; i >= 0; i--) {
+      const row = data[i];
+
       if (normalizeRole(payload.role) === 'USER') {
         const creatorId = String(row[13] || "").trim();
         if (creatorId !== String(payload.employeeId).trim()) {
-          continue; // Skip if not created by this user
+          continue;
         }
       }
 
-      // Status check
       if (payload.status && payload.status !== "ทั้งหมด") {
         if (row[9] !== payload.status) {
           continue;
         }
       }
 
-      // Map to object
+      totalCount++;
+      if (skipped < offset) {
+        skipped++;
+        continue;
+      }
+      if (parcels.length >= limit) {
+        hasMore = true;
+        continue;
+      }
+
       const parcel = {};
       for (let j = 0; j < headers.length; j++) {
         parcel[headers[j]] = row[j];
@@ -517,31 +708,14 @@ function handleGetParcels(payload) {
       }
 
       parcels.push(parcel);
-      
-      if (parcels.length >= limit) {
-        hasMore = (startRow + i - 1) > 1;
-        break;
-      }
     }
-    
-    currentEndRow = startRow - 1;
-    if (parcels.length < limit && currentEndRow > 1) {
-      hasMore = true;
-    } else if (currentEndRow <= 1) {
-      hasMore = false;
-    }
-  }
+  });
 
-  // Attach events
   const eventsMap = getParcelEventsMap();
   for (let p of parcels) {
     p.events = eventsMap[p.TrackingID] || [];
   }
 
-  // totalCount is estimated as (lastRow - 1) for the client's knowledge
-  const totalCount = normalizeRole(payload.role) === 'USER'
-    ? offset + parcels.length + (hasMore ? 1 : 0)
-    : lastRow - 1;
   return createJsonResponse({ 
     success: true, 
     parcels: parcels,
@@ -554,7 +728,11 @@ function handleGetParcel(payload) {
   if (!validateTrackingID(payload.trackingID)) {
     return createJsonResponse({ success: false, error: "Invalid trackingID format" });
   }
-  const sheet = getParcelSheet();
+  const storage = getParcelStorageByTrackingId(payload.trackingID);
+  if (!storage) {
+    return createJsonResponse({ success: false, error: "Not found" });
+  }
+  const sheet = storage.sheet;
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
 
@@ -584,18 +762,18 @@ function handleExportSummary(payload) {
   if (!hasAnyRole(payload, ['ADMIN', 'MESSENGER'])) {
     return createJsonResponse({ success: false, error: "Forbidden" });
   }
-  const sheet = getParcelSheet();
-  const data = sheet.getDataRange().getValues();
-
   let total = 0, pending = 0, transit = 0, delivered = 0;
 
-  for (let i = 1; i < data.length; i++) {
-    const status = data[i][9];
-    total++;
-    if (status === "รอจัดส่ง") pending++;
-    else if (status === "กำลังจัดส่ง") transit++;
-    else if (status === "ส่งถึงแล้ว") delivered++;
-  }
+  getParcelSheetsForRead().forEach(function(entry) {
+    const data = entry.sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      const status = data[i][9];
+      total++;
+      if (status === "รอจัดส่ง") pending++;
+      else if (status === "กำลังจัดส่ง") transit++;
+      else if (status === "ส่งถึงแล้ว") delivered++;
+    }
+  });
 
   return createJsonResponse({
     success: true,
@@ -624,7 +802,11 @@ function handleConfirmReceipt(payload) {
   if (String(payload.photoUrl).startsWith("data:image") && String(payload.photoUrl).length > MAX_BASE64_LENGTH) {
     return createJsonResponse({ success: false, error: "Image payload is too large" });
   }
-  const sheet = getParcelSheet();
+  const storage = getParcelStorageByTrackingId(payload.trackingID);
+  if (!storage) {
+    return createJsonResponse({ success: false, error: "Tracking ID not found" });
+  }
+  const sheet = storage.sheet;
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
@@ -727,7 +909,7 @@ function handleConfirmReceipt(payload) {
 
       // Insert structured event into ParcelEvents
       if (payload.eventType) {
-        const eventSheet = getEventSheet();
+          const eventSheet = getEventSheetForSpreadsheet(storage.spreadsheet);
         if (eventSheet) {
           const eventId = "EVT" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMddHHmmssSSS") + Math.floor(Math.random() * 1000);
           const eventTimeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
@@ -761,32 +943,37 @@ function handleSearchParcels(payload) {
     return createJsonResponse({ success: true, parcels: [] });
   }
 
-  const sheet = getParcelSheet();
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
   const parcels = [];
 
-  for (let i = data.length - 1; i >= 1; i--) {
-    const row = data[i];
-    const sender = String(row[2] || "").toLowerCase();
-    const receiver = String(row[4] || "").toLowerCase();
-    const tracking = String(row[0] || "").toLowerCase();
+  const sheets = getParcelSheetsForRead();
+  for (let s = 0; s < sheets.length && parcels.length < 50; s++) {
+    const sheet = sheets[s].sheet;
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) continue;
+    const headers = data[0];
 
-    if (tracking.indexOf(query) === -1 && sender.indexOf(query) === -1 && receiver.indexOf(query) === -1) {
-      continue;
+    for (let i = data.length - 1; i >= 1; i--) {
+      const row = data[i];
+      const sender = String(row[2] || "").toLowerCase();
+      const receiver = String(row[4] || "").toLowerCase();
+      const tracking = String(row[0] || "").toLowerCase();
+
+      if (tracking.indexOf(query) === -1 && sender.indexOf(query) === -1 && receiver.indexOf(query) === -1) {
+        continue;
+      }
+
+      const parcel = {};
+      for (let j = 0; j < headers.length; j++) {
+        parcel[headers[j]] = row[j];
+      }
+
+      if (parcel["วันที่สร้าง"] && parcel["วันที่สร้าง"].getTime) {
+        parcel["วันที่สร้าง"] = Utilities.formatDate(parcel["วันที่สร้าง"], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
+      }
+
+      parcels.push(parcel);
+      if (parcels.length >= 50) break;
     }
-
-    const parcel = {};
-    for (let j = 0; j < headers.length; j++) {
-      parcel[headers[j]] = row[j];
-    }
-
-    if (parcel["วันที่สร้าง"] && parcel["วันที่สร้าง"].getTime) {
-      parcel["วันที่สร้าง"] = Utilities.formatDate(parcel["วันที่สร้าง"], Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
-    }
-
-    parcels.push(parcel);
-    if (parcels.length >= 50) break;
   }
 
   // Attach events
@@ -945,12 +1132,14 @@ function handleDeleteParcel(payload) {
   if (!trackingID) return createJsonResponse({ success: false, error: "Missing trackingID" });
   if (!validateTrackingID(trackingID)) return createJsonResponse({ success: false, error: "Invalid trackingID format" });
 
-  const sheet = getParcelSheet();
+  const storage = getParcelStorageByTrackingId(trackingID);
+  if (!storage) return createJsonResponse({ success: false, error: "Parcel not found" });
+  const sheet = storage.sheet;
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === trackingID) {
       sheet.deleteRow(i + 1);
-      const eventSheet = getEventSheet();
+      const eventSheet = getEventSheetForSpreadsheet(storage.spreadsheet);
       if (eventSheet) {
         const eventData = eventSheet.getDataRange().getValues();
         for (let j = eventData.length - 1; j >= 1; j--) {
@@ -974,7 +1163,9 @@ function handleEditParcel(payload) {
   if (!trackingID || !updates) return createJsonResponse({ success: false, error: "Missing fields" });
   if (!validateTrackingID(trackingID)) return createJsonResponse({ success: false, error: "Invalid trackingID format" });
 
-  const sheet = getParcelSheet();
+  const storage = getParcelStorageByTrackingId(trackingID);
+  if (!storage) return createJsonResponse({ success: false, error: "Parcel not found" });
+  const sheet = storage.sheet;
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
 

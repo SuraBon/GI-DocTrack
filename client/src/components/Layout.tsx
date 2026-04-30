@@ -27,6 +27,7 @@ type NavItem = {
   icon: string;
   badge: null;
   roles: AppRole[];
+  accent: string;
 };
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }) => {
@@ -104,14 +105,14 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
     return 'bg-amber-500';
   };
 
-  const allNavItems: NavItem[] = [
-    { id: "dashboard", label: "ภาพรวมระบบ", icon: "dashboard", badge: null, roles: ['ADMIN', 'MESSENGER'] },
-    { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['ADMIN', 'USER'] },
-    { id: "confirm",   label: "ยืนยันรับพัสดุ", icon: "photo_camera", badge: null, roles: ['ADMIN', 'MESSENGER'] },
-    { id: "track",     label: "ติดตามสถานะ", icon: "location_searching", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER', 'GUEST'] },
-    { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['ADMIN'] },
-  ];
   const currentRole = normalizeRole(user?.role ?? 'GUEST');
+  const allNavItems: NavItem[] = [
+    { id: "dashboard", label: currentRole === 'USER' ? "พัสดุของฉัน" : "ภาพรวมระบบ", icon: "dashboard", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER'], accent: "from-sky-400 to-blue-500" },
+    { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['ADMIN', 'USER'], accent: "from-amber-300 to-orange-500" },
+    { id: "confirm",   label: "ยืนยันรับพัสดุ", icon: "photo_camera", badge: null, roles: ['ADMIN', 'MESSENGER'], accent: "from-emerald-300 to-teal-500" },
+    { id: "track",     label: "ติดตามสถานะ", icon: "location_searching", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER', 'GUEST'], accent: "from-violet-300 to-indigo-500" },
+    { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['ADMIN'], accent: "from-rose-300 to-red-500" },
+  ];
   const navItems = allNavItems.filter(item => item.roles.includes(currentRole));
 
   const handleNav = (event: React.MouseEvent<HTMLAnchorElement>, id: PageId) => {
@@ -128,17 +129,19 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
           h-screen fixed left-0 top-0 z-50
           flex flex-col
           transition-all duration-300 ease-in-out
-          ${isSidebarOpen ? 'w-64 px-4 translate-x-0' : 'w-16 px-2 -translate-x-full lg:translate-x-0'}
+          ${isSidebarOpen ? 'w-72 px-4 translate-x-0' : 'w-20 px-3 -translate-x-full lg:translate-x-0'}
         `}
         style={{
-          background: 'linear-gradient(180deg, #0d1f3c 0%, #091426 60%, #060e1a 100%)',
-          borderRight: '1px solid rgba(255,255,255,0.06)',
-          boxShadow: '4px 0 24px rgba(0,0,0,0.25)',
+          background: 'linear-gradient(180deg, #10213c 0%, #091426 54%, #06101f 100%)',
+          borderRight: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '8px 0 32px rgba(5,12,24,0.28)',
         }}
       >
+        <div className="pointer-events-none absolute inset-x-3 top-3 h-36 rounded-[28px] bg-white/[0.035]" />
+        <div className="pointer-events-none absolute bottom-24 left-3 right-3 h-28 rounded-[28px] bg-secondary-container/[0.045]" />
         {/* Logo */}
-        <div className={`flex items-center ${isSidebarOpen ? 'gap-3' : 'justify-center'} px-2 pt-2 pb-6 mb-2`}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0"
+        <div className={`relative flex items-center ${isSidebarOpen ? 'gap-3' : 'justify-center'} px-1 pt-3 pb-5 mb-2`}>
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20 shrink-0 ring-1 ring-white/15"
             style={{ background: 'linear-gradient(135deg, #fea619 0%, #ff8c00 100%)' }}>
             <span className="material-symbols-outlined text-white text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>
               local_shipping
@@ -161,10 +164,10 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-white/5 mx-2 mb-4" />
+        <div className="relative h-px bg-white/8 mx-2 mb-4" />
 
         {/* Nav */}
-        <nav className="flex-1 space-y-1">
+        <nav className="relative flex-1 space-y-2">
           {navItems.map((item) => {
             const active = currentPage === item.id;
             return (
@@ -176,8 +179,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                 aria-current={active ? "page" : undefined}
                 className={`
                   flex items-center
-                  ${isSidebarOpen ? 'gap-3 px-3 rounded-xl' : 'justify-center rounded-xl mx-auto w-10'}
-                  py-2.5 font-display text-sm font-semibold cursor-pointer
+                  ${isSidebarOpen ? 'gap-3 px-3 rounded-2xl' : 'justify-center rounded-2xl mx-auto w-12 h-12'}
+                  ${isSidebarOpen ? 'py-3' : 'py-0'} font-display text-sm font-semibold cursor-pointer
                   transition-all duration-200 relative group
                   ${active
                     ? 'text-white'
@@ -185,32 +188,33 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                   }
                 `}
                 style={active ? {
-                  background: 'linear-gradient(135deg, rgba(254,166,25,0.18) 0%, rgba(254,166,25,0.08) 100%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(254,166,25,0.2)',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 100%)',
+                  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.14), 0 10px 24px rgba(0,0,0,0.18)',
                 } : {}}
               >
                 {/* Active indicator bar — only when expanded */}
-                {active && isSidebarOpen && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-r-full bg-secondary-container" />
+                {active && (
+                  <span className={`absolute ${isSidebarOpen ? 'left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full' : '-left-3 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full'} bg-secondary-container shadow-[0_0_14px_rgba(254,166,25,0.55)]`} />
                 )}
+                <span className={`absolute inset-y-2 left-2 w-1 rounded-full bg-gradient-to-b ${item.accent} opacity-0 transition-opacity ${active && isSidebarOpen ? 'opacity-70' : ''}`} />
                 <span
-                  className={`material-symbols-outlined text-xl shrink-0 transition-colors ${active ? 'text-secondary-container' : ''}`}
+                  className={`material-symbols-outlined text-xl shrink-0 transition-all ${active ? 'text-secondary-container scale-105' : 'group-hover:scale-105'}`}
                   style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}
                 >
                   {item.icon}
                 </span>
-                {isSidebarOpen && <span className="truncate">{item.label}</span>}
+                {isSidebarOpen && <span className="truncate pl-1">{item.label}</span>}
               </a>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="mt-auto pt-4 border-t border-white/5 space-y-1">
+        <div className="relative mt-auto pt-4 border-t border-white/8 space-y-2 pb-3">
           {user ? (
             <>
-              <div className={`flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2 mb-2 bg-white/5 rounded-xl`}>
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 text-white font-bold text-xs uppercase">
+              <div className={`flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 bg-white/[0.07] rounded-2xl ring-1 ring-white/8`}>
+                <div className="w-9 h-9 rounded-2xl bg-white/10 ring-1 ring-white/10 flex items-center justify-center shrink-0 text-white font-black text-xs uppercase">
                   {user.name.charAt(0)}
                 </div>
                 {isSidebarOpen && (
@@ -222,7 +226,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
               </div>
               <button
                 onClick={logout}
-                className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 text-error hover:text-error hover:bg-error/10 font-display text-sm font-semibold cursor-pointer rounded-xl transition-all`}
+                className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 text-red-300 hover:text-white hover:bg-red-500/15 font-display text-sm font-semibold cursor-pointer rounded-2xl transition-all`}
                 title={isSidebarOpen ? undefined : "ออกจากระบบ"}
               >
                 <span className="material-symbols-outlined text-xl">logout</span>
@@ -251,7 +255,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
       )}
 
       {/* ── Main content ── */}
-      <div className={`flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-64' : 'lg:ml-16'}`}>
+      <div className={`flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-72' : 'lg:ml-20'}`}>
         {/* Top bar */}
         <header
           className="sticky top-0 z-40 flex justify-between items-center px-4 lg:px-6 h-14"

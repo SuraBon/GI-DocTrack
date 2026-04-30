@@ -74,13 +74,17 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (res.success) {
-        setParcels(prev => reset ? (res.parcels || []) : [...prev, ...(res.parcels || [])]);
+        let nextParcels: Parcel[] = [];
+        setParcels(prev => {
+          nextParcels = reset ? (res.parcels || []) : [...prev, ...(res.parcels || [])];
+          return nextParcels;
+        });
         setHasMore(res.hasMore || false);
         setTotalCount(res.totalCount || 0);
         offsetRef.current += (res.parcels || []).length;
         
-        if (reset && summaryRes) {
-          setSummary(summaryRes);
+        if (reset) {
+          setSummary(summaryRes || summarizeParcels(nextParcels));
         }
         setError(null); // clear any previous error on success
       } else {

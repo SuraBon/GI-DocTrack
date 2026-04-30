@@ -29,6 +29,8 @@ export default function ParcelTimelineModal({
   onDeleteParcel
 }: ParcelTimelineModalProps) {
   const { user } = useAuth();
+  const role = normalizeRole(user?.role);
+  const canConfirmParcel = role === 'ADMIN' || role === 'MESSENGER';
 
   if (!selectedParcel) return null;
 
@@ -49,7 +51,7 @@ export default function ParcelTimelineModal({
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {selectedParcel['สถานะ'] !== 'ส่งถึงแล้ว' && (
+                {canConfirmParcel && selectedParcel['สถานะ'] !== 'ส่งถึงแล้ว' && (
                   <button
                     onClick={() => { setIsOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
                     className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all"
@@ -113,7 +115,7 @@ export default function ParcelTimelineModal({
                       </p>
                     </div>
                   )}
-                  {normalizeRole(user?.role) === 'ADMIN' && (
+                  {role === 'ADMIN' && (
                     <div className="mt-4 pt-4 border-t border-outline-variant/10 flex gap-3">
                       <button
                         onClick={onDeleteParcel}

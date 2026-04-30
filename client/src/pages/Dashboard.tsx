@@ -20,6 +20,7 @@ import { parseParcelTimeline } from '@/lib/timeline';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatThaiDate } from '@/lib/dateUtils';
 import ParcelTimelineModal from '@/components/ParcelTimelineModal';
+import { normalizeRole } from '@/lib/roles';
 
 interface DashboardProps { isConfigured: boolean; onConfirmParcel: (trackingId: string) => void; }
 
@@ -78,6 +79,17 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const isFetchingRef = useRef(false);
+  const role = normalizeRole(user?.role);
+  const isUserDashboard = role === 'USER';
+  const dashboardTitle = isUserDashboard ? 'พัสดุของฉัน' : 'ภาพรวมระบบ';
+  const dashboardSubtitle = isUserDashboard
+    ? 'ติดตามสถานะพัสดุและเอกสารที่คุณสร้างไว้ทั้งหมด'
+    : 'ภาพรวมการจัดส่งเอกสารและพัสดุแบบเรียลไทม์';
+  const stats = useMemo(() => STATS.map((stat) => (
+    isUserDashboard && stat.key === 'total'
+      ? { ...stat, label: 'พัสดุของฉันทั้งหมด' }
+      : stat
+  )), [isUserDashboard]);
 
   // Single fetch function — loadParcels already recomputes summary internally
   // ✅ FIX: Use ref to avoid stale closure without adding loadParcels to deps
@@ -195,10 +207,18 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-5 sm:p-6 shadow-sm backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary-fixed/55 to-transparent" />
+        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-black text-primary">ภาพรวมระบบ</h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-0.5">ภาพรวมการจัดส่งเอกสารและพัสดุแบบเรียลไทม์</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-black text-primary">{dashboardTitle}</h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-1">{dashboardSubtitle}</p>
+          {isUserDashboard && (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-[11px] font-bold text-primary">
+              <span className="material-symbols-outlined text-sm">person_pin</span>
+              แสดงเฉพาะรายการที่คุณสร้าง
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {/* Countdown pill */}
@@ -213,11 +233,12 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
             <span className={`material-symbols-outlined text-base sm:text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
           </button>
         </div>
+        </div>
       </div>
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {STATS.map(s => (
+        {stats.map(s => (
           <StatsCard key={s.key} label={s.label} icon={s.icon} grad={s.grad} text={s.text}
             count={summary?.[s.key] ?? 0} />
         ))}
