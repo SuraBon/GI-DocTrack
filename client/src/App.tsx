@@ -12,9 +12,9 @@ import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import { isConfigured, onConfigUpdated } from "./lib/parcelService";
 import { useAuth } from "./contexts/AuthContext";
+import { normalizeRole, type AppRole } from "./lib/roles";
 
 type PageId = "dashboard" | "create" | "confirm" | "track" | "users";
-type Role = "Admin" | "Manager" | "User" | "Guest";
 
 const pagePaths: Record<PageId, string> = {
   dashboard: "/dashboard",
@@ -39,15 +39,15 @@ const getRouteFromLocation = (): { page: PageId; isKnownPath: boolean } => {
   return page ? { page, isKnownPath: true } : { page: "track", isKnownPath: false };
 };
 
-const pageRoles: Record<PageId, Role[]> = {
-  dashboard: ["Admin", "Manager"],
-  create: ["Admin", "Manager", "User"],
-  confirm: ["Admin", "Manager"],
-  track: ["Admin", "Manager", "User", "Guest"],
-  users: ["Admin"],
+const pageRoles: Record<PageId, AppRole[]> = {
+  dashboard: ["ADMIN", "MESSENGER"],
+  create: ["ADMIN", "USER"],
+  confirm: ["ADMIN", "MESSENGER"],
+  track: ["ADMIN", "MESSENGER", "USER"],
+  users: ["ADMIN"],
 };
 
-const canAccessPage = (page: PageId, role: Role) => pageRoles[page].includes(role);
+const canAccessPage = (page: PageId, role: AppRole) => pageRoles[page].includes(role);
 
 function App() {
   const { user, loading } = useAuth();
@@ -58,7 +58,6 @@ function App() {
     }
     return route.page;
   });
-  const [isGuestMode, setIsGuestMode] = useState(false);
   const [isConfiguredState, setIsConfiguredState] = useState(isConfigured());
   const [confirmTrackingId, setConfirmTrackingId] = useState<string | null>(null);
 
@@ -95,13 +94,13 @@ function App() {
   };
 
   useEffect(() => {
-    if (loading || (!user && !isGuestMode)) return;
+    if (loading || !user) return;
 
-    const role = (user?.role ?? "Guest") as Role;
+    const role = normalizeRole(user.role);
     if (!canAccessPage(currentPage, role)) {
       navigateToPage("track");
     }
-  }, [currentPage, isGuestMode, loading, navigateToPage, user]);
+  }, [currentPage, loading, navigateToPage, user]);
 
   if (loading) {
     return (
@@ -111,18 +110,18 @@ function App() {
     );
   }
 
-  if (!user && !isGuestMode) {
+  if (!user) {
     return (
       <ErrorBoundary>
         <ThemeProvider defaultTheme="light">
           <Toaster />
-          <Login onGuestAccess={() => setIsGuestMode(true)} />
+          <Login />
         </ThemeProvider>
       </ErrorBoundary>
     );
   }
 
-  const role = (user?.role ?? "Guest") as Role;
+  const role = normalizeRole(user.role);
   const visiblePage = canAccessPage(currentPage, role) ? currentPage : "track";
   const renderCurrentPage = () => {
     switch (visiblePage) {

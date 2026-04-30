@@ -7,6 +7,7 @@ import TrackingMap from '@/components/TrackingMap';
 import type { Parcel } from '@/types/parcel';
 import type { TimelineEvent } from '@/types/timeline';
 import { useAuth } from '@/contexts/AuthContext';
+import { normalizeRole } from '@/lib/roles';
 
 interface ParcelTimelineModalProps {
   isOpen: boolean;
@@ -112,7 +113,7 @@ export default function ParcelTimelineModal({
                       </p>
                     </div>
                   )}
-                  {user?.role === 'Admin' && (
+                  {normalizeRole(user?.role) === 'ADMIN' && (
                     <div className="mt-4 pt-4 border-t border-outline-variant/10 flex gap-3">
                       <button
                         onClick={onDeleteParcel}

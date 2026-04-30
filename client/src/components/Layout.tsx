@@ -3,9 +3,9 @@ import { useParcelStore } from '@/hooks/useParcelStore';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Parcel } from '@/types/parcel';
 import { formatThaiDate } from '@/lib/dateUtils';
+import { normalizeRole, ROLE_LABELS, type AppRole } from '@/lib/roles';
 
 type PageId = "dashboard" | "create" | "confirm" | "track" | "users";
-type Role = "Admin" | "Manager" | "User" | "Guest";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -26,7 +26,7 @@ type NavItem = {
   label: string;
   icon: string;
   badge: null;
-  roles: Role[];
+  roles: AppRole[];
 };
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }) => {
@@ -105,13 +105,14 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   };
 
   const allNavItems: NavItem[] = [
-    { id: "dashboard", label: "ภาพรวมระบบ", icon: "dashboard", badge: null, roles: ['Admin', 'Manager'] },
-    { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['Admin', 'Manager', 'User'] },
-    { id: "confirm",   label: "ยืนยันรับพัสดุ", icon: "photo_camera", badge: null, roles: ['Admin', 'Manager'] },
-    { id: "track",     label: "ติดตามสถานะ", icon: "location_searching", badge: null, roles: ['Admin', 'Manager', 'User', 'Guest'] },
-    { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['Admin'] },
+    { id: "dashboard", label: "ภาพรวมระบบ", icon: "dashboard", badge: null, roles: ['ADMIN', 'MESSENGER'] },
+    { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['ADMIN', 'USER'] },
+    { id: "confirm",   label: "ยืนยันรับพัสดุ", icon: "photo_camera", badge: null, roles: ['ADMIN', 'MESSENGER'] },
+    { id: "track",     label: "ติดตามสถานะ", icon: "location_searching", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER', 'GUEST'] },
+    { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['ADMIN'] },
   ];
-  const navItems = allNavItems.filter(item => item.roles.includes((user?.role ?? 'Guest') as Role));
+  const currentRole = normalizeRole(user?.role ?? 'GUEST');
+  const navItems = allNavItems.filter(item => item.roles.includes(currentRole));
 
   const handleNav = (event: React.MouseEvent<HTMLAnchorElement>, id: PageId) => {
     event.preventDefault();
@@ -215,7 +216,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                 {isSidebarOpen && (
                   <div className="flex flex-col min-w-0 overflow-hidden text-left">
                     <span className="text-white text-xs font-bold truncate">{user.name}</span>
-                    <span className="text-white/40 text-[10px] truncate">{user.role} • {user.branch}</span>
+                    <span className="text-white/40 text-[10px] truncate">{ROLE_LABELS[currentRole]} • {user.branch}</span>
                   </div>
                 )}
               </div>

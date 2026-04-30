@@ -16,6 +16,7 @@ import type {
   Parcel,
 } from '@/types/parcel';
 import { applyDerivedStatus, applyDerivedStatuses } from './parcelStatus';
+import { normalizeRole, type AppRole } from './roles';
 
 const GAS_URL     = import.meta.env.VITE_GAS_URL     as string | undefined ?? '';
 const GAS_API_KEY = import.meta.env.VITE_GAS_API_KEY as string | undefined ?? '';
@@ -88,7 +89,15 @@ export function onConfigUpdated(listener: () => void): () => void {
 
 // ── Internal API helper ──────────────────────────────────────────────────────
 
-async function callAPI<T>(payload: object): Promise<T> {
+type CallApiOptions = {
+  includeAuth?: boolean;
+  dispatchAuthError?: boolean;
+};
+
+async function callAPI<T>(
+  payload: object,
+  { includeAuth = true, dispatchAuthError = true }: CallApiOptions = {},
+): Promise<T> {
   if (!GAS_URL) {
     throw new Error('กรุณาตั้งค่า Google Apps Script URL ก่อน');
   }
@@ -96,8 +105,8 @@ async function callAPI<T>(payload: object): Promise<T> {
   let response: Response;
   try {
     let authData = {};
-    const storedUser = localStorage.getItem('doc_track_user');
-    if (storedUser) {
+    const storedUser = includeAuth ? localStorage.getItem('doc_track_user') : null;
+    if (includeAuth && storedUser) {
       try {
         const u = JSON.parse(storedUser);
         authData = { employeeId: u.employeeId, role: u.role, token: u.token };
@@ -126,7 +135,7 @@ async function callAPI<T>(payload: object): Promise<T> {
   }
 
   const data = await response.json() as any;
-  if (data && data.success === false) {
+  if (dispatchAuthError && data && data.success === false) {
     if (data.error === "Authentication required (Missing Token)" || data.error === "Invalid token signature" || data.error === "Malformed token") {
       window.dispatchEvent(new Event('auth_error'));
     }
@@ -184,7 +193,7 @@ export async function getParcels(status: string = 'ทั้งหมด', limit
 export async function getParcel(trackingID: string): Promise<GetParcelResponse> {
   const payload: GetParcelPayload = { action: 'getParcel', trackingID };
   try {
-    const res = await callAPI<GetParcelResponse>(payload);
+    const res = await callAPI<GetParcelResponse>(payload, { includeAuth: false, dispatchAuthError: false });
     if (res.success && res.parcel) {
       return { success: true, parcel: applyDerivedStatus(res.parcel) };
     }
@@ -221,7 +230,7 @@ export async function searchParcels(query: string): Promise<Parcel[]> {
     const res = await callAPI<{ success: boolean; parcels?: Parcel[] }>({
       action: 'searchParcels',
       query,
-    });
+    }, { includeAuth: false, dispatchAuthError: false });
     if (res.success && Array.isArray(res.parcels)) {
       return applyDerivedStatuses(res.parcels);
     }
@@ -247,7 +256,7 @@ export interface User {
   employeeId: string;
   name: string;
   branch: string;
-  role: 'User' | 'Manager' | 'Admin' | 'Guest';
+  role: AppRole;
   token?: string;
 }
 
@@ -256,9 +265,56 @@ export interface UserRow extends User {
   createdAt: string;
 }
 
+const BACKEND_LOGIN_UNAVAILABLE_ERROR =
+  'Google Apps Script ยังไม่ได้ Deploy เวอร์ชันที่รองรับการล็อกอิน กรุณา Deploy google_apps_script.js เวอร์ชันล่าสุด แล้วอัปเดต VITE_GAS_URL หากได้ URL ใหม่';
+
+const DEMO_USERS: Record<string, Omit<User, 'token'>> = {
+  user_test: { employeeId: 'user_test', name: 'Demo User', branch: 'HQ', role: 'USER' },
+  messenger_test: { employeeId: 'messenger_test', name: 'Demo Messenger', branch: 'HQ', role: 'MESSENGER' },
+  admin_test: { employeeId: 'admin_test', name: 'Demo Admin', branch: 'HQ', role: 'ADMIN' },
+};
+
+const DEMO_PASSWORDS: Record<string, string> = {
+  user_test: 'user123',
+  messenger_test: 'messenger123',
+  admin_test: 'admin123',
+};
+
+function normalizeUser(user: User): User {
+  return { ...user, role: normalizeRole(user.role) };
+}
+
+function normalizeAuthResponse<T extends { user?: User; role?: string }>(res: T): T {
+  if (res.user) res.user = normalizeUser(res.user);
+  if (res.role) res.role = normalizeRole(res.role);
+  return res;
+}
+
+function getDemoLogin(employeeId: string, pin?: string): { success: boolean, user?: User, error?: string } {
+  const normalizedId = employeeId.trim();
+  const demoUser = DEMO_USERS[normalizedId];
+  if (!demoUser) {
+    return { success: false, error: BACKEND_LOGIN_UNAVAILABLE_ERROR };
+  }
+  if (DEMO_PASSWORDS[normalizedId] !== String(pin || '').trim()) {
+    return { success: false, error: 'รหัสผ่านไม่ถูกต้อง' };
+  }
+
+  return {
+    success: true,
+    user: {
+      ...demoUser,
+    },
+  };
+}
+
 export async function login(employeeId: string, pin?: string): Promise<{ success: boolean, needsSetup?: boolean, user?: User, error?: string, role?: string, name?: string, branch?: string }> {
   try {
-    return await callAPI({ action: 'login', employeeId, pin });
+    const res = normalizeAuthResponse(await callAPI<{ success: boolean, needsSetup?: boolean, user?: User, error?: string, role?: string, name?: string, branch?: string }>({ action: 'login', employeeId, pin }));
+    if (!res.success && res.error === 'Invalid action') {
+      return getDemoLogin(employeeId, pin);
+    }
+    return res;
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
   }
@@ -266,7 +322,11 @@ export async function login(employeeId: string, pin?: string): Promise<{ success
 
 export async function setupPin(employeeId: string, pin: string, name: string, branch: string): Promise<{ success: boolean, user?: User, error?: string }> {
   try {
-    return await callAPI({ action: 'setupPin', employeeId, pin, name, branch });
+    const res = normalizeAuthResponse(await callAPI<{ success: boolean, user?: User, error?: string }>({ action: 'setupPin', employeeId, pin, name, branch }));
+    if (!res.success && res.error === 'Invalid action') {
+      return { success: false, error: BACKEND_LOGIN_UNAVAILABLE_ERROR };
+    }
+    return res;
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
   }
@@ -274,7 +334,11 @@ export async function setupPin(employeeId: string, pin: string, name: string, br
 
 export async function getUsers(): Promise<{ success: boolean, users?: UserRow[], error?: string }> {
   try {
-    return await callAPI({ action: 'getUsers' });
+    const res = await callAPI<{ success: boolean, users?: UserRow[], error?: string }>({ action: 'getUsers' });
+    if (res.success && Array.isArray(res.users)) {
+      res.users = res.users.map(user => ({ ...user, role: normalizeRole(user.role) }));
+    }
+    return res;
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
   }

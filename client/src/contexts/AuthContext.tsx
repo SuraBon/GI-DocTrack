@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, login, setupPin } from '@/lib/parcelService';
+import { normalizeRole } from '@/lib/roles';
 
 interface AuthContextValue {
   user: User | null;
@@ -20,7 +21,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedUser = localStorage.getItem('doc_track_user');
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser) as User;
+        const normalizedUser = { ...parsed, role: normalizeRole(parsed.role) };
+        setUser(normalizedUser);
+        localStorage.setItem('doc_track_user', JSON.stringify(normalizedUser));
       } catch (e) {
         localStorage.removeItem('doc_track_user');
       }
@@ -39,24 +43,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginUser = async (employeeId: string, pin?: string) => {
     setLoading(true);
-    const res = await login(employeeId, pin);
-    if (res.success && res.user) {
-      setUser(res.user);
-      localStorage.setItem('doc_track_user', JSON.stringify(res.user));
+    try {
+      const res = await login(employeeId, pin);
+      if (res.success && res.user) {
+        setUser(res.user);
+        localStorage.setItem('doc_track_user', JSON.stringify(res.user));
+      }
+      return res;
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    return res;
   };
 
   const setupUserPin = async (employeeId: string, pin: string, name: string, branch: string) => {
     setLoading(true);
-    const res = await setupPin(employeeId, pin, name, branch);
-    if (res.success && res.user) {
-      setUser(res.user);
-      localStorage.setItem('doc_track_user', JSON.stringify(res.user));
+    try {
+      const res = await setupPin(employeeId, pin, name, branch);
+      if (res.success && res.user) {
+        setUser(res.user);
+        localStorage.setItem('doc_track_user', JSON.stringify(res.user));
+      }
+      return res;
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    return res;
   };
 
   const logout = () => {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getUsers, updateUserRole, UserRow } from '@/lib/parcelService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROLE_LABELS, SYSTEM_ROLES, type SystemRole } from '@/lib/roles';
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
@@ -24,7 +25,7 @@ export default function UserManagement() {
   };
 
   const handleRoleChange = async (employeeId: string, newRole: string) => {
-    if (employeeId === currentUser?.employeeId && newRole !== 'Admin') {
+    if (employeeId === currentUser?.employeeId && newRole !== 'ADMIN') {
       toast.error('ไม่สามารถเปลี่ยนสิทธิ์ของตนเองให้ต่ำลงได้');
       return;
     }
@@ -32,7 +33,7 @@ export default function UserManagement() {
     const res = await updateUserRole(employeeId, newRole);
     if (res.success) {
       toast.success('เปลี่ยนสิทธิ์ผู้ใช้สำเร็จ');
-      setUsers(prev => prev.map(u => u.employeeId === employeeId ? { ...u, role: newRole as 'Admin'|'Manager'|'User' } : u));
+      setUsers(prev => prev.map(u => u.employeeId === employeeId ? { ...u, role: newRole as SystemRole } : u));
     } else {
       toast.error('ไม่สามารถเปลี่ยนสิทธิ์ได้');
     }
@@ -101,9 +102,9 @@ export default function UserManagement() {
                         className="bg-surface-container border border-outline-variant/30 rounded-xl px-3 py-1.5 text-sm font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20"
                         disabled={u.employeeId === currentUser?.employeeId}
                       >
-                        <option value="User">User</option>
-                        <option value="Manager">Manager</option>
-                        <option value="Admin">Admin</option>
+                        {SYSTEM_ROLES.map(role => (
+                          <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                        ))}
                       </select>
                     </td>
                   </tr>

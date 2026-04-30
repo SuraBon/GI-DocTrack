@@ -1,6 +1,12 @@
 const SHEET_NAME = "Parcels";
 const API_KEY_PROPERTY = "API_KEY";
 const ADMIN_INITIAL_PIN_PROPERTY = "ADMIN_INITIAL_PIN";
+const VALID_ROLES = ["USER", "MESSENGER", "ADMIN"];
+const DEMO_USERS = [
+  ["user_test", "Demo User", "HQ", "USER", "user123"],
+  ["messenger_test", "Demo Messenger", "HQ", "MESSENGER", "messenger123"],
+  ["admin_test", "Demo Admin", "HQ", "ADMIN", "admin123"]
+];
 // Fallback key (ใช้กรณีไม่อยากตั้ง Script Properties)
 // ตั้งค่านี้ให้ตรงกับ VITE_GAS_API_KEY แล้ว Deploy ใหม่
 // แนะนำ: อย่า commit ค่า key ลง git ถ้า repo เป็น public
@@ -114,8 +120,9 @@ function setup() {
     usersSheet.getRange("A1:F1").setFontWeight("bold");
     usersSheet.getRange("A1:F1").setBackground("#fef3c7");
     // Add default admin
-    usersSheet.appendRow(["admin", "System Admin", "HQ", "Admin", getInitialAdminPin(), new Date()]);
+    usersSheet.appendRow(["admin", "System Admin", "HQ", "ADMIN", getInitialAdminPin(), new Date()]);
   }
+  ensureDemoUsers(usersSheet);
 }
 
 function getUsersSheet() {
@@ -125,7 +132,41 @@ function getUsersSheet() {
     setup();
     usersSheet = ss.getSheetByName("Users");
   }
+  ensureDemoUsers(usersSheet);
   return usersSheet;
+}
+
+function normalizeRole(role) {
+  const value = String(role || "").trim().toUpperCase();
+  if (value === "ADMIN") return "ADMIN";
+  if (value === "MESSENGER" || value === "MANAGER") return "MESSENGER";
+  if (value === "USER") return "USER";
+  return "GUEST";
+}
+
+function ensureDemoUsers(usersSheet) {
+  const data = usersSheet.getDataRange().getValues();
+  const existingRows = {};
+  for (let i = 1; i < data.length; i++) {
+    existingRows[String(data[i][0] || "").trim()] = i + 1;
+  }
+
+  DEMO_USERS.forEach(function(user) {
+    const rowIndex = existingRows[user[0]];
+    if (rowIndex) {
+      const row = data[rowIndex - 1];
+      if (
+        String(row[1] || "") !== user[1] ||
+        String(row[2] || "") !== user[2] ||
+        normalizeRole(row[3]) !== user[3] ||
+        String(row[4] || "") !== user[4]
+      ) {
+        usersSheet.getRange(rowIndex, 2, 1, 4).setValues([[user[1], user[2], user[3], user[4]]]);
+      }
+    } else {
+      usersSheet.appendRow([user[0], user[1], user[2], user[3], user[4], new Date()]);
+    }
+  });
 }
 
 function getUserRecord(employeeId) {
@@ -139,7 +180,7 @@ function getUserRecord(employeeId) {
         employeeId: targetId,
         name: String(data[i][1] || "").trim(),
         branch: String(data[i][2] || "").trim(),
-        role: String(data[i][3] || "User").trim() || "User",
+        role: normalizeRole(data[i][3] || "USER"),
         pin: String(data[i][4] || "").trim(),
         createdAt: data[i][5]
       };
@@ -196,7 +237,7 @@ function ensureParcelSheetSchema(sheet) {
 }
 
 function hasAnyRole(payload, roles) {
-  return roles.indexOf(String(payload.role || "")) !== -1;
+  return roles.indexOf(normalizeRole(payload.role)) !== -1;
 }
 
 function verifyPin(branchName, pin) {
@@ -266,7 +307,7 @@ function doPost(e) {
       if (protectedActions.includes(action)) {
         return createJsonResponse({ success: false, error: "Authentication required (Missing Token)" });
       }
-      payload.role = 'Guest';
+      payload.role = 'GUEST';
     }
 
     const writeActions = ['createParcel', 'confirmReceipt', 'login', 'setupPin', 'updateUserRole', 'deleteParcel', 'editParcel'];
@@ -323,7 +364,7 @@ function doGet() {
 }
 
 function handleCreateParcel(payload) {
-  if (!hasAnyRole(payload, ['Admin', 'Manager', 'User'])) {
+  if (!hasAnyRole(payload, ['ADMIN', 'USER'])) {
     return createJsonResponse({ success: false, error: "Forbidden" });
   }
   if (!payload.senderName || !payload.senderBranch || !payload.receiverName || !payload.receiverBranch || !payload.docType) {
@@ -451,7 +492,7 @@ function handleGetParcels(payload) {
       const row = chunkData[i];
       
       // RBAC check
-      if (payload.role === 'User') {
+      if (normalizeRole(payload.role) === 'USER') {
         const creatorId = String(row[13] || "").trim();
         if (creatorId !== String(payload.employeeId).trim()) {
           continue; // Skip if not created by this user
@@ -498,7 +539,7 @@ function handleGetParcels(payload) {
   }
 
   // totalCount is estimated as (lastRow - 1) for the client's knowledge
-  const totalCount = payload.role === 'User'
+  const totalCount = normalizeRole(payload.role) === 'USER'
     ? offset + parcels.length + (hasMore ? 1 : 0)
     : lastRow - 1;
   return createJsonResponse({ 
@@ -540,7 +581,7 @@ function handleGetParcel(payload) {
 }
 
 function handleExportSummary(payload) {
-  if (!hasAnyRole(payload, ['Admin', 'Manager'])) {
+  if (!hasAnyRole(payload, ['ADMIN', 'MESSENGER'])) {
     return createJsonResponse({ success: false, error: "Forbidden" });
   }
   const sheet = getParcelSheet();
@@ -563,7 +604,7 @@ function handleExportSummary(payload) {
 }
 
 function handleConfirmReceipt(payload) {
-  if (!hasAnyRole(payload, ['Admin', 'Manager'])) {
+  if (!hasAnyRole(payload, ['ADMIN', 'MESSENGER'])) {
     return createJsonResponse({ success: false, error: "Forbidden" });
   }
   if (!validateTrackingID(payload.trackingID)) {
@@ -789,7 +830,7 @@ function handleLogin(payload) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === employeeId) {
       const storedPin = String(data[i][4] || "").trim();
-      const role = String(data[i][3]).trim() || "User";
+      const role = normalizeRole(data[i][3] || "USER");
       const name = String(data[i][1]).trim();
       const branch = String(data[i][2]).trim();
 
@@ -806,10 +847,10 @@ function handleLogin(payload) {
     }
   }
 
-  // Auto-create new user if not found (can set role to User)
+  // Auto-create new user if not found (can set role to USER)
   // For security, you might want to restrict this in production.
-  sheet.appendRow([employeeId, "Unknown", "Unknown", "User", "", new Date()]);
-  return createJsonResponse({ success: true, needsSetup: true, role: "User", name: "Unknown", branch: "Unknown" });
+  sheet.appendRow([employeeId, "Unknown", "Unknown", "USER", "", new Date()]);
+  return createJsonResponse({ success: true, needsSetup: true, role: "USER", name: "Unknown", branch: "Unknown" });
 }
 
 function handleSetupPin(payload) {
@@ -819,7 +860,7 @@ function handleSetupPin(payload) {
   const branch = String(payload.branch || "").trim();
 
   if (!employeeId || !pin) return createJsonResponse({ success: false, error: "Missing required fields" });
-  if (!/^\d{4}$/.test(pin)) return createJsonResponse({ success: false, error: "PIN must be 4 digits" });
+  if (pin.length < 4) return createJsonResponse({ success: false, error: "Password must be at least 4 characters" });
 
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
@@ -835,7 +876,7 @@ function handleSetupPin(payload) {
       if (branch) sheet.getRange(i + 1, 3).setValue(branch);
       sheet.getRange(i + 1, 5).setValue(pin);
       
-      const role = String(data[i][3]).trim() || "User";
+      const role = normalizeRole(data[i][3] || "USER");
       const finalName = name || String(data[i][1]).trim();
       const finalBranch = branch || String(data[i][2]).trim();
 
@@ -847,7 +888,7 @@ function handleSetupPin(payload) {
 }
 
 function handleGetUsers(payload) {
-  if (payload.role !== 'Admin') {
+  if (normalizeRole(payload.role) !== 'ADMIN') {
     return createJsonResponse({ success: false, error: "Forbidden: Admins only" });
   }
   const sheet = getUsersSheet();
@@ -861,7 +902,7 @@ function handleGetUsers(payload) {
       employeeId: String(row[0]),
       name: String(row[1]),
       branch: String(row[2]),
-      role: String(row[3]),
+      role: normalizeRole(row[3] || "USER"),
       hasPin: !!String(row[4]).trim(),
       createdAt: row[5] ? Utilities.formatDate(new Date(row[5]), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss") : ""
     });
@@ -870,17 +911,17 @@ function handleGetUsers(payload) {
 }
 
 function handleUpdateUserRole(payload) {
-  if (payload.role !== 'Admin') {
+  if (normalizeRole(payload.role) !== 'ADMIN') {
     return createJsonResponse({ success: false, error: "Forbidden: Admins only" });
   }
 
   const targetId = String(payload.targetId || "").trim();
-  const newRole = payload.newRole;
+  const newRole = normalizeRole(payload.newRole);
   if (!targetId || !newRole) return createJsonResponse({ success: false, error: "Missing fields" });
-  if (['Admin', 'Manager', 'User'].indexOf(newRole) === -1) {
+  if (VALID_ROLES.indexOf(newRole) === -1) {
     return createJsonResponse({ success: false, error: "Invalid role" });
   }
-  if (targetId === String(payload.employeeId || "").trim() && newRole !== 'Admin') {
+  if (targetId === String(payload.employeeId || "").trim() && newRole !== 'ADMIN') {
     return createJsonResponse({ success: false, error: "Cannot lower your own admin role" });
   }
 
@@ -896,7 +937,7 @@ function handleUpdateUserRole(payload) {
 }
 
 function handleDeleteParcel(payload) {
-  if (payload.role !== 'Admin') {
+  if (normalizeRole(payload.role) !== 'ADMIN') {
     return createJsonResponse({ success: false, error: "Forbidden: Admins only" });
   }
 
@@ -925,7 +966,7 @@ function handleDeleteParcel(payload) {
 }
 
 function handleEditParcel(payload) {
-  if (payload.role !== 'Admin') {
+  if (normalizeRole(payload.role) !== 'ADMIN') {
     return createJsonResponse({ success: false, error: "Forbidden: Admins only" });
   }
 
