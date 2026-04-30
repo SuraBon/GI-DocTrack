@@ -26,6 +26,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setLoading(false);
+
+    const handleAuthError = () => {
+      setUser(null);
+      localStorage.removeItem('doc_track_user');
+      // Toast handles UI feedback, no need to alert
+    };
+
+    window.addEventListener('auth_error', handleAuthError);
+    return () => window.removeEventListener('auth_error', handleAuthError);
   }, []);
 
   const loginUser = async (employeeId: string, pin?: string) => {

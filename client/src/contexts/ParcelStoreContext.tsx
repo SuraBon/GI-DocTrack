@@ -41,6 +41,8 @@ interface ParcelStoreValue {
     person?: string,
     pin?: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  removeParcelLocally: (trackingID: string) => void;
+  updateParcelLocally: (trackingID: string, updates: Partial<Parcel>) => void;
 }
 
 const ParcelStoreContext = createContext<ParcelStoreValue | null>(null);
@@ -137,9 +139,18 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
     [loadParcels],
   );
 
+  const removeParcelLocally = useCallback((trackingID: string) => {
+    setParcels(prev => prev.filter(p => p.TrackingID !== trackingID));
+    setTotalCount(prev => Math.max(0, prev - 1));
+  }, []);
+
+  const updateParcelLocally = useCallback((trackingID: string, updates: Partial<Parcel>) => {
+    setParcels(prev => prev.map(p => p.TrackingID === trackingID ? { ...p, ...updates } : p));
+  }, []);
+
   const value = useMemo<ParcelStoreValue>(
-    () => ({ parcels, summary, loading, error, hasMore, totalCount, loadParcels, loadMoreParcels, createParcel, confirmReceipt }),
-    [parcels, summary, loading, error, hasMore, totalCount, loadParcels, loadMoreParcels, createParcel, confirmReceipt],
+    () => ({ parcels, summary, loading, error, hasMore, totalCount, loadParcels, loadMoreParcels, createParcel, confirmReceipt, removeParcelLocally, updateParcelLocally }),
+    [parcels, summary, loading, error, hasMore, totalCount, loadParcels, loadMoreParcels, createParcel, confirmReceipt, removeParcelLocally, updateParcelLocally],
   );
 
   return <ParcelStoreContext.Provider value={value}>{children}</ParcelStoreContext.Provider>;

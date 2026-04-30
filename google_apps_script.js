@@ -127,13 +127,22 @@ function getEventSheet() {
 }
 
 function verifyPin(branchName, pin) {
-  const ss = getSpreadsheet();
-  let pinSheet = ss.getSheetByName("BranchPINs");
-  if (!pinSheet) {
-    setup();
-    pinSheet = ss.getSheetByName("BranchPINs");
+  const cache = CacheService.getScriptCache();
+  let pinData = cache.get("BranchPINs");
+
+  if (!pinData) {
+    const ss = getSpreadsheet();
+    let pinSheet = ss.getSheetByName("BranchPINs");
+    if (!pinSheet) {
+      setup();
+      pinSheet = ss.getSheetByName("BranchPINs");
+    }
+    const sheetData = pinSheet.getDataRange().getValues();
+    pinData = JSON.stringify(sheetData);
+    cache.put("BranchPINs", pinData, 600); // 10 minutes cache
   }
-  const data = pinSheet.getDataRange().getValues();
+
+  const data = JSON.parse(pinData);
   let correctPin = "0000"; // Default PIN is 0000 if not specified
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === String(branchName).trim()) {

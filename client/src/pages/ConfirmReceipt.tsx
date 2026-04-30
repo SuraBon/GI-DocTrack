@@ -53,7 +53,7 @@ export default function ConfirmReceipt({
   initialTrackingId?: string | null;
   onInitialTrackingIdConsumed?: () => void;
 }) {
-  const { confirmReceipt } = useParcelStore();
+  const { confirmReceipt, updateParcelLocally, loadParcels } = useParcelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const branches = getBranches();
 
@@ -270,18 +270,30 @@ export default function ConfirmReceipt({
         eventPerson = checkedParcel?.['ผู้รับ'];
       }
 
+      const finalTrackingId = trackingId;
+      const finalEventType = eventType;
+      
+      // Optimistic Update
+      const newStatus = isForwarding ? 'กำลังจัดส่ง' : 'ส่งถึงแล้ว';
+      if (typeof updateParcelLocally === 'function') {
+        updateParcelLocally(finalTrackingId, { 'สถานะ': newStatus });
+      }
+
+      toast.success('กำลังบันทึกข้อมูล...');
+      
       const response = await confirmReceipt(
-        trackingId,
+        finalTrackingId,
         photoUrl,
-        note, // we only send the user's actual note now!
+        note,
         position?.latitude,
         position?.longitude,
-        eventType,
+        finalEventType,
         eventLocation,
         eventDestLocation,
         eventPerson,
         pin
       );
+      
       if (response && response.success) {
         toast.success('บันทึกข้อมูลเรียบร้อยแล้ว');
         // Reset all state
@@ -303,6 +315,8 @@ export default function ConfirmReceipt({
         resetGeo();
       } else {
         toast.error(response?.error ? `เกิดข้อผิดพลาด: ${response.error}` : 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่');
+        // Revert local update
+        if (typeof loadParcels === 'function') loadParcels(true);
       }
     } finally {
       setIsLoading(false);

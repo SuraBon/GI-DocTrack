@@ -125,7 +125,13 @@ async function callAPI<T>(payload: object): Promise<T> {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  return response.json() as Promise<T>;
+  const data = await response.json() as any;
+  if (data && data.success === false) {
+    if (data.error === "Authentication required (Missing Token)" || data.error === "Invalid token signature" || data.error === "Malformed token") {
+      window.dispatchEvent(new Event('auth_error'));
+    }
+  }
+  return data as T;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
