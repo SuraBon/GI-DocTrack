@@ -172,7 +172,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
         toast.success('ลบรายการสำเร็จ');
       } else {
         toast.error('ไม่สามารถลบรายการได้ จะทำการรีโหลดข้อมูล');
-        loadParcels(true); // revert
+        loadParcels(undefined, true); // revert
       }
     }
   };

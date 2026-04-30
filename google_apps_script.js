@@ -1,5 +1,6 @@
 const SHEET_NAME = "Parcels";
 const API_KEY_PROPERTY = "API_KEY";
+const ADMIN_INITIAL_PIN_PROPERTY = "ADMIN_INITIAL_PIN";
 // Fallback key (ใช้กรณีไม่อยากตั้ง Script Properties)
 // ตั้งค่านี้ให้ตรงกับ VITE_GAS_API_KEY แล้ว Deploy ใหม่
 // แนะนำ: อย่า commit ค่า key ลง git ถ้า repo เป็น public
@@ -21,6 +22,16 @@ function getSpreadsheet() {
 
 function getApiKey() {
   return PropertiesService.getScriptProperties().getProperty(API_KEY_PROPERTY) || SCRIPT_API_KEY || "";
+}
+
+function getInitialAdminPin() {
+  const props = PropertiesService.getScriptProperties();
+  let pin = props.getProperty(ADMIN_INITIAL_PIN_PROPERTY);
+  if (!pin) {
+    pin = String(Math.floor(1000 + Math.random() * 9000));
+    props.setProperty(ADMIN_INITIAL_PIN_PROPERTY, pin);
+  }
+  return pin;
 }
 
 function normalizeBranchName(branch) {
@@ -61,10 +72,11 @@ function setup() {
       "สถานะ",
       "รูปยืนยัน",
       "Latitude",
-      "Longitude"
+      "Longitude",
+      "CreatedBy"
     ]);
-    sheet.getRange("A1:M1").setFontWeight("bold");
-    sheet.getRange("A1:M1").setBackground("#f3f4f6");
+    sheet.getRange("A1:N1").setFontWeight("bold");
+    sheet.getRange("A1:N1").setBackground("#f3f4f6");
   }
 
   let eventSheet = ss.getSheetByName("ParcelEvents");
@@ -102,7 +114,7 @@ function setup() {
     usersSheet.getRange("A1:F1").setFontWeight("bold");
     usersSheet.getRange("A1:F1").setBackground("#fef3c7");
     // Add default admin
-    usersSheet.appendRow(["admin", "System Admin", "HQ", "Admin", "1234", new Date()]);
+    usersSheet.appendRow(["admin", "System Admin", "HQ", "Admin", getInitialAdminPin(), new Date()]);
   }
 }
 
@@ -116,6 +128,26 @@ function getUsersSheet() {
   return usersSheet;
 }
 
+function getUserRecord(employeeId) {
+  const sheet = getUsersSheet();
+  const data = sheet.getDataRange().getValues();
+  const targetId = String(employeeId || "").trim();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === targetId) {
+      return {
+        rowIndex: i + 1,
+        employeeId: targetId,
+        name: String(data[i][1] || "").trim(),
+        branch: String(data[i][2] || "").trim(),
+        role: String(data[i][3] || "User").trim() || "User",
+        pin: String(data[i][4] || "").trim(),
+        createdAt: data[i][5]
+      };
+    }
+  }
+  return null;
+}
+
 function getEventSheet() {
   const ss = getSpreadsheet();
   let eventSheet = ss.getSheetByName("ParcelEvents");
@@ -124,6 +156,47 @@ function getEventSheet() {
     eventSheet = ss.getSheetByName("ParcelEvents");
   }
   return eventSheet;
+}
+
+function getParcelSheet() {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    setup();
+    sheet = ss.getSheetByName(SHEET_NAME);
+  }
+  ensureParcelSheetSchema(sheet);
+  return sheet;
+}
+
+function ensureParcelSheetSchema(sheet) {
+  const requiredHeaders = [
+    "TrackingID",
+    "วันที่สร้าง",
+    "ผู้ส่ง",
+    "สาขาผู้ส่ง",
+    "ผู้รับ",
+    "สาขาผู้รับ",
+    "ประเภทเอกสาร",
+    "รายละเอียด",
+    "หมายเหตุ",
+    "สถานะ",
+    "รูปยืนยัน",
+    "Latitude",
+    "Longitude",
+    "CreatedBy"
+  ];
+  const lastColumn = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String);
+  requiredHeaders.forEach(function(header) {
+    if (headers.indexOf(header) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+    }
+  });
+}
+
+function hasAnyRole(payload, roles) {
+  return roles.indexOf(String(payload.role || "")) !== -1;
 }
 
 function verifyPin(branchName, pin) {
@@ -168,15 +241,21 @@ function doPost(e) {
     }
 
     // --- Token Signature Verification ---
-    const protectedActions = ['createParcel', 'confirmReceipt', 'getParcels', 'getUsers', 'updateUserRole', 'deleteParcel', 'editParcel'];
+    const protectedActions = ['createParcel', 'confirmReceipt', 'getParcels', 'exportSummary', 'getUsers', 'updateUserRole', 'deleteParcel', 'editParcel'];
     if (payload.token) {
       const parts = String(payload.token).split('|');
       if (parts.length === 3) {
         const expectedBytes = Utilities.computeHmacSha256Signature(parts[0] + "|" + parts[1], configuredKey);
         if (Utilities.base64Encode(expectedBytes) === parts[2]) {
-          // Token is valid, OVERRIDE payload values with trusted token values
-          payload.employeeId = parts[0];
-          payload.role = parts[1];
+          const userRecord = getUserRecord(parts[0]);
+          if (!userRecord) {
+            return createJsonResponse({ success: false, error: "User not found" });
+          }
+          // Token is valid, but role/name/branch come from the sheet so stale tokens cannot keep old privileges.
+          payload.employeeId = userRecord.employeeId;
+          payload.role = userRecord.role;
+          payload.branch = userRecord.branch;
+          payload.name = userRecord.name;
         } else {
           return createJsonResponse({ success: false, error: "Invalid token signature" });
         }
@@ -196,13 +275,15 @@ function doPost(e) {
     let result;
     if (isWrite) {
       const lock = LockService.getScriptLock();
+      let locked = false;
       try {
-        if (!lock.tryLock(30000)) {
+        locked = lock.tryLock(30000);
+        if (!locked) {
           return createJsonResponse({ success: false, error: "ระบบไม่ว่าง กรุณาลองใหม่อีกครั้ง (Lock timeout)" });
         }
         result = routeAction(action, payload);
       } finally {
-        lock.releaseLock();
+        if (locked) lock.releaseLock();
       }
     } else {
       result = routeAction(action, payload);
@@ -220,7 +301,7 @@ function routeAction(action, payload) {
   if (action === 'createParcel') return handleCreateParcel(payload);
   if (action === 'getParcels') return handleGetParcels(payload);
   if (action === 'getParcel') return handleGetParcel(payload);
-  if (action === 'exportSummary') return handleExportSummary();
+  if (action === 'exportSummary') return handleExportSummary(payload);
   if (action === 'confirmReceipt') return handleConfirmReceipt(payload);
   if (action === 'searchParcels') return handleSearchParcels(payload);
   if (action === 'login') return handleLogin(payload);
@@ -242,6 +323,9 @@ function doGet() {
 }
 
 function handleCreateParcel(payload) {
+  if (!hasAnyRole(payload, ['Admin', 'Manager', 'User'])) {
+    return createJsonResponse({ success: false, error: "Forbidden" });
+  }
   if (!payload.senderName || !payload.senderBranch || !payload.receiverName || !payload.receiverBranch || !payload.docType) {
     return createJsonResponse({ success: false, error: "Missing required fields" });
   }
@@ -253,7 +337,7 @@ function handleCreateParcel(payload) {
   if (payload.note && String(payload.note).length > MAX_NOTE_LENGTH) {
     return createJsonResponse({ success: false, error: "Note is too long" });
   }
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = getParcelSheet();
   const date = new Date();
 
   // ป้องกัน Tracking ID ซ้ำกันโดยใช้ Millisecond ต่อท้าย
@@ -336,7 +420,7 @@ function getParcelEventsMap() {
 }
 
 function handleGetParcels(payload) {
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = getParcelSheet();
   const lastRow = sheet.getLastRow();
   
   if (lastRow <= 1) {
@@ -414,10 +498,13 @@ function handleGetParcels(payload) {
   }
 
   // totalCount is estimated as (lastRow - 1) for the client's knowledge
+  const totalCount = payload.role === 'User'
+    ? offset + parcels.length + (hasMore ? 1 : 0)
+    : lastRow - 1;
   return createJsonResponse({ 
     success: true, 
     parcels: parcels,
-    totalCount: lastRow - 1,
+    totalCount: totalCount,
     hasMore: hasMore
   });
 }
@@ -426,7 +513,7 @@ function handleGetParcel(payload) {
   if (!validateTrackingID(payload.trackingID)) {
     return createJsonResponse({ success: false, error: "Invalid trackingID format" });
   }
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = getParcelSheet();
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
 
@@ -452,8 +539,11 @@ function handleGetParcel(payload) {
   return createJsonResponse({ success: false, error: "Not found" });
 }
 
-function handleExportSummary() {
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+function handleExportSummary(payload) {
+  if (!hasAnyRole(payload, ['Admin', 'Manager'])) {
+    return createJsonResponse({ success: false, error: "Forbidden" });
+  }
+  const sheet = getParcelSheet();
   const data = sheet.getDataRange().getValues();
 
   let total = 0, pending = 0, transit = 0, delivered = 0;
@@ -473,6 +563,9 @@ function handleExportSummary() {
 }
 
 function handleConfirmReceipt(payload) {
+  if (!hasAnyRole(payload, ['Admin', 'Manager'])) {
+    return createJsonResponse({ success: false, error: "Forbidden" });
+  }
   if (!validateTrackingID(payload.trackingID)) {
     return createJsonResponse({ success: false, error: "Invalid trackingID format" });
   }
@@ -490,7 +583,7 @@ function handleConfirmReceipt(payload) {
   if (String(payload.photoUrl).startsWith("data:image") && String(payload.photoUrl).length > MAX_BASE64_LENGTH) {
     return createJsonResponse({ success: false, error: "Image payload is too large" });
   }
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = getParcelSheet();
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
@@ -627,7 +720,7 @@ function handleSearchParcels(payload) {
     return createJsonResponse({ success: true, parcels: [] });
   }
 
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = getParcelSheet();
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const parcels = [];
@@ -726,12 +819,17 @@ function handleSetupPin(payload) {
   const branch = String(payload.branch || "").trim();
 
   if (!employeeId || !pin) return createJsonResponse({ success: false, error: "Missing required fields" });
+  if (!/^\d{4}$/.test(pin)) return createJsonResponse({ success: false, error: "PIN must be 4 digits" });
 
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]).trim() === employeeId) {
+      const storedPin = String(data[i][4] || "").trim();
+      if (storedPin) {
+        return createJsonResponse({ success: false, error: "PIN already set" });
+      }
       // Allow overriding name/branch during setup
       if (name) sheet.getRange(i + 1, 2).setValue(name);
       if (branch) sheet.getRange(i + 1, 3).setValue(branch);
@@ -749,6 +847,9 @@ function handleSetupPin(payload) {
 }
 
 function handleGetUsers(payload) {
+  if (payload.role !== 'Admin') {
+    return createJsonResponse({ success: false, error: "Forbidden: Admins only" });
+  }
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
   const users = [];
@@ -776,6 +877,12 @@ function handleUpdateUserRole(payload) {
   const targetId = String(payload.targetId || "").trim();
   const newRole = payload.newRole;
   if (!targetId || !newRole) return createJsonResponse({ success: false, error: "Missing fields" });
+  if (['Admin', 'Manager', 'User'].indexOf(newRole) === -1) {
+    return createJsonResponse({ success: false, error: "Invalid role" });
+  }
+  if (targetId === String(payload.employeeId || "").trim() && newRole !== 'Admin') {
+    return createJsonResponse({ success: false, error: "Cannot lower your own admin role" });
+  }
 
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
@@ -795,12 +902,22 @@ function handleDeleteParcel(payload) {
 
   const trackingID = String(payload.trackingID || "").trim();
   if (!trackingID) return createJsonResponse({ success: false, error: "Missing trackingID" });
+  if (!validateTrackingID(trackingID)) return createJsonResponse({ success: false, error: "Invalid trackingID format" });
 
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = getParcelSheet();
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === trackingID) {
       sheet.deleteRow(i + 1);
+      const eventSheet = getEventSheet();
+      if (eventSheet) {
+        const eventData = eventSheet.getDataRange().getValues();
+        for (let j = eventData.length - 1; j >= 1; j--) {
+          if (String(eventData[j][1]).trim() === trackingID) {
+            eventSheet.deleteRow(j + 1);
+          }
+        }
+      }
       return createJsonResponse({ success: true });
     }
   }
@@ -814,8 +931,9 @@ function handleEditParcel(payload) {
 
   const { trackingID, updates } = payload;
   if (!trackingID || !updates) return createJsonResponse({ success: false, error: "Missing fields" });
+  if (!validateTrackingID(trackingID)) return createJsonResponse({ success: false, error: "Invalid trackingID format" });
 
-  const sheet = getSpreadsheet().getSheetByName(SHEET_NAME);
+  const sheet = getParcelSheet();
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
 

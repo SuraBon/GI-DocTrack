@@ -6,6 +6,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import L from 'leaflet';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useParcelStore } from '@/hooks/useParcelStore';
 import PinInput from '@/components/PinInput';
@@ -316,7 +317,7 @@ export default function ConfirmReceipt({
       } else {
         toast.error(response?.error ? `เกิดข้อผิดพลาด: ${response.error}` : 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่');
         // Revert local update
-        if (typeof loadParcels === 'function') loadParcels(true);
+        if (typeof loadParcels === 'function') loadParcels(undefined, true);
       }
     } finally {
       setIsLoading(false);
@@ -842,7 +843,8 @@ export default function ConfirmReceipt({
                       map.scrollWheelZoom.disable();
                       map.boxZoom.disable();
                       map.keyboard.disable();
-                      if (map.tap) map.tap.disable();
+                      const tappableMap = map as L.Map & { tap?: { disable: () => void } };
+                      tappableMap.tap?.disable();
                       
                       const icon = L.divIcon({
                         className: 'custom-gps-marker',

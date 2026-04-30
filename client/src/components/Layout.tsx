@@ -4,11 +4,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Parcel } from '@/types/parcel';
 import { formatThaiDate } from '@/lib/dateUtils';
 
+type PageId = "dashboard" | "create" | "confirm" | "track" | "users";
+type Role = "Admin" | "Manager" | "User" | "Guest";
+
 interface LayoutProps {
   children: React.ReactNode;
-  currentPage: string;
-  setCurrentPage: (page: string) => void;
+  currentPage: PageId;
+  setCurrentPage: (page: PageId) => void;
 }
+
+const pagePaths: Record<PageId, string> = {
+  dashboard: "/dashboard",
+  create: "/create",
+  confirm: "/confirm",
+  track: "/track",
+  users: "/users",
+};
+
+type NavItem = {
+  id: PageId;
+  label: string;
+  icon: string;
+  badge: null;
+  roles: Role[];
+};
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }) => {
   const { parcels } = useParcelStore();
@@ -46,11 +65,11 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   const unreadCount = recentParcels.filter(p => !seenIds.has(p.TrackingID)).length;
 
   const markAllSeen = () => {
-    const next = new Set([...seenIds, ...recentParcels.map(p => p.TrackingID)]);
+    const next = new Set([...Array.from(seenIds), ...recentParcels.map(p => p.TrackingID)]);
     setSeenIds(next);
     // ✅ FIX: Store with timestamp for expiration
     localStorage.setItem('seen_parcel_ids', JSON.stringify({
-      ids: [...next],
+      ids: Array.from(next),
       timestamp: Date.now(),
     }));
   };
@@ -85,15 +104,17 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
     return 'bg-amber-500';
   };
 
-  const navItems = [
+  const allNavItems: NavItem[] = [
     { id: "dashboard", label: "ภาพรวมระบบ", icon: "dashboard", badge: null, roles: ['Admin', 'Manager'] },
     { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['Admin', 'Manager', 'User'] },
     { id: "confirm",   label: "ยืนยันรับพัสดุ", icon: "photo_camera", badge: null, roles: ['Admin', 'Manager'] },
     { id: "track",     label: "ติดตามสถานะ", icon: "location_searching", badge: null, roles: ['Admin', 'Manager', 'User', 'Guest'] },
     { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['Admin'] },
-  ].filter(item => item.roles.includes(user?.role || 'Guest'));
+  ];
+  const navItems = allNavItems.filter(item => item.roles.includes((user?.role ?? 'Guest') as Role));
 
-  const handleNav = (id: string) => {
+  const handleNav = (event: React.MouseEvent<HTMLAnchorElement>, id: PageId) => {
+    event.preventDefault();
     setCurrentPage(id);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
@@ -148,8 +169,10 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
             return (
               <a
                 key={item.id}
-                onClick={() => handleNav(item.id)}
+                href={pagePaths[item.id]}
+                onClick={(event) => handleNav(event, item.id)}
                 title={isSidebarOpen ? undefined : item.label}
+                aria-current={active ? "page" : undefined}
                 className={`
                   flex items-center
                   ${isSidebarOpen ? 'gap-3 px-3 rounded-xl' : 'justify-center rounded-xl mx-auto w-10'}

@@ -517,28 +517,50 @@ export default function CreateParcel() {
                   const printWindow = window.open('', '', 'width=400,height=500');
                   if (printWindow) {
                     const v = getFinalValues();
+                    const trackingId = createdTrackingId ?? '';
                     printWindow.document.write(`
+                      <!doctype html>
+                      <html>
+                      <head>
+                        <meta charset="utf-8" />
+                        <title>LogiTrack Label</title>
+                      </head>
+                      <body>
                       <div style="text-align:center;font-family:sans-serif;padding:40px;border:4px solid #091426;border-radius:20px;max-width:400px;margin:auto;">
                         <div style="background:#091426;color:#fff;padding:15px;border-radius:12px;margin-bottom:20px;">
                           <h2 style="margin:0;font-size:24px;">LogiTrack</h2>
                         </div>
-                        <h1 style="font-size:42px;margin:10px 0;font-family:monospace;letter-spacing:2px;">${createdTrackingId}</h1>
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${createdTrackingId}" style="width:180px;height:180px;margin:20px 0;" />
+                        <h1 id="tracking-id" style="font-size:42px;margin:10px 0;font-family:monospace;letter-spacing:2px;"></h1>
+                        <img id="qr-code" alt="QR code" style="width:180px;height:180px;margin:20px 0;" />
                         <div style="margin-top:20px;text-align:left;border-top:2px solid #eee;padding-top:20px;">
                           <div style="margin-bottom:10px;">
                             <p style="margin:0;font-size:10px;color:#666;text-transform:uppercase;font-weight:bold;">ผู้ส่ง</p>
-                            <p style="margin:0;font-weight:bold;">${v.senderName} (${v.senderBranch})</p>
+                            <p id="sender-info" style="margin:0;font-weight:bold;"></p>
                           </div>
                           <div>
                             <p style="margin:0;font-size:10px;color:#666;text-transform:uppercase;font-weight:bold;">ผู้รับ</p>
-                            <p style="margin:0;font-weight:bold;">${v.receiverName} (${v.receiverBranch})</p>
+                            <p id="receiver-info" style="margin:0;font-weight:bold;"></p>
                           </div>
                         </div>
-                        <p style="margin-top:30px;font-size:10px;color:#999;font-style:italic;">สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+                        <p id="created-at" style="margin-top:30px;font-size:10px;color:#999;font-style:italic;"></p>
                       </div>
-                      <script>window.onload = () => { window.print(); window.close(); }</script>
+                      </body>
+                      </html>
                     `);
+                    const doc = printWindow.document;
+                    doc.getElementById('tracking-id')!.textContent = trackingId;
+                    doc.getElementById('sender-info')!.textContent = `${v.senderName} (${v.senderBranch})`;
+                    doc.getElementById('receiver-info')!.textContent = `${v.receiverName} (${v.receiverBranch})`;
+                    doc.getElementById('created-at')!.textContent = `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`;
+                    doc.getElementById('qr-code')!.setAttribute(
+                      'src',
+                      `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(trackingId)}`,
+                    );
                     printWindow.document.close();
+                    printWindow.onload = () => {
+                      printWindow.print();
+                      printWindow.close();
+                    };
                   }
                 }}
                 className="flex-1 flex items-center justify-center gap-2 h-12 bg-primary text-white rounded-xl font-display font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
