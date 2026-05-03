@@ -4,7 +4,7 @@
  * Design: Premium Logistics
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParcelStore } from '@/hooks/useParcelStore';
 import { getBranches } from '@/lib/parcelService';
 import { toast } from 'sonner';
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import PinInput from '@/components/PinInput';
 import { formatThaiDate } from '@/lib/dateUtils';
 import SelectDropdown from '@/components/SelectDropdown';
+import QRCode from 'qrcode';
 
 const DOC_TYPES = ['เอกสาร', 'พัสดุ'];
 const OTHER_BRANCH_VALUE = '__OTHER_BRANCH__';
@@ -40,7 +41,7 @@ export default function CreateParcel() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };

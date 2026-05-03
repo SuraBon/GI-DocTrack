@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { ArrowRight, PackageSearch, Search, ShieldCheck, UserRound, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,7 +37,6 @@ export default function Login() {
   const [regBranch, setRegBranch] = useState('');
   const [regName, setRegName] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
-  const [isBranchOpen, setIsBranchOpen] = useState(false); // kept for compatibility
 
   const branches = getBranches();
 

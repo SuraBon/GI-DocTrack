@@ -11,11 +11,6 @@ import StatusBadge from '@/components/StatusBadge';
 import type { Parcel } from '@/types/parcel';
 import { toast } from 'sonner';
 import { BRANCHES_WITH_COORDS } from '@/lib/parcelService';
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
-import Timeline from '@/components/Timeline';
-import TrackingMap from '@/components/TrackingMap';
 import { parseParcelTimeline } from '@/lib/timeline';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatThaiDate } from '@/lib/dateUtils';
@@ -68,7 +63,7 @@ const TableSkeleton = () => (
 
 export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardProps) {
   const { user } = useAuth();
-  const { parcels, summary, loading, loadParcels, hasMore, totalCount, loadMoreParcels, removeParcelLocally } = useParcelStore();
+  const { parcels, summary, loading, loadParcels, hasMore, loadMoreParcels, removeParcelLocally } = useParcelStore();
   const [filteredParcels, setFilteredParcels] = useState<Parcel[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
@@ -115,10 +110,12 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
     fetchData();
   }, [isConfigured, fetchData]);
 
-  // Countdown tick — completely separate from fetchData to avoid recreating the interval
+  // Countdown tick — pauses when tab is hidden to save GAS quota
   useEffect(() => {
     if (!isConfigured) return;
     const timer = setInterval(() => {
+      // Don't refresh when tab is not visible
+      if (document.hidden) return;
       setRefreshCountdown(prev => {
         if (prev <= 1) {
           fetchData();

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { User, login, setupPin } from '@/lib/parcelService';
 import { normalizeRole } from '@/lib/roles';
 import { toast } from 'sonner';
@@ -13,34 +13,73 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// Session timeout: 6 hours of inactivity
+const SESSION_TIMEOUT_MS = 6 * 60 * 60 * 1000;
+const SESSION_KEY = 'doc_track_user';
+const LAST_ACTIVE_KEY = 'doc_track_last_active';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearSession = () => {
+    setUser(null);
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(LAST_ACTIVE_KEY);
+  };
+
+  const resetInactivityTimer = () => {
+    localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      clearSession();
+      toast.warning('เซสชันหมดอายุเนื่องจากไม่มีการใช้งาน 6 ชั่วโมง');
+    }, SESSION_TIMEOUT_MS);
+  };
 
   useEffect(() => {
-    // Check localStorage for saved user session
-    const savedUser = localStorage.getItem('doc_track_user');
+    const savedUser = localStorage.getItem(SESSION_KEY);
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser) as User;
-        const normalizedUser = { ...parsed, role: normalizeRole(parsed.role) };
-        setUser(normalizedUser);
-        localStorage.setItem('doc_track_user', JSON.stringify(normalizedUser));
-      } catch (e) {
-        localStorage.removeItem('doc_track_user');
+        // Check if session has already expired
+        const lastActive = Number(localStorage.getItem(LAST_ACTIVE_KEY) || '0');
+        if (lastActive && Date.now() - lastActive > SESSION_TIMEOUT_MS) {
+          clearSession();
+          toast.warning('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+        } else {
+          const normalizedUser = { ...parsed, role: normalizeRole(parsed.role) };
+          setUser(normalizedUser);
+          localStorage.setItem(SESSION_KEY, JSON.stringify(normalizedUser));
+          resetInactivityTimer();
+        }
+      } catch {
+        localStorage.removeItem(SESSION_KEY);
       }
     }
     setLoading(false);
 
     const handleAuthError = () => {
-      setUser(null);
-      localStorage.removeItem('doc_track_user');
+      clearSession();
       toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     };
 
+    // Track user activity to reset inactivity timer
+    const activityEvents = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    const handleActivity = () => {
+      if (localStorage.getItem(SESSION_KEY)) resetInactivityTimer();
+    };
+
     window.addEventListener('auth_error', handleAuthError);
-    return () => window.removeEventListener('auth_error', handleAuthError);
-  }, []);
+    activityEvents.forEach(e => window.addEventListener(e, handleActivity, { passive: true }));
+
+    return () => {
+      window.removeEventListener('auth_error', handleAuthError);
+      activityEvents.forEach(e => window.removeEventListener(e, handleActivity));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loginUser = async (employeeId: string, pin?: string) => {
     setLoading(true);
@@ -48,7 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await login(employeeId, pin);
       if (res.success && res.user) {
         setUser(res.user);
-        localStorage.setItem('doc_track_user', JSON.stringify(res.user));
+        localStorage.setItem(SESSION_KEY, JSON.stringify(res.user));
+        resetInactivityTimer();
       }
       return res;
     } finally {
@@ -62,7 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await setupPin(employeeId, pin, name, branch);
       if (res.success && res.user) {
         setUser(res.user);
-        localStorage.setItem('doc_track_user', JSON.stringify(res.user));
+        localStorage.setItem(SESSION_KEY, JSON.stringify(res.user));
+        resetInactivityTimer();
       }
       return res;
     } finally {
@@ -71,8 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('doc_track_user');
+    clearSession();
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
   };
 
   return (

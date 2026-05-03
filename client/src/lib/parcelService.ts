@@ -97,50 +97,72 @@ type CallApiOptions = {
 async function callAPI<T>(
   payload: object,
   { includeAuth = true, dispatchAuthError = true }: CallApiOptions = {},
+  retries = 2,
 ): Promise<T> {
   if (!GAS_URL) {
     throw new Error('กรุณาตั้งค่า Google Apps Script URL ก่อน');
   }
 
-  let response: Response;
-  try {
-    let authData = {};
-    const storedUser = includeAuth ? localStorage.getItem('doc_track_user') : null;
-    if (includeAuth && storedUser) {
-      try {
-        const u = JSON.parse(storedUser);
-        authData = { employeeId: u.employeeId, role: u.role, token: u.token };
-      } catch (e) {
-        // ignore
+  let lastError: Error = new Error('เกิดข้อผิดพลาด');
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    // Exponential backoff: 0ms, 1000ms, 2000ms
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+    }
+
+    let response: Response;
+    try {
+      let authData = {};
+      const storedUser = includeAuth ? localStorage.getItem('doc_track_user') : null;
+      if (includeAuth && storedUser) {
+        try {
+          const u = JSON.parse(storedUser) as Record<string, unknown>;
+          authData = { employeeId: u['employeeId'], role: u['role'], token: u['token'] };
+        } catch {
+          // ignore
+        }
+      }
+
+      response = await fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify({ ...authData, ...payload, apiKey: GAS_API_KEY }),
+        // GAS requires text/plain to avoid CORS preflight
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    } catch (err) {
+      lastError = new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+      // Network error — retry
+      continue;
+    }
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('API Key ไม่ถูกต้องหรือไม่มีสิทธิ์เข้าถึง');
+      } else if (response.status >= 500) {
+        lastError = new Error('เซิร์ฟเวอร์ขัดข้อง กรุณาลองใหม่อีกครั้ง');
+        // Server error — retry
+        continue;
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json() as Record<string, unknown>;
+    if (dispatchAuthError && data && data['success'] === false) {
+      const errMsg = data['error'] as string | undefined;
+      if (
+        errMsg === "Authentication required (Missing Token)" ||
+        errMsg === "Invalid token signature" ||
+        errMsg === "Malformed token" ||
+        errMsg === "Token expired"
+      ) {
+        window.dispatchEvent(new Event('auth_error'));
       }
     }
-
-    response = await fetch(GAS_URL, {
-      method: 'POST',
-      body: JSON.stringify({ ...authData, ...payload, apiKey: GAS_API_KEY }),
-      // GAS requires text/plain to avoid CORS preflight
-      headers: { 'Content-Type': 'text/plain' },
-    });
-  } catch {
-    throw new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+    return data as T;
   }
 
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('API Key ไม่ถูกต้องหรือไม่มีสิทธิ์เข้าถึง');
-    } else if (response.status >= 500) {
-      throw new Error('เซิร์ฟเวอร์ขัดข้อง กรุณาลองใหม่อีกครั้ง');
-    }
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-
-  const data = await response.json() as any;
-  if (dispatchAuthError && data && data.success === false) {
-    if (data.error === "Authentication required (Missing Token)" || data.error === "Invalid token signature" || data.error === "Malformed token") {
-      window.dispatchEvent(new Event('auth_error'));
-    }
-  }
-  return data as T;
+  throw lastError;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -177,10 +199,8 @@ export async function getParcels(status: string = 'ทั้งหมด', limit
   try {
     const res = await callAPI<GetParcelsResponse>(payload);
     if (res.success && Array.isArray(res.parcels)) {
-      let parcels = applyDerivedStatuses(res.parcels);
-      if (status !== 'ทั้งหมด') {
-        parcels = parcels.filter(p => p['สถานะ'] === status);
-      }
+      // Apply derived statuses (forward → in-transit) — backend doesn't know about this
+      const parcels = applyDerivedStatuses(res.parcels);
       return { ...res, parcels };
     }
     return { success: false, parcels: [], error: res.error };
@@ -226,10 +246,13 @@ export async function confirmReceipt(
 }
 
 export async function searchParcels(query: string): Promise<Parcel[]> {
+  // Limit query length to prevent abuse
+  const trimmed = query.trim().slice(0, 100);
+  if (!trimmed) return [];
   try {
     const res = await callAPI<{ success: boolean; parcels?: Parcel[] }>({
       action: 'searchParcels',
-      query,
+      query: trimmed,
     }, { includeAuth: false, dispatchAuthError: false });
     if (res.success && Array.isArray(res.parcels)) {
       return applyDerivedStatuses(res.parcels);
@@ -303,6 +326,7 @@ function getDemoLogin(employeeId: string, pin?: string): { success: boolean, use
 }
 
 // Errors from the backend that mean "this user/password is genuinely wrong"
+// — includes brute force lockout messages
 const REAL_AUTH_ERRORS = [
   'รหัสผ่านไม่ถูกต้อง',
   'PIN ไม่ถูกต้อง',
@@ -310,6 +334,8 @@ const REAL_AUTH_ERRORS = [
   'Invalid credentials',
   'Wrong password',
   'User not found',
+  'บัญชีถูกล็อคชั่วคราว',  // brute force lockout
+  'เหลือ',                   // "เหลือ X ครั้ง" wrong PIN warning
 ];
 
 export async function login(employeeId: string, pin?: string): Promise<{ success: boolean, needsSetup?: boolean, user?: User, error?: string, role?: string, name?: string, branch?: string }> {

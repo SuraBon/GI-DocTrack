@@ -559,14 +559,20 @@ function doPost(e) {
     const protectedActions = ['createParcel', 'confirmReceipt', 'getParcels', 'exportSummary', 'getUsers', 'updateUserRole', 'deleteParcel', 'editParcel'];
     if (payload.token) {
       const parts = String(payload.token).split('|');
-      if (parts.length === 3) {
-        const expectedBytes = Utilities.computeHmacSha256Signature(parts[0] + "|" + parts[1], configuredKey);
-        if (Utilities.base64Encode(expectedBytes) === parts[2]) {
+      if (parts.length === 4) {
+        const issuedAt = Number(parts[2]);
+        // Check token expiry (6 hours)
+        if (isNaN(issuedAt) || Date.now() - issuedAt > TOKEN_EXPIRY_MS) {
+          return createJsonResponse({ success: false, error: "Token expired" });
+        }
+        const payloadStr = parts[0] + "|" + parts[1] + "|" + parts[2];
+        const expectedBytes = Utilities.computeHmacSha256Signature(payloadStr, configuredKey);
+        if (Utilities.base64Encode(expectedBytes) === parts[3]) {
           const userRecord = getUserRecord(parts[0]);
           if (!userRecord) {
             return createJsonResponse({ success: false, error: "User not found" });
           }
-          // Token is valid, but role/name/branch come from the sheet so stale tokens cannot keep old privileges.
+          // Role/name/branch always come from sheet — stale tokens cannot keep old privileges
           payload.employeeId = userRecord.employeeId;
           payload.role = userRecord.role;
           payload.branch = userRecord.branch;
@@ -574,6 +580,9 @@ function doPost(e) {
         } else {
           return createJsonResponse({ success: false, error: "Invalid token signature" });
         }
+      } else if (parts.length === 3) {
+        // Legacy token format (no expiry) — reject
+        return createJsonResponse({ success: false, error: "Token expired" });
       } else {
         return createJsonResponse({ success: false, error: "Malformed token" });
       }
@@ -629,12 +638,8 @@ function routeAction(action, payload) {
 }
 
 function doGet() {
-  return createJsonResponse({
-    success: true,
-    service: "doc-track-api",
-    version: "1.1.0",
-    timestamp: formatThaiDateForSheet(new Date()),
-  });
+  // Return minimal response — don't expose service details publicly
+  return createJsonResponse({ success: true });
 }
 
 function handleCreateParcel(payload) {
@@ -645,6 +650,13 @@ function handleCreateParcel(payload) {
     return createJsonResponse({ success: false, error: "Missing required fields" });
   }
 
+  // Input length validation
+  if (String(payload.senderName).length > 200) return createJsonResponse({ success: false, error: "ชื่อผู้ส่งยาวเกินไป" });
+  if (String(payload.receiverName).length > 200) return createJsonResponse({ success: false, error: "ชื่อผู้รับยาวเกินไป" });
+  if (String(payload.senderBranch).length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขาผู้ส่งยาวเกินไป" });
+  if (String(payload.receiverBranch).length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขาผู้รับยาวเกินไป" });
+  if (String(payload.docType).length > 100) return createJsonResponse({ success: false, error: "ประเภทพัสดุยาวเกินไป" });
+
   if (!verifyPin(payload.senderBranch, payload.pin)) {
     return createJsonResponse({ success: false, error: "รหัส PIN ของสาขาไม่ถูกต้อง" });
   }
@@ -652,11 +664,14 @@ function handleCreateParcel(payload) {
   if (payload.note && String(payload.note).length > MAX_NOTE_LENGTH) {
     return createJsonResponse({ success: false, error: "Note is too long" });
   }
+
+  // NOTE: Tracking ID is generated INSIDE the lock (called from writeActions block)
+  // to prevent race conditions with concurrent requests.
   const date = new Date();
   const sheet = getParcelSheet(date, true);
   const yearSpreadsheet = getYearSpreadsheet(getYearFromDate(date), true);
 
-  // ป้องกัน Tracking ID ซ้ำกันโดยใช้ Millisecond ต่อท้าย
+  // Generate ID inside lock — uses full millisecond timestamp to avoid duplicates
   const dateStr = Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyyMMdd");
   const trackingId = "TRK" + dateStr + String(date.getTime()).slice(-4);
 
@@ -698,6 +713,7 @@ function handleCreateParcel(payload) {
     ]);
   }
 
+  writeAuditLog(payload.employeeId, "CREATE_PARCEL", trackingId, payload.senderName + " → " + payload.receiverName);
   return createJsonResponse({ success: true, trackingId: trackingId });
 }
 
@@ -847,11 +863,28 @@ function handleExportSummary(payload) {
   }
   let total = 0, pending = 0, transit = 0, delivered = 0;
 
+  // Build events map once for derived status calculation
+  const eventsMap = getParcelEventsMap();
+
   getParcelSheetsForRead().forEach(function(entry) {
     const data = entry.sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      const status = data[i][9];
+      const row = data[i];
+      let status = String(row[9] || "");
+      const trackingID = String(row[0] || "");
       total++;
+
+      // Apply derived status: if last event was FORWARD, treat as กำลังจัดส่ง
+      if (status === "ส่งถึงแล้ว") {
+        const events = eventsMap[trackingID] || [];
+        const actionEvents = events.filter(function(e) {
+          return e.eventType === 'FORWARD' || e.eventType === 'DELIVERED' || e.eventType === 'PROXY';
+        });
+        if (actionEvents.length > 0 && actionEvents[actionEvents.length - 1].eventType === 'FORWARD') {
+          status = "กำลังจัดส่ง";
+        }
+      }
+
       if (status === "รอจัดส่ง") pending++;
       else if (status === "กำลังจัดส่ง") transit++;
       else if (status === "ส่งถึงแล้ว") delivered++;
@@ -900,17 +933,25 @@ function handleConfirmReceipt(payload) {
       const noteStr = String(row[8] || "");
       
       let isActuallyDelivered = currentStatus === "ส่งถึงแล้ว";
-      // We don't need regex logic to check if it's delivered anymore if we use eventType, 
-      // but for backward compatibility, we can leave the check or simplify it.
-      if (isActuallyDelivered && payload.eventType === 'FORWARD') {
-        // cannot forward an already delivered parcel
-        return createJsonResponse({ success: false, error: "Parcel already delivered" });
+
+      // ── State Machine Validation ──────────────────────────────────────────
+      // Valid transitions:
+      //   รอจัดส่ง    → กำลังจัดส่ง  (FORWARD)
+      //   กำลังจัดส่ง → กำลังจัดส่ง  (FORWARD)
+      //   รอจัดส่ง    → ส่งถึงแล้ว   (DELIVERED / PROXY)
+      //   กำลังจัดส่ง → ส่งถึงแล้ว   (DELIVERED / PROXY)
+      //   ส่งถึงแล้ว  → ❌ ห้ามเปลี่ยน
+      if (isActuallyDelivered) {
+        return createJsonResponse({ success: false, error: "พัสดุนี้ถูกจัดส่งถึงที่หมายแล้ว ไม่สามารถเปลี่ยนสถานะได้" });
       }
 
       let newStatus = currentStatus;
       if (payload.eventType === 'DELIVERED' || payload.eventType === 'PROXY') {
         newStatus = "ส่งถึงแล้ว";
       } else if (payload.eventType === 'FORWARD') {
+        if (currentStatus === "ส่งถึงแล้ว") {
+          return createJsonResponse({ success: false, error: "ไม่สามารถส่งต่อพัสดุที่ถึงที่หมายแล้ว" });
+        }
         newStatus = "กำลังจัดส่ง";
       }
 
@@ -1017,6 +1058,7 @@ function handleConfirmReceipt(payload) {
         }
       }
 
+      writeAuditLog(payload.employeeId, "CONFIRM_RECEIPT_" + (payload.eventType || "UNKNOWN"), payload.trackingID, "Status: " + currentStatus + " → " + newStatus);
       return createJsonResponse({ success: true });
     }
   }
@@ -1026,11 +1068,27 @@ function handleConfirmReceipt(payload) {
 
 
 function handleSearchParcels(payload) {
-  const query = (payload.query || "").toString().toLowerCase().trim();
+  const query = (payload.query || "").toString().trim();
   if (!query) {
     return createJsonResponse({ success: true, parcels: [] });
   }
 
+  // Query length limit (frontend also enforces 100 chars)
+  if (query.length > 100) {
+    return createJsonResponse({ success: false, error: "Query too long" });
+  }
+
+  // Rate limit: max 30 searches per minute per IP (using cache)
+  const cache = CacheService.getScriptCache();
+  const rateLimitKey = "search_rate_" + (payload.clientIp || "global");
+  const rateRaw = cache.get(rateLimitKey);
+  const rateCount = rateRaw ? Number(rateRaw) : 0;
+  if (rateCount >= 30) {
+    return createJsonResponse({ success: false, error: "Too many requests, please slow down" });
+  }
+  cache.put(rateLimitKey, String(rateCount + 1), 60);
+
+  const queryLower = query.toLowerCase();
   const parcels = [];
 
   const sheets = getParcelSheetsForRead();
@@ -1046,7 +1104,7 @@ function handleSearchParcels(payload) {
       const receiver = String(row[4] || "").toLowerCase();
       const tracking = String(row[0] || "").toLowerCase();
 
-      if (tracking.indexOf(query) === -1 && sender.indexOf(query) === -1 && receiver.indexOf(query) === -1) {
+      if (tracking.indexOf(queryLower) === -1 && sender.indexOf(queryLower) === -1 && receiver.indexOf(queryLower) === -1) {
         continue;
       }
 
@@ -1083,11 +1141,77 @@ function createJsonResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ── Token expiry: 6 hours in milliseconds ────────────────────────────────────
+const TOKEN_EXPIRY_MS = 6 * 60 * 60 * 1000;
+
 function generateToken(employeeId, role, secret) {
-  const payloadStr = employeeId + "|" + role;
+  const issuedAt = Date.now();
+  const payloadStr = employeeId + "|" + role + "|" + issuedAt;
   const signatureBytes = Utilities.computeHmacSha256Signature(payloadStr, secret);
   const signature = Utilities.base64Encode(signatureBytes);
   return payloadStr + "|" + signature;
+}
+
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+function writeAuditLog(actorId, action, targetId, details) {
+  try {
+    const ss = getSpreadsheet();
+    let auditSheet = ss.getSheetByName("AuditLog");
+    if (!auditSheet) {
+      auditSheet = ss.insertSheet("AuditLog");
+      auditSheet.appendRow(["Timestamp", "ActorID", "Action", "TargetID", "Details"]);
+      auditSheet.getRange("A1:E1").setFontWeight("bold").setBackground("#fef3c7");
+    }
+    auditSheet.appendRow([
+      formatThaiDateForSheet(new Date()),
+      String(actorId || ""),
+      String(action || ""),
+      String(targetId || ""),
+      String(details || "")
+    ]);
+  } catch (e) {
+    // Audit log failure should not block the main operation
+  }
+}
+
+// ── PIN Brute Force Protection ────────────────────────────────────────────────
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkLoginRateLimit(employeeId) {
+  const cache = CacheService.getScriptCache();
+  const key = "login_attempts_" + employeeId;
+  const raw = cache.get(key);
+  if (!raw) return { allowed: true, remaining: MAX_LOGIN_ATTEMPTS };
+  try {
+    const data = JSON.parse(raw);
+    if (data.lockedUntil && Date.now() < data.lockedUntil) {
+      const minutesLeft = Math.ceil((data.lockedUntil - Date.now()) / 60000);
+      return { allowed: false, remaining: 0, minutesLeft };
+    }
+    return { allowed: true, remaining: Math.max(0, MAX_LOGIN_ATTEMPTS - (data.count || 0)) };
+  } catch {
+    return { allowed: true, remaining: MAX_LOGIN_ATTEMPTS };
+  }
+}
+
+function recordFailedLogin(employeeId) {
+  const cache = CacheService.getScriptCache();
+  const key = "login_attempts_" + employeeId;
+  const raw = cache.get(key);
+  let data = { count: 0, lockedUntil: null };
+  try { if (raw) data = JSON.parse(raw); } catch {}
+  data.count = (data.count || 0) + 1;
+  if (data.count >= MAX_LOGIN_ATTEMPTS) {
+    data.lockedUntil = Date.now() + LOGIN_LOCKOUT_MS;
+  }
+  // Store for 20 minutes
+  cache.put(key, JSON.stringify(data), 1200);
+}
+
+function clearLoginAttempts(employeeId) {
+  const cache = CacheService.getScriptCache();
+  cache.remove("login_attempts_" + employeeId);
 }
 
 // --- RBAC & Users ---
@@ -1096,6 +1220,18 @@ function handleLogin(payload) {
   const employeeId = String(payload.employeeId || "").trim();
   const pin = String(payload.pin || "").trim();
   if (!employeeId) return createJsonResponse({ success: false, error: "Missing employee ID" });
+
+  // Validate employeeId format (A-Z, 0-9 only, max 50 chars)
+  if (!/^[A-Z0-9_]{1,50}$/.test(employeeId)) {
+    return createJsonResponse({ success: false, error: "รหัสพนักงานไม่ถูกต้อง" });
+  }
+
+  // Rate limit check
+  const rateLimit = checkLoginRateLimit(employeeId);
+  if (!rateLimit.allowed) {
+    writeAuditLog(employeeId, "LOGIN_BLOCKED", employeeId, "Too many failed attempts, locked for " + rateLimit.minutesLeft + " minutes");
+    return createJsonResponse({ success: false, error: "บัญชีถูกล็อคชั่วคราว กรุณาลองใหม่ใน " + rateLimit.minutesLeft + " นาที" });
+  }
 
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
@@ -1112,17 +1248,25 @@ function handleLogin(payload) {
       }
 
       if (storedPin !== pin) {
-        return createJsonResponse({ success: false, error: "รหัส PIN ไม่ถูกต้อง" });
+        recordFailedLogin(employeeId);
+        writeAuditLog(employeeId, "LOGIN_FAILED", employeeId, "Wrong PIN");
+        const remaining = rateLimit.remaining - 1;
+        const msg = remaining > 0
+          ? "รหัส PIN ไม่ถูกต้อง (เหลือ " + remaining + " ครั้ง)"
+          : "รหัส PIN ไม่ถูกต้อง บัญชีจะถูกล็อค";
+        return createJsonResponse({ success: false, error: msg });
       }
 
+      clearLoginAttempts(employeeId);
+      writeAuditLog(employeeId, "LOGIN_SUCCESS", employeeId, "Role: " + role);
       const token = generateToken(employeeId, role, getApiKey());
       return createJsonResponse({ success: true, user: { employeeId, name, branch, role, token } });
     }
   }
 
-  // Auto-create new user if not found (can set role to USER)
-  // For security, you might want to restrict this in production.
+  // Auto-create new user if not found
   sheet.appendRow([employeeId, "Unknown", "Unknown", "USER", "", formatThaiDateForSheet(new Date())]);
+  writeAuditLog(employeeId, "USER_AUTO_CREATED", employeeId, "New user created on first login");
   return createJsonResponse({ success: true, needsSetup: true, role: "USER", name: "Unknown", branch: "Unknown" });
 }
 
@@ -1133,7 +1277,10 @@ function handleSetupPin(payload) {
   const branch = String(payload.branch || "").trim();
 
   if (!employeeId || !pin) return createJsonResponse({ success: false, error: "Missing required fields" });
-  if (pin.length < 4) return createJsonResponse({ success: false, error: "Password must be at least 4 characters" });
+  if (!/^[A-Z0-9_]{1,50}$/.test(employeeId)) return createJsonResponse({ success: false, error: "รหัสพนักงานไม่ถูกต้อง" });
+  if (pin.length < 4 || pin.length > 20) return createJsonResponse({ success: false, error: "รหัสผ่านต้องมี 4-20 ตัวอักษร" });
+  if (name && name.length > 100) return createJsonResponse({ success: false, error: "ชื่อยาวเกินไป" });
+  if (branch && branch.length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขายาวเกินไป" });
 
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
@@ -1144,7 +1291,6 @@ function handleSetupPin(payload) {
       if (storedPin) {
         return createJsonResponse({ success: false, error: "PIN already set" });
       }
-      // Allow overriding name/branch during setup
       if (name) sheet.getRange(i + 1, 2).setValue(name);
       if (branch) sheet.getRange(i + 1, 3).setValue(branch);
       sheet.getRange(i + 1, 5).setValue(pin);
@@ -1153,6 +1299,7 @@ function handleSetupPin(payload) {
       const finalName = name || String(data[i][1]).trim();
       const finalBranch = branch || String(data[i][2]).trim();
 
+      writeAuditLog(employeeId, "PIN_SETUP", employeeId, "PIN set, branch: " + finalBranch);
       const token = generateToken(employeeId, role, getApiKey());
       return createJsonResponse({ success: true, user: { employeeId, name: finalName, branch: finalBranch, role, token } });
     }
@@ -1160,6 +1307,7 @@ function handleSetupPin(payload) {
 
   // User not found — auto-create new user and set PIN in one step
   sheet.appendRow([employeeId, name || "Unknown", branch || "Unknown", "USER", pin, formatThaiDateForSheet(new Date())]);
+  writeAuditLog(employeeId, "USER_REGISTERED", employeeId, "New user registered, branch: " + (branch || "Unknown"));
   const token = generateToken(employeeId, "USER", getApiKey());
   return createJsonResponse({ success: true, user: { employeeId, name: name || "Unknown", branch: branch || "Unknown", role: "USER", token } });
 }
@@ -1228,6 +1376,7 @@ function handleDeleteParcel(payload) {
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === trackingID) {
+      const parcelInfo = "ผู้ส่ง:" + data[i][2] + " ผู้รับ:" + data[i][4];
       sheet.deleteRow(i + 1);
       const eventSheet = getEventSheetForSpreadsheet(storage.spreadsheet);
       if (eventSheet) {
@@ -1238,6 +1387,7 @@ function handleDeleteParcel(payload) {
           }
         }
       }
+      writeAuditLog(payload.employeeId, "DELETE_PARCEL", trackingID, parcelInfo);
       return createJsonResponse({ success: true });
     }
   }
@@ -1253,6 +1403,14 @@ function handleEditParcel(payload) {
   if (!trackingID || !updates) return createJsonResponse({ success: false, error: "Missing fields" });
   if (!validateTrackingID(trackingID)) return createJsonResponse({ success: false, error: "Invalid trackingID format" });
 
+  // Validate update values
+  const allowedFields = ["senderName", "senderBranch", "receiverName", "receiverBranch", "docType", "description"];
+  const fieldMap = { senderName: "ผู้ส่ง", senderBranch: "สาขาผู้ส่ง", receiverName: "ผู้รับ", receiverBranch: "สาขาผู้รับ", docType: "ประเภทเอกสาร", description: "รายละเอียด" };
+  for (const key of Object.keys(updates)) {
+    if (!allowedFields.includes(key)) return createJsonResponse({ success: false, error: "Invalid field: " + key });
+    if (typeof updates[key] !== 'string' || updates[key].length > 200) return createJsonResponse({ success: false, error: "Invalid value for field: " + key });
+  }
+
   const storage = getParcelStorageByTrackingId(trackingID);
   if (!storage) return createJsonResponse({ success: false, error: "Parcel not found" });
   const sheet = storage.sheet;
@@ -1262,14 +1420,18 @@ function handleEditParcel(payload) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === trackingID) {
       const rowIndex = i + 1;
-      
-      if (updates.senderName) sheet.getRange(rowIndex, headers.indexOf("ผู้ส่ง") + 1).setValue(updates.senderName);
-      if (updates.senderBranch) sheet.getRange(rowIndex, headers.indexOf("สาขาผู้ส่ง") + 1).setValue(updates.senderBranch);
-      if (updates.receiverName) sheet.getRange(rowIndex, headers.indexOf("ผู้รับ") + 1).setValue(updates.receiverName);
-      if (updates.receiverBranch) sheet.getRange(rowIndex, headers.indexOf("สาขาผู้รับ") + 1).setValue(updates.receiverBranch);
-      if (updates.docType) sheet.getRange(rowIndex, headers.indexOf("ประเภทเอกสาร") + 1).setValue(updates.docType);
-      if (updates.description) sheet.getRange(rowIndex, headers.indexOf("รายละเอียด") + 1).setValue(updates.description);
-      
+      const changedFields = [];
+      for (const key of allowedFields) {
+        if (updates[key]) {
+          const colName = fieldMap[key];
+          const colIdx = headers.indexOf(colName);
+          if (colIdx >= 0) {
+            sheet.getRange(rowIndex, colIdx + 1).setValue(updates[key]);
+            changedFields.push(key + "=" + updates[key]);
+          }
+        }
+      }
+      writeAuditLog(payload.employeeId, "EDIT_PARCEL", trackingID, changedFields.join(", "));
       return createJsonResponse({ success: true });
     }
   }

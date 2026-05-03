@@ -516,9 +516,13 @@ export default function ConfirmReceipt({
                 ย้อนกลับ
               </button>
               <button
-                onClick={() => setCurrentStep(3)}
-                disabled={!photoPreview || geoStatus !== 'success'}
-                title={geoStatus !== 'success' ? "กรุณาเปิดใช้งาน GPS ก่อน" : ""}
+                onClick={() => {
+                  if (geoStatus !== 'success') {
+                    toast.warning('ไม่มีพิกัด GPS — ข้อมูลตำแหน่งจะไม่ถูกบันทึก');
+                  }
+                  setCurrentStep(3);
+                }}
+                disabled={!photoPreview}
                 className="flex items-center justify-center gap-2 h-14 flex-[2] bg-primary text-white rounded-2xl font-display font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
               >
                 ขั้นตอนถัดไป

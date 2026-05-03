@@ -2,19 +2,40 @@ import type { Parcel, ParcelSummary } from '@/types/parcel';
 
 /**
  * Derives the real display status of a parcel.
+ *
+ * Priority: use the structured `events` array when available (more reliable).
+ * Fallback: parse the `หมายเหตุ` note field for legacy parcels that pre-date
+ * the events system.
+ *
  * A parcel marked 'ส่งถึงแล้ว' in the backend may actually still be
- * 'กำลังจัดส่ง' if the last recorded action was a forward, not a delivery.
+ * 'กำลังจัดส่ง' if the last recorded action was a FORWARD, not a delivery.
  */
 export function applyDerivedStatus(parcel: Parcel): Parcel {
   if (parcel['สถานะ'] !== 'ส่งถึงแล้ว') return parcel;
 
+  // ── Primary: use structured events array ──────────────────────────────────
+  if (Array.isArray(parcel.events) && parcel.events.length > 0) {
+    // Find the last meaningful event (ignore CREATED)
+    const actionEvents = parcel.events.filter(
+      e => e.eventType === 'FORWARD' || e.eventType === 'DELIVERED' || e.eventType === 'PROXY'
+    );
+    if (actionEvents.length > 0) {
+      const lastEvent = actionEvents[actionEvents.length - 1];
+      if (lastEvent.eventType === 'FORWARD') {
+        return { ...parcel, 'สถานะ': 'กำลังจัดส่ง' };
+      }
+      // DELIVERED or PROXY → truly delivered
+      return parcel;
+    }
+  }
+
+  // ── Fallback: parse note field (legacy parcels) ───────────────────────────
   const note = parcel['หมายเหตุ'] || '';
   const lastForwardIdx = note.lastIndexOf('[ส่งต่อโดย:');
   const lastProxyIdx   = note.lastIndexOf('[รับแทนโดย:');
   const lastNormalIdx  = note.lastIndexOf('[รับพัสดุเรียบร้อย');
   const maxIdx = Math.max(lastForwardIdx, lastProxyIdx, lastNormalIdx);
 
-  // If the last action was a forward (not a delivery/proxy receipt), treat as in-transit
   if (maxIdx >= 0 && maxIdx === lastForwardIdx) {
     return { ...parcel, 'สถานะ': 'กำลังจัดส่ง' };
   }
