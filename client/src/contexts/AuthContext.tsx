@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, login, setupPin } from '@/lib/parcelService';
 import { normalizeRole } from '@/lib/roles';
+import { toast } from 'sonner';
 
 interface AuthContextValue {
   user: User | null;
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleAuthError = () => {
       setUser(null);
       localStorage.removeItem('doc_track_user');
-      // Toast handles UI feedback, no need to alert
+      toast.error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     };
 
     window.addEventListener('auth_error', handleAuthError);

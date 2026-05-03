@@ -39,9 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
     try {
       const stored = localStorage.getItem('seen_parcel_ids');
       if (!stored) return new Set();
-      
       const data = JSON.parse(stored);
-      // ✅ FIX: Add 30-day expiration
       if (data.timestamp && Date.now() - data.timestamp > 30 * 24 * 60 * 60 * 1000) {
         localStorage.removeItem('seen_parcel_ids');
         return new Set();
@@ -53,8 +51,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   });
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // พัสดุที่อัพเดทล่าสุด — เรียงตามวันที่รับ/สร้าง ล่าสุดก่อน
-  // ✅ FIX: Use proper date comparison instead of string comparison
   const recentParcels = [...parcels]
     .sort((a, b) => {
       const da = getDateTime(a['วันที่รับ'] || a['วันที่สร้าง']);
@@ -68,7 +64,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   const markAllSeen = () => {
     const next = new Set([...Array.from(seenIds), ...recentParcels.map(p => p.TrackingID)]);
     setSeenIds(next);
-    // ✅ FIX: Store with timestamp for expiration
     localStorage.setItem('seen_parcel_ids', JSON.stringify({
       ids: Array.from(next),
       timestamp: Date.now(),
@@ -78,10 +73,9 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   const handleBellClick = () => {
     const opening = !isNotifOpen;
     setIsNotifOpen(opening);
-    if (opening) markAllSeen(); // mark seen เมื่อเปิด dropdown
+    if (opening) markAllSeen();
   };
 
-  // ปิด dropdown เมื่อคลิกนอก หรือกด Escape
   useEffect(() => {
     const handleMouse = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
@@ -137,9 +131,9 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
           boxShadow: '6px 0 22px rgba(5,12,24,0.22)',
         }}
       >
-        {/* Logo */}
+        {/* Logo — only when expanded */}
         {isSidebarOpen && (
-          <div className="relative flex items-center gap-3 px-0 pt-2 pb-5 mb-1">
+          <div className="flex items-center gap-3 px-0 pt-3 pb-4 mb-1">
             <div className="flex flex-col min-w-0">
               <span className="text-white font-black text-lg font-display leading-none">DocTrack</span>
               <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider mt-0.5">ระบบจัดการพัสดุ</span>
@@ -153,11 +147,22 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
           </div>
         )}
 
-        {/* Divider */}
-        <div className="relative h-px bg-white/8 mx-2 mb-4" />
+        {/* Divider — only when expanded */}
+        {isSidebarOpen && <div className="h-px bg-white/8 mx-2 mb-4" />}
 
         {/* Nav */}
-        <nav className="relative flex-1 space-y-2">
+        <nav className="relative flex-1 space-y-2 pt-2">
+          {/* Expand button — top of nav when collapsed */}
+          {!isSidebarOpen && (
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="hidden lg:flex justify-center items-center mx-auto h-11 w-11 rounded-xl text-white/30 hover:text-white hover:bg-white/10 transition-all mb-2"
+              title="ขยาย sidebar"
+            >
+              <span className="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+          )}
+
           {navItems.map((item) => {
             const active = currentPage === item.id;
             return (
@@ -182,7 +187,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                   boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
                 } : {}}
               >
-                {/* Active indicator bar — only when expanded */}
                 {active && (
                   <span className={`absolute ${isSidebarOpen ? 'left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full' : '-left-3 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full'} bg-secondary-container`} />
                 )}
@@ -196,16 +200,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
               </a>
             );
           })}
-          {/* Expand button — shown centered when sidebar is collapsed */}
-          {!isSidebarOpen && (
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="hidden lg:flex justify-center items-center mx-auto h-11 w-11 rounded-xl text-white/30 hover:text-white hover:bg-white/10 transition-all"
-              title="ขยาย sidebar"
-            >
-              <span className="material-symbols-outlined text-lg">chevron_right</span>
-            </button>
-          )}
         </nav>
 
         {/* Footer */}
@@ -275,7 +269,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                 {isSidebarOpen ? 'close' : 'menu'}
               </span>
             </button>
-            {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-sm">
               <span className="text-on-surface-variant/40 font-medium hidden sm:block">DocTrack</span>
               <span className="text-on-surface-variant/30 hidden sm:block">/</span>
@@ -299,7 +292,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                 )}
               </button>
 
-              {/* Notification Dropdown */}
               {isNotifOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-outline-variant/20 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">

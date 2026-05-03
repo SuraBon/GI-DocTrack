@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { ArrowRight, PackageSearch, Search, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowRight, PackageSearch, Search, ShieldCheck, UserRound, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getParcel, searchParcels } from '@/lib/parcelService';
+import { getParcel, searchParcels, getBranches } from '@/lib/parcelService';
 import StatusBadge from '@/components/StatusBadge';
 import { formatThaiDate } from '@/lib/dateUtils';
 import type { Parcel } from '@/types/parcel';
@@ -21,6 +21,7 @@ export default function Login() {
   const [pin, setPin] = useState('');
   const [isSetup, setIsSetup] = useState(false);
   const [isTrackOpen, setIsTrackOpen] = useState(false);
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [guestQuery, setGuestQuery] = useState('');
   const [isTracking, setIsTracking] = useState(false);
   const [guestParcel, setGuestParcel] = useState<Parcel | null>(null);
@@ -29,6 +30,15 @@ export default function Login() {
   // For setup
   const [name, setName] = useState('');
   const [branch, setBranch] = useState('');
+
+  // For register
+  const [regId, setRegId] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regBranch, setRegBranch] = useState('');
+  const [regName, setRegName] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  const branches = getBranches();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +78,30 @@ export default function Login() {
       } else {
         toast.error(res.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
       }
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regId.trim()) { toast.error('กรุณากรอกรหัสพนักงาน'); return; }
+    if (regPassword.length < 4) { toast.error('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
+    if (!regName.trim()) { toast.error('กรุณากรอกชื่อ-นามสกุล'); return; }
+    if (!regBranch) { toast.error('กรุณาเลือกสาขา'); return; }
+
+    setIsRegistering(true);
+    try {
+      const res = await setupUserPin(regId.trim(), regPassword, regName.trim(), regBranch);
+      if (res.success) {
+        toast.success('สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ');
+        setIsRegisterOpen(false);
+        setEmployeeId(regId.trim());
+        setPin('');
+        setRegId(''); setRegPassword(''); setRegName(''); setRegBranch('');
+      } else {
+        toast.error(res.error || 'เกิดข้อผิดพลาดในการสมัคร');
+      }
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -242,8 +276,115 @@ export default function Login() {
               </button>
             </div>
           )}
+          {!isSetup && (
+            <div className="mt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setIsRegisterOpen(true)}
+                className="inline-flex items-center gap-1.5 text-primary font-bold text-sm hover:underline transition-colors"
+              >
+                <UserPlus className="h-4 w-4" />
+                สมัครสมาชิกใหม่
+              </button>
+            </div>
+          )}
         </form>
       </div>
+
+      {/* Register Dialog */}
+      <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-3xl border-none bg-white p-0 shadow-2xl">
+          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5">
+            <div className="flex items-center gap-3 pr-8">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <UserPlus className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <div>
+                <DialogTitle className="font-display text-xl font-black text-primary">สมัครสมาชิก</DialogTitle>
+                <DialogDescription className="mt-1 text-xs text-on-surface-variant">
+                  กรอกข้อมูลเพื่อสร้างบัญชีใหม่
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleRegister} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-on-surface-variant mb-1.5">รหัสพนักงาน</label>
+              <input
+                type="text"
+                value={regId}
+                onChange={e => setRegId(e.target.value)}
+                disabled={isRegistering}
+                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                placeholder="เช่น EMP001"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-on-surface-variant mb-1.5">ชื่อ-นามสกุล</label>
+              <input
+                type="text"
+                value={regName}
+                onChange={e => setRegName(e.target.value)}
+                disabled={isRegistering}
+                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                placeholder="ชื่อของท่าน"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-on-surface-variant mb-1.5">รหัสผ่าน</label>
+              <input
+                type="password"
+                value={regPassword}
+                onChange={e => setRegPassword(e.target.value)}
+                disabled={isRegistering}
+                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                placeholder="อย่างน้อย 4 ตัวอักษร"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-on-surface-variant mb-1.5">สาขาประจำ</label>
+              <select
+                value={regBranch}
+                onChange={e => setRegBranch(e.target.value)}
+                disabled={isRegistering}
+                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50 appearance-none cursor-pointer"
+              >
+                <option value="">-- เลือกสาขา --</option>
+                {branches.map(b => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isRegistering}
+              className="w-full h-12 mt-2 bg-primary text-white rounded-xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isRegistering ? (
+                <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4" />
+                  สมัครสมาชิก
+                </>
+              )}
+            </button>
+
+            <p className="text-center text-xs text-on-surface-variant/50">
+              มีบัญชีแล้ว?{' '}
+              <button type="button" onClick={() => setIsRegisterOpen(false)} className="text-primary font-bold hover:underline">
+                เข้าสู่ระบบ
+              </button>
+            </p>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isTrackOpen} onOpenChange={handleTrackOpenChange}>
         <DialogContent className="max-h-[88vh] w-[calc(100vw-2rem)] max-w-3xl overflow-hidden rounded-3xl border-none bg-white p-0 shadow-2xl">
