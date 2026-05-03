@@ -102,7 +102,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   const currentRole = normalizeRole(user?.role ?? 'GUEST');
   const allNavItems: NavItem[] = [
     { id: "dashboard", label: currentRole === 'USER' ? "พัสดุของฉัน" : "ภาพรวมระบบ", icon: "dashboard", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER'], accent: "from-sky-400 to-blue-500" },
-    { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['ADMIN', 'USER'], accent: "from-amber-300 to-orange-500" },
+    { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER'], accent: "from-amber-300 to-orange-500" },
     { id: "confirm",   label: "ยืนยันรับพัสดุ", icon: "photo_camera", badge: null, roles: ['ADMIN', 'MESSENGER'], accent: "from-emerald-300 to-teal-500" },
     { id: "track",     label: "ติดตามสถานะ", icon: "location_searching", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER', 'GUEST'], accent: "from-violet-300 to-indigo-500" },
     { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['ADMIN'], accent: "from-rose-300 to-red-500" },

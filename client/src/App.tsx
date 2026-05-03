@@ -41,7 +41,7 @@ const getRouteFromLocation = (): { page: PageId; isKnownPath: boolean } => {
 
 const pageRoles: Record<PageId, AppRole[]> = {
   dashboard: ["ADMIN", "MESSENGER", "USER"],
-  create: ["ADMIN", "USER"],
+  create: ["ADMIN", "MESSENGER", "USER"],
   confirm: ["ADMIN", "MESSENGER"],
   track: ["ADMIN", "MESSENGER", "USER"],
   users: ["ADMIN"],

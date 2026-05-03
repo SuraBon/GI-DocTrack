@@ -638,7 +638,7 @@ function doGet() {
 }
 
 function handleCreateParcel(payload) {
-  if (!hasAnyRole(payload, ['ADMIN', 'USER'])) {
+  if (!hasAnyRole(payload, ['ADMIN', 'USER', 'MESSENGER'])) {
     return createJsonResponse({ success: false, error: "Forbidden" });
   }
   if (!payload.senderName || !payload.senderBranch || !payload.receiverName || !payload.receiverBranch || !payload.docType) {
