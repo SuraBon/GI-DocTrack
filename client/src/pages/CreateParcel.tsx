@@ -159,7 +159,7 @@ export default function CreateParcel() {
                     value={formData.senderName}
                     onChange={handleInputChange}
                     placeholder="ระบุชื่อบริษัท หรือ ผู้ส่ง"
-                    className="w-full bg-white border border-outline-variant rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display transition-all"
+                    className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display transition-all"
                   />
                 </div>
               </div>
@@ -202,7 +202,7 @@ export default function CreateParcel() {
                     value={formData.receiverName}
                     onChange={handleInputChange}
                     placeholder="ระบุชื่อผู้รับ"
-                    className="w-full bg-white border border-outline-variant rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display transition-all"
+                    className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display transition-all"
                   />
                 </div>
               </div>
@@ -258,7 +258,7 @@ export default function CreateParcel() {
                     value={formData.description}
                     onChange={handleInputChange}
                     placeholder="เช่น เอกสาร 1 ชุด, พัสดุ 1 กล่อง"
-                    className="w-full bg-white border border-outline-variant rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display transition-all"
+                    className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display transition-all"
                   />
                 </div>
               </div>
@@ -270,7 +270,7 @@ export default function CreateParcel() {
                 value={formData.note}
                 onChange={handleInputChange}
                 placeholder="ห้ามเปิด, ของแตกหักง่าย, เร่งด่วน..."
-                className="w-full bg-white border border-outline-variant rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display min-h-[110px] transition-all resize-none"
+                className="w-full bg-white border border-outline-variant rounded-2xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display min-h-[110px] transition-all resize-none"
               />
             </div>
           </div>

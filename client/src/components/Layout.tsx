@@ -386,7 +386,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
       {/* ── Edit Profile Dialog ── */}
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-3xl border-none bg-white p-0 shadow-2xl">
-          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5">
+          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5 rounded-t-3xl">
             <div className="flex items-center gap-3 pr-8">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>manage_accounts</span>
@@ -409,7 +409,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                 value={profileForm.name}
                 onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))}
                 disabled={profileLoading}
-                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                 placeholder="ชื่อ-นามสกุล"
               />
             </div>
@@ -440,7 +440,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                     value={profileForm.currentPassword}
                     onChange={e => setProfileForm(f => ({ ...f, currentPassword: e.target.value }))}
                     disabled={profileLoading}
-                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                     placeholder="••••••••"
                   />
                 </div>
@@ -451,7 +451,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                     value={profileForm.newPassword}
                     onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))}
                     disabled={profileLoading}
-                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                     placeholder="อย่างน้อย 4 ตัวอักษร"
                   />
                 </div>
@@ -462,7 +462,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                     value={profileForm.confirmPassword}
                     onChange={e => setProfileForm(f => ({ ...f, confirmPassword: e.target.value }))}
                     disabled={profileLoading}
-                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                     placeholder="••••••••"
                   />
                 </div>
@@ -474,14 +474,14 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                 type="button"
                 onClick={() => setIsProfileOpen(false)}
                 disabled={profileLoading}
-                className="flex-1 h-12 rounded-xl border border-outline-variant/40 font-bold text-on-surface-variant hover:bg-surface-container transition-all disabled:opacity-50"
+                className="flex-1 h-12 rounded-2xl border border-outline-variant/40 font-bold text-on-surface-variant hover:bg-surface-container transition-all disabled:opacity-50"
               >
                 ยกเลิก
               </button>
               <button
                 type="submit"
                 disabled={profileLoading}
-                className="flex-1 h-12 bg-primary text-white rounded-xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="flex-1 h-12 bg-primary text-white rounded-2xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {profileLoading ? (
                   <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>

@@ -201,7 +201,7 @@ export default function Login() {
               value={employeeId}
               onChange={e => setEmployeeId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
               disabled={isSetup || loading}
-              className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+              className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
               placeholder="โปรดกรอกรหัสพนักงานของท่าน"
             />
           </div>
@@ -215,7 +215,7 @@ export default function Login() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   disabled={loading}
-                  className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                   placeholder="ชื่อของท่าน"
                 />
               </div>
@@ -226,7 +226,7 @@ export default function Login() {
                   value={branch}
                   onChange={e => setBranch(e.target.value)}
                   disabled={loading}
-                  className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
                   placeholder="เช่น พิบูลสงคราม"
                 />
               </div>
@@ -242,7 +242,7 @@ export default function Login() {
               value={pin}
               onChange={e => setPin(e.target.value)}
               disabled={loading}
-              className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 text-base font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+              className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 text-base font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
               placeholder="••••••••"
             />
           </div>
@@ -251,7 +251,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-12 mt-6 bg-primary text-white rounded-xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full h-12 mt-6 bg-primary text-white rounded-2xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
               <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
@@ -289,7 +289,7 @@ export default function Login() {
       {/* Register Dialog */}
       <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-3xl border-none bg-white p-0 shadow-2xl">
-          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5">
+          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5 rounded-t-3xl">
             <div className="flex items-center gap-3 pr-8">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <UserPlus className="h-6 w-6" aria-hidden="true" />
@@ -311,9 +311,8 @@ export default function Login() {
                 value={regId}
                 onChange={e => setRegId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                 disabled={isRegistering}
-                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                className="w-full h-12 bg-white border border-outline-variant rounded-2xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                 placeholder="เช่น EMP001"
-                autoFocus
               />
             </div>
 
@@ -324,7 +323,7 @@ export default function Login() {
                 value={regName}
                 onChange={e => setRegName(e.target.value)}
                 disabled={isRegistering}
-                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                className="w-full h-12 bg-white border border-outline-variant rounded-2xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                 placeholder="ชื่อของท่าน"
               />
             </div>
@@ -336,7 +335,7 @@ export default function Login() {
                 value={regPassword}
                 onChange={e => setRegPassword(e.target.value)}
                 disabled={isRegistering}
-                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                className="w-full h-12 bg-white border border-outline-variant rounded-2xl px-4 font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                 placeholder="อย่างน้อย 4 ตัวอักษร"
               />
             </div>
@@ -357,7 +356,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={isRegistering}
-              className="w-full h-12 mt-2 bg-primary text-white rounded-xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full h-12 mt-2 bg-primary text-white rounded-2xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isRegistering ? (
                 <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
@@ -381,7 +380,7 @@ export default function Login() {
 
       <Dialog open={isTrackOpen} onOpenChange={handleTrackOpenChange}>
         <DialogContent className="max-h-[88vh] w-[calc(100vw-2rem)] max-w-3xl overflow-hidden rounded-3xl border-none bg-white p-0 shadow-2xl">
-          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-5 py-5 sm:px-7">
+          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-5 py-5 sm:px-7 rounded-t-3xl">
             <div className="flex items-center gap-3 pr-8">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <PackageSearch className="h-6 w-6" aria-hidden="true" />

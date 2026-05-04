@@ -120,10 +120,10 @@ export default function NativeSelect({
         disabled={disabled}
         onClick={handleOpen}
         className={[
-          'w-full flex items-center gap-2.5 h-11 rounded-xl border px-3 text-sm font-display text-left transition-all outline-none',
+          'w-full flex items-center gap-2.5 h-12 rounded-2xl border px-3 text-sm font-display text-left transition-all outline-none',
           open
             ? 'border-primary ring-2 ring-primary/15 bg-white'
-            : 'border-outline-variant/60 bg-white hover:border-primary/40',
+            : 'border-outline-variant bg-white hover:border-primary/40',
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
           displayLabel ? 'text-on-surface' : 'text-on-surface-variant/50',
         ].join(' ')}
@@ -212,7 +212,7 @@ export default function NativeSelect({
             disabled={disabled}
             placeholder={otherPlaceholder}
             maxLength={100}
-            className="w-full h-11 rounded-xl border border-primary/30 bg-primary/[0.03] pl-9 pr-4 text-sm font-display outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-50"
+            className="w-full h-12 rounded-2xl border border-primary/30 bg-primary/[0.03] pl-9 pr-4 text-sm font-display outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-50"
           />
         </div>
       )}

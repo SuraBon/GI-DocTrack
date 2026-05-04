@@ -605,7 +605,7 @@ export default function ConfirmReceipt({
                           placeholder="ระบุชื่อพนักงานที่ส่งต่อ"
                           value={forwardSender}
                           onChange={(e) => setForwardSender(e.target.value)}
-                          className="w-full bg-white border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display"
+                          className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display"
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -659,7 +659,7 @@ export default function ConfirmReceipt({
                           placeholder="ระบุชื่อผู้รับแทน"
                           value={proxyName}
                           onChange={(e) => setProxyName(e.target.value)}
-                          className="w-full bg-white border border-outline-variant rounded-xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none font-display"
+                          className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none font-display"
                         />
                       </div>
                     </div>
