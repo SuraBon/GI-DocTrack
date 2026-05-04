@@ -288,21 +288,6 @@ export interface UserRow extends User {
   createdAt: string;
 }
 
-const BACKEND_LOGIN_UNAVAILABLE_ERROR =
-  'Google Apps Script ยังไม่ได้ Deploy เวอร์ชันที่รองรับการล็อกอิน กรุณา Deploy google_apps_script.js เวอร์ชันล่าสุด แล้วอัปเดต VITE_GAS_URL หากได้ URL ใหม่';
-
-const DEMO_USERS: Record<string, Omit<User, 'token'>> = {
-  user_test: { employeeId: 'user_test', name: 'Demo User', branch: 'HQ', role: 'USER' },
-  messenger_test: { employeeId: 'messenger_test', name: 'Demo Messenger', branch: 'HQ', role: 'MESSENGER' },
-  admin_test: { employeeId: 'admin_test', name: 'Demo Admin', branch: 'HQ', role: 'ADMIN' },
-};
-
-const DEMO_PASSWORDS: Record<string, string> = {
-  user_test: 'user123',
-  messenger_test: 'messenger123',
-  admin_test: 'admin123',
-};
-
 function normalizeUser(user: User): User {
   return { ...user, role: normalizeRole(user.role) };
 }
@@ -311,18 +296,6 @@ function normalizeAuthResponse<T extends { user?: User; role?: string }>(res: T)
   if (res.user) res.user = normalizeUser(res.user);
   if (res.role) res.role = normalizeRole(res.role);
   return res;
-}
-
-function getDemoLogin(employeeId: string, pin?: string): { success: boolean, user?: User, error?: string } {
-  const normalizedId = employeeId.trim();
-  const demoUser = DEMO_USERS[normalizedId];
-  if (!demoUser) {
-    return { success: false, error: BACKEND_LOGIN_UNAVAILABLE_ERROR };
-  }
-  if (DEMO_PASSWORDS[normalizedId] !== String(pin || '').trim()) {
-    return { success: false, error: 'รหัสผ่านไม่ถูกต้อง' };
-  }
-  return { success: true, user: { ...demoUser } };
 }
 
 // Errors from the backend that mean "this user/password is genuinely wrong"
@@ -351,11 +324,9 @@ export async function login(employeeId: string, pin?: string): Promise<{ success
       return res;
     }
 
-    // Backend infra error — fall back to demo accounts only
-    return getDemoLogin(employeeId, pin);
+    return { success: false, error: res.error ?? 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ' };
   } catch {
-    // Backend unreachable — fall back to demo accounts only
-    return getDemoLogin(employeeId, pin);
+    return { success: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่อีกครั้ง' };
   }
 }
 

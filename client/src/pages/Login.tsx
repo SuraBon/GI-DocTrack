@@ -1,6 +1,6 @@
 import { useState } from 'react';import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { ArrowRight, PackageSearch, Search, ShieldCheck, UserRound, UserPlus } from 'lucide-react';
+import { ArrowRight, PackageSearch, Search, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getParcel, searchParcels, getBranches, setupPin } from '@/lib/parcelService';
 import StatusBadge from '@/components/StatusBadge';
@@ -8,11 +8,7 @@ import { formatThaiDate } from '@/lib/dateUtils';
 import type { Parcel } from '@/types/parcel';
 import SelectDropdown from '@/components/SelectDropdown';
 
-const DEMO_ACCOUNTS = [
-  { role: 'User', username: 'user_test', password: 'user123', Icon: UserRound },
-  { role: 'Messenger', username: 'messenger_test', password: 'messenger123', Icon: UserRound },
-  { role: 'Admin', username: 'admin_test', password: 'admin123', Icon: ShieldCheck },
-];
+
 
 export default function Login() {
   const { loginUser, setupUserPin, loading } = useAuth();
@@ -252,35 +248,6 @@ export default function Login() {
             />
           </div>
 
-          {!isSetup && (
-            <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant/50 mb-2">Demo accounts</p>
-              <div className="grid gap-2">
-                {DEMO_ACCOUNTS.map(account => {
-                  const Icon = account.Icon;
-                  return (
-                  <button
-                    key={account.username}
-                    type="button"
-                    onClick={() => {
-                      setEmployeeId(account.username);
-                      setPin(account.password);
-                    }}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-outline-variant/20 bg-white px-3 py-2 text-left hover:border-primary/30 hover:bg-primary/[0.03] transition-all"
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                      <span className="text-xs font-bold text-primary">{account.role}</span>
-                    </span>
-                    <code className="truncate text-[11px] font-bold text-on-surface-variant/70">
-                      {account.username} / {account.password}
-                    </code>
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           <button
             type="submit"
