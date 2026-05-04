@@ -15,7 +15,9 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    console.error('Unhandled application error:', error);
+    if (import.meta.env.DEV) {
+      console.error('Unhandled application error:', error);
+    }
   }
 
   render() {

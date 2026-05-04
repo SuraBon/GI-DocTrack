@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { BRANCHES_WITH_COORDS } from '@/lib/parcelService';
 import { parseParcelTimeline } from '@/lib/timeline';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatThaiDate } from '@/lib/dateUtils';
+import { formatThaiDateTime } from '@/lib/dateUtils';
 import ParcelTimelineModal from '@/components/ParcelTimelineModal';
 import { normalizeRole } from '@/lib/roles';
 import {
@@ -120,13 +120,17 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
     const timer = setInterval(() => {
       // Don't refresh when tab is not visible
       if (document.hidden) return;
+      let shouldRefresh = false;
       setRefreshCountdown(prev => {
         if (prev <= 1) {
-          fetchData();
-          return 120;
+          shouldRefresh = true;
+          return 0;
         }
         return prev - 1;
       });
+      if (shouldRefresh) {
+        fetchData();
+      }
     }, 1000);
     return () => clearInterval(timer);
   }, [isConfigured, fetchData]);
@@ -174,8 +178,10 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
   /** True when the selected parcel has at least one known-coordinate branch. */
   const selectedParcelHasKnownBranches = useMemo(() => {
     if (!selectedParcel) return false;
-    return BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้ส่ง']) || BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้รับ']);
-  }, [selectedParcel]);
+    return selectedTimelineEvents.some(event => typeof event.latitude === 'number' && typeof event.longitude === 'number')
+      || BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้ส่ง'])
+      || BRANCHES_WITH_COORDS.includes(selectedParcel['สาขาผู้รับ']);
+  }, [selectedParcel, selectedTimelineEvents]);
 
   const clearFilters = () => { setSearchTerm(''); setStatusFilter('ทั้งหมด'); setCurrentPage(1); };
   const hasFilters = !!(searchTerm || statusFilter !== 'ทั้งหมด');
@@ -369,7 +375,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-on-surface-variant">
-                      <span className="text-sm font-medium">{formatThaiDate(parcel['วันที่สร้าง'])}</span>
+                      <span className="text-sm font-medium">{formatThaiDateTime(parcel['วันที่สร้าง'])}</span>
                     </td>
                     <td className="px-4 py-3.5">
                       <StatusBadge status={parcel['สถานะ']} />

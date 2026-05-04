@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useParcelStore } from '@/hooks/useParcelStore';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Parcel } from '@/types/parcel';
-import { formatThaiDate, getDateTime } from '@/lib/dateUtils';
+import { formatThaiDateTime, getDateTime } from '@/lib/dateUtils';
 import { normalizeRole, ROLE_LABELS, type AppRole } from '@/lib/roles';
 import { getBranches } from '@/lib/parcelService';
 import { toast } from 'sonner';
@@ -58,13 +58,15 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   });
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const recentParcels = [...parcels]
-    .sort((a, b) => {
-      const da = getDateTime(a['วันที่รับ'] || a['วันที่สร้าง']);
-      const db = getDateTime(b['วันที่รับ'] || b['วันที่สร้าง']);
-      return db - da;
-    })
-    .slice(0, 8);
+  const recentParcels = useMemo(() => [...parcels]
+      .sort((a, b) => {
+        const da = getDateTime(a['วันที่รับ'] || a['วันที่สร้าง']);
+        const db = getDateTime(b['วันที่รับ'] || b['วันที่สร้าง']);
+        return db - da;
+      })
+      .slice(0, 8),
+    [parcels],
+  );
 
   const unreadCount = recentParcels.filter(p => !seenIds.has(p.TrackingID)).length;
 
@@ -365,7 +367,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                               {p['ผู้ส่ง']} → {p['ผู้รับ']}
                             </p>
                             <p className="text-[10px] text-on-surface-variant/40 mt-0.5">
-                              {formatThaiDate(p['วันที่รับ'] || p['วันที่สร้าง'])}
+                              {formatThaiDateTime(p['วันที่รับ'] || p['วันที่สร้าง'])}
                             </p>
                           </div>
                         </div>

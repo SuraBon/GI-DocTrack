@@ -20,6 +20,8 @@ export interface Parcel {
   'รูปยืนยัน'?: string;
   'Latitude'?: number;
   'Longitude'?: number;
+  'OriginLatitude'?: number;
+  'OriginLongitude'?: number;
   'events'?: ParcelEventRecord[];
 }
 
@@ -59,6 +61,8 @@ export interface CreateParcelPayload {
   docType: string;
   description?: string;
   note?: string;
+  latitude?: number;
+  longitude?: number;
   pin?: string;
 }
 

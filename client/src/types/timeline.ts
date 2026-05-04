@@ -12,6 +12,7 @@ export interface TimelineEvent {
   description?: string;
   timestamp: string;
   location?: string;
+  destLocation?: string;
   icon?: string;
   imageUrl?: string;
   latitude?: number;

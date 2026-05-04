@@ -63,8 +63,26 @@ export function formatThaiDate(dateStr: string): string {
 }
 
 /**
- * Format date-time values with the app-wide Thai date-only format.
+ * Format date-time values with the app-wide Thai date and time format.
  */
 export function formatThaiDateTime(dateStr: string): string {
-  return formatThaiDate(dateStr);
+  if (!dateStr) return '-';
+
+  try {
+    const hasExplicitTime = /\d{1,2}:\d{2}/.test(dateStr);
+    const date = parseDateInput(dateStr);
+
+    if (!date) return dateStr;
+    if (!hasExplicitTime) return formatThaiDate(dateStr);
+
+    const day = date.getDate();
+    const month = THAI_MONTHS[date.getMonth()];
+    const year = date.getFullYear() + 543;
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+
+    return `${day} ${month} ${year} ${hour}:${minute} น.`;
+  } catch (e) {
+    return dateStr;
+  }
 }

@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import type { Parcel } from '@/types/parcel';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { MapView } from '@/components/Map';
+import { isValidTrackingId, sanitizeTextInput, validateRequiredText } from '@/lib/validation';
 
 
 /** Rendered outside the main component so it never remounts on state changes. */
@@ -85,7 +86,7 @@ export default function ConfirmReceipt({
 
     // Reset ทุก state กลับ default
     setCurrentStep(1);
-    setTrackingId(initialTrackingId);
+    setTrackingId(sanitizeTextInput(initialTrackingId, 100).toUpperCase());
     setPhotoUrl('');
     setPhotoPreview(null);
     setNote('');
@@ -111,15 +112,30 @@ export default function ConfirmReceipt({
     }
   }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!isLoading) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isLoading]);
+
   const handleCheckParcel = async () => {
-    if (!trackingId.trim()) {
+    const safeTrackingId = sanitizeTextInput(trackingId, 100).toUpperCase();
+    if (!safeTrackingId) {
       toast.error('กรุณากรอกหมายเลขติดตามก่อนตรวจสอบ');
+      return;
+    }
+    if (!isValidTrackingId(safeTrackingId)) {
+      toast.error('รูปแบบหมายเลขติดตามไม่ถูกต้อง');
       return;
     }
 
     setIsChecking(true);
     try {
-      const res = await getParcel(trackingId.trim());
+      const res = await getParcel(safeTrackingId);
       if (res.success && res.parcel) {
         const p = res.parcel;
 
@@ -183,8 +199,9 @@ export default function ConfirmReceipt({
   const handlePasteTrackingID = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      if (text) {
-        setTrackingId(text.trim().toUpperCase());
+      const safeText = sanitizeTextInput(text, 100).toUpperCase();
+      if (safeText) {
+        setTrackingId(safeText);
         toast.success('วางหมายเลขติดตามเรียบร้อย');
       }
     } catch {
@@ -275,6 +292,7 @@ export default function ConfirmReceipt({
   };
 
   const executeConfirm = async () => {
+    if (isLoading) return;
     setIsConfirmDialogOpen(false);
     setIsLoading(true);
     try {
@@ -285,23 +303,43 @@ export default function ConfirmReceipt({
 
       const finalForwardFromBranch = resolveSelectValue(forwardFromBranch);
       const finalForwardToBranch = resolveSelectValue(forwardToBranch);
+      const safeNote = sanitizeTextInput(note, 2000);
+      const safeForwardSender = sanitizeTextInput(forwardSender, 200);
+      const safeProxyName = sanitizeTextInput(proxyName, 200);
 
       if (isForwarding && finalForwardToBranch) {
         eventType = 'FORWARD';
-        eventLocation = finalForwardFromBranch;
-        eventDestLocation = finalForwardToBranch;
-        eventPerson = forwardSender;
-      } else if (isProxy && proxyName) {
+        eventLocation = sanitizeTextInput(finalForwardFromBranch, 100);
+        eventDestLocation = sanitizeTextInput(finalForwardToBranch, 100);
+        eventPerson = safeForwardSender;
+      } else if (isProxy && safeProxyName) {
         eventType = 'PROXY';
-        eventLocation = checkedParcel?.['สาขาผู้รับ'];
-        eventPerson = proxyName;
+        eventLocation = sanitizeTextInput(checkedParcel?.['สาขาผู้รับ'], 100);
+        eventPerson = safeProxyName;
       } else if (!isForwarding && !isProxy) {
         eventType = 'DELIVERED';
-        eventLocation = checkedParcel?.['สาขาผู้รับ'];
-        eventPerson = checkedParcel?.['ผู้รับ'];
+        eventLocation = sanitizeTextInput(checkedParcel?.['สาขาผู้รับ'], 100);
+        eventPerson = sanitizeTextInput(checkedParcel?.['ผู้รับ'], 200);
       }
 
-      const finalTrackingId = trackingId;
+      const validationError =
+        !photoUrl ? 'กรุณาแนบรูปภาพหลักฐาน' :
+        !eventType ? 'กรุณาเลือกประเภทการยืนยัน' :
+        isForwarding ? (
+          validateRequiredText(eventPerson, 'ชื่อผู้ส่งต่อ', 1, 200) ||
+          validateRequiredText(eventLocation, 'สาขาต้นทาง', 1, 100) ||
+          validateRequiredText(eventDestLocation, 'สาขาปลายทาง', 1, 100)
+        ) :
+        isProxy ? validateRequiredText(eventPerson, 'ชื่อผู้รับแทน', 1, 200) :
+        null;
+
+      if (validationError) {
+        toast.error(validationError);
+        setIsLoading(false);
+        return;
+      }
+
+      const finalTrackingId = sanitizeTextInput(trackingId, 100).toUpperCase();
       const finalEventType = eventType;
       
       // Optimistic Update
@@ -315,7 +353,7 @@ export default function ConfirmReceipt({
       const response = await confirmReceipt(
         finalTrackingId,
         photoUrl,
-        note,
+        safeNote,
         position?.latitude,
         position?.longitude,
         finalEventType,
@@ -388,7 +426,7 @@ export default function ConfirmReceipt({
                 <input
                   placeholder="เช่น TRK20260420001"
                   value={trackingId}
-                  onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
+                  onChange={(e) => setTrackingId(sanitizeTextInput(e.target.value, 100).toUpperCase())}
                   className="w-full h-14 sm:h-16 text-xl sm:text-2xl font-mono tracking-[0.2em] pl-6 pr-14 rounded-2xl border-2 border-outline-variant focus:border-primary focus:ring-4 focus:ring-primary/5 outline-none transition-all text-primary placeholder:text-outline-variant placeholder:font-sans placeholder:text-base sm:placeholder:text-lg placeholder:tracking-normal"
                   autoFocus
                 />
@@ -613,7 +651,7 @@ export default function ConfirmReceipt({
                         <input
                           placeholder="ระบุชื่อพนักงานที่ส่งต่อ"
                           value={forwardSender}
-                          onChange={(e) => setForwardSender(e.target.value)}
+                          onChange={(e) => setForwardSender(sanitizeTextInput(e.target.value, 200))}
                           className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display"
                         />
                       </div>
@@ -667,7 +705,7 @@ export default function ConfirmReceipt({
                         <input
                           placeholder="ระบุชื่อผู้รับแทน"
                           value={proxyName}
-                          onChange={(e) => setProxyName(e.target.value)}
+                          onChange={(e) => setProxyName(sanitizeTextInput(e.target.value, 200))}
                           className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none font-display"
                         />
                       </div>
@@ -681,7 +719,7 @@ export default function ConfirmReceipt({
                 <textarea
                   placeholder="เช่น กล่องบุบนิดหน่อย, วางไว้ที่ป้อมยาม, ฝากไว้ที่เคาน์เตอร์..."
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={(e) => setNote(sanitizeTextInput(e.target.value, 2000))}
                   className="w-full bg-white border border-outline-variant rounded-2xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none font-display min-h-[100px] transition-all resize-none"
                 />
               </div>

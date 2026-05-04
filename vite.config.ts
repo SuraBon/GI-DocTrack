@@ -19,6 +19,19 @@ export default defineConfig({
     // Deploy target for Vercel/static hosting: repoRoot/dist
     outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("leaflet")) return "map";
+          if (id.includes("qrcode")) return "qr";
+          if (id.includes("recharts")) return "charts";
+          if (id.includes("@radix-ui")) return "radix";
+          if (id.includes("react") || id.includes("react-dom")) return "react";
+          return "vendor";
+        },
+      },
+    },
   },
   server: {
     port: 3000,

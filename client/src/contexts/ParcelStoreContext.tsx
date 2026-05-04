@@ -29,8 +29,10 @@ interface ParcelStoreValue {
     docType: string,
     description?: string,
     note?: string,
+    latitude?: number,
+    longitude?: number,
     pin?: string,
-  ) => Promise<string | null>;
+  ) => Promise<{ trackingId: string | null; error?: string }>;
   confirmReceipt: (
     trackingID: string,
     photoUrl: string,
@@ -79,17 +81,14 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (res.success) {
-        let nextParcels: Parcel[] = [];
-        setParcels(prev => {
-          nextParcels = reset ? (res.parcels || []) : [...prev, ...(res.parcels || [])];
-          return nextParcels;
-        });
+        const incomingParcels = res.parcels || [];
+        setParcels(prev => reset ? incomingParcels : [...prev, ...incomingParcels]);
         setHasMore(res.hasMore || false);
         setTotalCount(res.totalCount || 0);
-        offsetRef.current += (res.parcels || []).length;
+        offsetRef.current += incomingParcels.length;
         
         if (reset) {
-          setSummary(summaryRes || summarizeParcels(nextParcels));
+          setSummary(summaryRes || summarizeParcels(incomingParcels));
         }
         setError(null);
       } else {
@@ -108,22 +107,23 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   }, [hasMore, loading, currentStatus, loadParcels]);
 
   const createParcel = useCallback<ParcelStoreValue['createParcel']>(
-    async (senderName, senderBranch, receiverName, receiverBranch, docType, description, note, pin) => {
+    async (senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, pin) => {
       setError(null);
       try {
         const res = await parcelService.createParcel(
-          senderName, senderBranch, receiverName, receiverBranch, docType, description, note, pin
+          senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, pin
         );
         if (!res.success) {
-          setError(res.error ?? 'ไม่สามารถสร้างรายการได้');
-          return null;
+          const message = res.error ?? 'ไม่สามารถสร้างรายการได้';
+          setError(message);
+          return { trackingId: null, error: message };
         }
         await loadParcels();
-        return res.trackingID ?? null;
+        return { trackingId: res.trackingID ?? null };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
         setError(message);
-        return null;
+        return { trackingId: null, error: message };
       }
     },
     [loadParcels],

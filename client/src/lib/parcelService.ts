@@ -20,6 +20,7 @@ import { normalizeRole, type AppRole } from './roles';
 
 const GAS_URL     = import.meta.env.VITE_GAS_URL     as string | undefined ?? '';
 const GAS_API_KEY = import.meta.env.VITE_GAS_API_KEY as string | undefined ?? '';
+const API_TIMEOUT_MS = 25_000;
 
 // ── Branch list ──────────────────────────────────────────────────────────────
 
@@ -94,6 +95,8 @@ type CallApiOptions = {
   dispatchAuthError?: boolean;
 };
 
+const NO_RETRY = 0;
+
 async function callAPI<T>(
   payload: object,
   { includeAuth = true, dispatchAuthError = true }: CallApiOptions = {},
@@ -101,6 +104,9 @@ async function callAPI<T>(
 ): Promise<T> {
   if (!GAS_URL) {
     throw new Error('กรุณาตั้งค่า Google Apps Script URL ก่อน');
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('ไม่มีการเชื่อมต่ออินเทอร์เน็ต กรุณาตรวจสอบสัญญาณแล้วลองใหม่');
   }
 
   let lastError: Error = new Error('เกิดข้อผิดพลาด');
@@ -124,14 +130,24 @@ async function callAPI<T>(
         }
       }
 
-      response = await fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify({ ...authData, ...payload, apiKey: GAS_API_KEY }),
-        // GAS requires text/plain to avoid CORS preflight
-        headers: { 'Content-Type': 'text/plain' },
-      });
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+      try {
+        response = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ ...authData, ...payload, apiKey: GAS_API_KEY }),
+          // GAS requires text/plain to avoid CORS preflight
+          headers: { 'Content-Type': 'text/plain' },
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
     } catch (err) {
-      lastError = new Error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
+      const isAbort = err instanceof DOMException && err.name === 'AbortError';
+      lastError = new Error(isAbort
+        ? 'การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง'
+        : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
       // Network error — retry
       continue;
     }
@@ -150,7 +166,13 @@ async function callAPI<T>(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data = await response.json() as Record<string, unknown>;
+    let data: Record<string, unknown>;
+    try {
+      data = await response.json() as Record<string, unknown>;
+    } catch {
+      lastError = new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+      continue;
+    }
     if (dispatchAuthError && data && data['success'] === false) {
       const errMsg = data['error'] as string | undefined;
       if (
@@ -178,14 +200,16 @@ export async function createParcel(
   docType: string,
   description?: string,
   note?: string,
+  latitude?: number,
+  longitude?: number,
   pin?: string,
 ): Promise<CreateParcelResponse> {
   const payload: CreateParcelPayload = {
     action: 'createParcel',
-    senderName, senderBranch, receiverName, receiverBranch, docType, description, note, pin
+    senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, pin
   };
   try {
-    const res = await callAPI<Record<string, unknown>>(payload);
+    const res = await callAPI<Record<string, unknown>>(payload, {}, NO_RETRY);
     return {
       success: Boolean(res.success),
       trackingID: (res.trackingID ?? res.trackingId) as string | undefined,
@@ -241,7 +265,7 @@ export async function confirmReceipt(
 ): Promise<ConfirmReceiptResponse> {
   const payload: ConfirmReceiptPayload = { action: 'confirmReceipt', trackingID, photoUrl, note, latitude, longitude, eventType, location, destLocation, person, pin };
   try {
-    return await callAPI<ConfirmReceiptResponse>(payload);
+    return await callAPI<ConfirmReceiptResponse>(payload, {}, NO_RETRY);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'เกิดข้อผิดพลาด';
     return { success: false, error: message };
@@ -317,7 +341,7 @@ const REAL_AUTH_ERRORS = [
 
 export async function login(employeeId: string, pin?: string): Promise<{ success: boolean, needsSetup?: boolean, user?: User, error?: string, role?: string, name?: string, branch?: string }> {
   try {
-    const res = normalizeAuthResponse(await callAPI<{ success: boolean, needsSetup?: boolean, user?: User, error?: string, role?: string, name?: string, branch?: string }>({ action: 'login', employeeId, pin }));
+    const res = normalizeAuthResponse(await callAPI<{ success: boolean, needsSetup?: boolean, user?: User, error?: string, role?: string, name?: string, branch?: string }>({ action: 'login', employeeId, pin }, {}, NO_RETRY));
 
     // Backend responded — use as-is
     if (res.success || res.needsSetup) return res;
@@ -335,7 +359,7 @@ export async function login(employeeId: string, pin?: string): Promise<{ success
 
 export async function setupPin(employeeId: string, pin: string, name: string, branch: string): Promise<{ success: boolean, user?: User, error?: string }> {
   try {
-    const res = normalizeAuthResponse(await callAPI<{ success: boolean, user?: User, error?: string }>({ action: 'setupPin', employeeId, pin, name, branch }));
+    const res = normalizeAuthResponse(await callAPI<{ success: boolean, user?: User, error?: string }>({ action: 'setupPin', employeeId, pin, name, branch }, {}, NO_RETRY));
 
     if (res.success) return res;
 
@@ -369,7 +393,7 @@ export async function getUsers(): Promise<{ success: boolean, users?: UserRow[],
 
 export async function updateUserRole(targetId: string, newRole: string): Promise<{ success: boolean, error?: string }> {
   try {
-    return await callAPI({ action: 'updateUserRole', targetId, newRole });
+    return await callAPI({ action: 'updateUserRole', targetId, newRole }, {}, NO_RETRY);
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
   }
@@ -377,7 +401,7 @@ export async function updateUserRole(targetId: string, newRole: string): Promise
 
 export async function deleteParcel(trackingID: string): Promise<{ success: boolean, error?: string }> {
   try {
-    return await callAPI({ action: 'deleteParcel', trackingID });
+    return await callAPI({ action: 'deleteParcel', trackingID }, {}, NO_RETRY);
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
   }
@@ -385,7 +409,7 @@ export async function deleteParcel(trackingID: string): Promise<{ success: boole
 
 export async function editParcel(trackingID: string, updates: Partial<Record<string, string>>): Promise<{ success: boolean, error?: string }> {
   try {
-    return await callAPI({ action: 'editParcel', trackingID, updates });
+    return await callAPI({ action: 'editParcel', trackingID, updates }, {}, NO_RETRY);
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
   }
@@ -404,7 +428,7 @@ export async function updateProfile(
       newBranch,
       newPassword,
       currentPassword,
-    });
+    }, {}, NO_RETRY);
     if (res.success && res.user) {
       res.user = { ...res.user, role: normalizeRole(res.user.role) };
     }

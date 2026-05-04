@@ -7,6 +7,7 @@ import StatusBadge from '@/components/StatusBadge';
 import { formatThaiDate } from '@/lib/dateUtils';
 import type { Parcel } from '@/types/parcel';
 import NativeSelect, { resolveSelectValue } from '@/components/NativeSelect';
+import { isValidEmployeeId, normalizeEmployeeId, validatePassword, validateRequiredText } from '@/lib/validation';
 
 type AuthDialogState = {
   open: boolean;
@@ -79,10 +80,19 @@ export default function Login() {
       toast.error(DEFAULT_LOGIN_ERROR, { description: message });
       return;
     }
+    if (!isValidEmployeeId(employeeId)) {
+      const message = 'รหัสพนักงานต้องใช้ A-Z, 0-9 หรือ _ เท่านั้น';
+      setAuthDialog({ open: true, status: 'error', title: DEFAULT_LOGIN_ERROR, message });
+      toast.error(DEFAULT_LOGIN_ERROR, { description: message });
+      return;
+    }
 
     if (isSetup) {
-      if (pin.length < 4 || !name || !branch) {
-        const message = 'กรุณากรอกข้อมูลให้ครบถ้วนและรหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร';
+      const passwordError = validatePassword(pin, 20);
+      const nameError = validateRequiredText(name, 'ชื่อ-นามสกุล', 1, 100);
+      const branchError = validateRequiredText(branch, 'สาขา', 1, 100);
+      if (passwordError || nameError || branchError) {
+        const message = passwordError || nameError || branchError || 'กรุณากรอกข้อมูลให้ครบถ้วน';
         setAuthDialog({ open: true, status: 'error', title: 'ตั้งค่าการเข้าใช้งานไม่สำเร็จ', message });
         toast.error('ตั้งค่าการเข้าใช้งานไม่สำเร็จ', { description: message });
         return;
@@ -112,6 +122,12 @@ export default function Login() {
         const message = 'กรุณากรอกรหัสผ่านก่อนเข้าสู่ระบบ';
         setAuthDialog({ open: true, status: 'error', title: DEFAULT_LOGIN_ERROR, message });
         toast.error(DEFAULT_LOGIN_ERROR, { description: message });
+        return;
+      }
+      const passwordError = validatePassword(pin, 20);
+      if (passwordError) {
+        setAuthDialog({ open: true, status: 'error', title: DEFAULT_LOGIN_ERROR, message: passwordError });
+        toast.error(DEFAULT_LOGIN_ERROR, { description: passwordError });
         return;
       }
 
@@ -155,21 +171,26 @@ export default function Login() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regId.trim()) { toast.error('กรุณากรอกรหัสพนักงาน'); return; }
-    if (regPassword.length < 4) { toast.error('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
-    if (!regName.trim()) { toast.error('กรุณากรอกชื่อ-นามสกุล'); return; }
+    if (!isValidEmployeeId(regId)) { toast.error('รหัสพนักงานต้องใช้ A-Z, 0-9 หรือ _ เท่านั้น'); return; }
+    const regPasswordError = validatePassword(regPassword, 20);
+    if (regPasswordError) { toast.error(regPasswordError); return; }
+    const regNameError = validateRequiredText(regName, 'ชื่อ-นามสกุล', 1, 100);
+    if (regNameError) { toast.error(regNameError); return; }
     if (!regBranch || !resolveSelectValue(regBranch)) { toast.error('กรุณาเลือกสาขา'); return; }
+    const regBranchError = validateRequiredText(resolveSelectValue(regBranch), 'สาขา', 1, 100);
+    if (regBranchError) { toast.error(regBranchError); return; }
 
     setIsRegistering(true);
     try {
       // ใช้ setupPin โดยตรง (ไม่ผ่าน AuthContext) เพื่อไม่ให้ login อัตโนมัติ
-      const res = await setupPin(regId.trim(), regPassword, regName.trim(), resolveSelectValue(regBranch));
+      const res = await setupPin(normalizeEmployeeId(regId), regPassword.trim(), regName.trim(), resolveSelectValue(regBranch));
       if (res.success) {
         toast.success(`สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ ${regName.trim()}`, {
           description: 'กรุณาเข้าสู่ระบบด้วยรหัสที่สมัครไว้',
           duration: 5000,
         });
         setIsRegisterOpen(false);
-        setEmployeeId(regId.trim());
+        setEmployeeId(normalizeEmployeeId(regId));
         setPin('');
         setRegId(''); setRegPassword(''); setRegName(''); setRegBranch('');
       } else {
@@ -260,7 +281,7 @@ export default function Login() {
             <input
               type="text"
               value={employeeId}
-              onChange={e => setEmployeeId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              onChange={e => setEmployeeId(normalizeEmployeeId(e.target.value))}
               disabled={isSetup || isLoginDisabled}
               className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-2xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
               placeholder="โปรดกรอกรหัสพนักงานของท่าน"
@@ -370,7 +391,7 @@ export default function Login() {
               <input
                 type="text"
                 value={regId}
-                onChange={e => setRegId(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                onChange={e => setRegId(normalizeEmployeeId(e.target.value))}
                 disabled={isRegistering}
                 className="w-full h-12 bg-white border border-outline-variant rounded-2xl px-4 text-primary font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
                 placeholder="เช่น EMP001"

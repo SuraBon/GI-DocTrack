@@ -4,20 +4,31 @@
  * Design: Premium Logistics
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParcelStore } from '@/hooks/useParcelStore';
 import { getBranches } from '@/lib/parcelService';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { formatThaiDate } from '@/lib/dateUtils';
-import NativeSelect, { OTHER_VALUE, resolveSelectValue } from '@/components/NativeSelect';
+import { formatThaiDateTime } from '@/lib/dateUtils';
+import NativeSelect, { resolveSelectValue } from '@/components/NativeSelect';
 import QRCode from 'qrcode';
+import { sanitizeTextInput, validateRequiredText } from '@/lib/validation';
+import { useGeolocation } from '@/hooks/useGeolocation';
 
 const DOC_TYPES = ['เอกสาร', 'พัสดุ'];
+
+type CreatedParcelDetails = {
+  senderName: string;
+  senderBranch: string;
+  receiverName: string;
+  receiverBranch: string;
+  createdAt: string;
+};
 
 export default function CreateParcel() {
   const { createParcel } = useParcelStore();
   const branches = getBranches();
+  const { position, status: geoStatus, errorMessage: geoError, requestLocation } = useGeolocation();
 
   const [formData, setFormData] = useState({
     senderName: '',
@@ -29,10 +40,8 @@ export default function CreateParcel() {
     note: '',
   });
 
-  const [customSenderBranch, setCustomSenderBranch] = useState('');
-  const [customReceiverBranch, setCustomReceiverBranch] = useState('');
-  const [customDocType, setCustomDocType] = useState('');
   const [createdTrackingId, setCreatedTrackingId] = useState<string | null>(null);
+  const [createdParcelDetails, setCreatedParcelDetails] = useState<CreatedParcelDetails | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -46,6 +55,20 @@ export default function CreateParcel() {
       .catch(() => setQrDataUrl(null));
   }, [createdTrackingId]);
 
+  useEffect(() => {
+    if (geoStatus === 'idle') requestLocation();
+  }, [geoStatus, requestLocation]);
+
+  useEffect(() => {
+    if (!isLoading) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isLoading]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -53,13 +76,13 @@ export default function CreateParcel() {
 
   /** Resolves the final submitted values, replacing OTHER_VALUE with custom inputs. */
   const getFinalValues = () => ({
-    senderName:     formData.senderName.trim(),
-    senderBranch:   resolveSelectValue(formData.senderBranch),
-    receiverName:   formData.receiverName.trim(),
-    receiverBranch: resolveSelectValue(formData.receiverBranch),
-    docType:        resolveSelectValue(formData.docType),
-    description:    formData.description.trim(),
-    note:           formData.note.trim(),
+    senderName:     sanitizeTextInput(formData.senderName, 200),
+    senderBranch:   sanitizeTextInput(resolveSelectValue(formData.senderBranch), 100),
+    receiverName:   sanitizeTextInput(formData.receiverName, 200),
+    receiverBranch: sanitizeTextInput(resolveSelectValue(formData.receiverBranch), 100),
+    docType:        sanitizeTextInput(resolveSelectValue(formData.docType), 100),
+    description:    sanitizeTextInput(formData.description, 200),
+    note:           sanitizeTextInput(formData.note, 2000),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,45 +90,57 @@ export default function CreateParcel() {
     const v = getFinalValues();
 
     // ✅ FIX: Proper validation with specific messages
-    if (!v.senderName || v.senderName.length < 2) {
-      toast.error('กรุณากรอกชื่อผู้ส่งอย่างน้อย 2 ตัวอักษร');
+    const validationError =
+      validateRequiredText(v.senderName, 'ชื่อผู้ส่ง', 2, 200) ||
+      validateRequiredText(v.senderBranch, 'สาขาผู้ส่ง', 1, 100) ||
+      validateRequiredText(v.receiverName, 'ชื่อผู้รับ', 2, 200) ||
+      validateRequiredText(v.receiverBranch, 'สาขาผู้รับ', 1, 100) ||
+      validateRequiredText(v.docType, 'ประเภทพัสดุ', 1, 100) ||
+      (v.description && validateRequiredText(v.description, 'รายละเอียด', 0, 200)) ||
+      (v.note && validateRequiredText(v.note, 'หมายเหตุ', 0, 2000));
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
-    if (!v.senderBranch || v.senderBranch.length < 1) {
-      toast.error('กรุณาเลือกหรือระบุสาขาผู้ส่ง');
-      return;
-    }
-    if (!v.receiverName || v.receiverName.length < 2) {
-      toast.error('กรุณากรอกชื่อผู้รับอย่างน้อย 2 ตัวอักษร');
-      return;
-    }
-    if (!v.receiverBranch || v.receiverBranch.length < 1) {
-      toast.error('กรุณาเลือกหรือระบุสาขาผู้รับ');
-      return;
-    }
-    if (!v.docType || v.docType.length < 1) {
-      toast.error('กรุณาเลือกหรือระบุประเภทพัสดุ');
+    if (!position) {
+      toast.error('กรุณาอนุญาต GPS เพื่อบันทึกจุดเริ่มต้นก่อนสร้างรายการ');
+      if (geoStatus !== 'loading') requestLocation();
       return;
     }
     setIsConfirmOpen(true);
   };
 
   const handleConfirmSubmit = async () => {
+    if (isLoading) return;
+    if (!position) {
+      toast.error('กรุณาอนุญาต GPS เพื่อบันทึกจุดเริ่มต้นก่อนสร้างรายการ');
+      if (geoStatus !== 'loading') requestLocation();
+      return;
+    }
     setIsConfirmOpen(false);
     setIsLoading(true);
     const v = getFinalValues();
     try {
-      const trackingId = await createParcel(
+      const result = await createParcel(
         v.senderName, v.senderBranch,
         v.receiverName, v.receiverBranch,
-        v.docType, v.description, v.note
+        v.docType, v.description, v.note,
+        position.latitude,
+        position.longitude,
       );
-      if (trackingId) {
-        setCreatedTrackingId(trackingId);
+      if (result.trackingId) {
+        setCreatedTrackingId(result.trackingId);
+        setCreatedParcelDetails({
+          senderName: v.senderName,
+          senderBranch: v.senderBranch,
+          receiverName: v.receiverName,
+          receiverBranch: v.receiverBranch,
+          createdAt: new Date().toISOString(),
+        });
         setIsResultOpen(true);
         setFormData({ senderName: '', senderBranch: '', receiverName: '', receiverBranch: '', docType: '', description: '', note: '' });
       } else {
-        toast.error('ไม่สามารถสร้างรายการได้');
+        toast.error(result.error || 'ไม่สามารถสร้างรายการได้');
       }
     } finally {
       setIsLoading(false);
@@ -170,6 +205,41 @@ export default function CreateParcel() {
                   icon="apartment"
                   otherPlaceholder="ระบุชื่อสาขาผู้ส่ง"
                 />
+              </div>
+              <div className={`rounded-2xl border p-3 text-xs ${
+                geoStatus === 'success' ? 'border-green-200 bg-green-50 text-green-800' :
+                geoStatus === 'denied' || geoStatus === 'error' ? 'border-error/20 bg-error-container/25 text-error' :
+                'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant'
+              }`}>
+                <div className="flex items-start gap-2.5">
+                  <span className={`material-symbols-outlined text-lg ${geoStatus === 'loading' ? 'animate-spin' : ''}`}>
+                    {geoStatus === 'success' ? 'my_location' :
+                     geoStatus === 'loading' ? 'progress_activity' :
+                     geoStatus === 'denied' || geoStatus === 'error' ? 'location_disabled' : 'location_searching'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold">
+                      {geoStatus === 'success' ? 'บันทึก GPS จุดเริ่มต้นแล้ว' :
+                       geoStatus === 'loading' ? 'กำลังดึง GPS จุดเริ่มต้น...' :
+                       geoStatus === 'denied' ? 'ไม่ได้รับอนุญาต GPS' :
+                       geoStatus === 'error' ? 'ยังไม่ได้ GPS จุดเริ่มต้น' : 'รอการดึง GPS จุดเริ่มต้น'}
+                    </p>
+                    <p className="mt-0.5 opacity-80">
+                      {geoStatus === 'success' && position
+                        ? `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)}`
+                        : geoError || 'พิกัดนี้จะใช้แสดงจุดเริ่มต้นบนแผนที่'}
+                    </p>
+                    {(geoStatus === 'error' || geoStatus === 'denied') && (
+                      <button
+                        type="button"
+                        onClick={requestLocation}
+                        className="mt-1 font-bold underline underline-offset-2"
+                      >
+                        ลองดึง GPS อีกครั้ง
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -290,107 +360,107 @@ export default function CreateParcel() {
 
       {/* Confirmation Modal */}
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <DialogContent className="w-full max-w-[92vw] sm:max-w-lg rounded-3xl p-0 border-none shadow-2xl bg-background overflow-hidden">
-          <div className="flex flex-col">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-xl max-h-[92vh] rounded-3xl p-0 border-none bg-white shadow-2xl overflow-hidden">
+          <div className="flex max-h-[92vh] flex-col">
             {/* Header */}
-            <div className="bg-primary p-6 text-white text-center rounded-t-3xl">
-              <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-                <span className="material-symbols-outlined text-4xl text-secondary-container">fact_check</span>
-              </div>
-              <DialogTitle className="text-2xl font-bold font-display">ตรวจสอบข้อมูล</DialogTitle>
-              <p className="text-primary-fixed-dim text-xs mt-1 uppercase tracking-wider font-medium">กรุณายืนยันความถูกต้องก่อนบันทึก</p>
-            </div>
-
-            <div className="p-4 md:p-6 space-y-4 bg-surface-container-lowest">
-              {/* Ticket Style Container */}
-              <div className="bg-white rounded-3xl border border-outline-variant/40 shadow-sm overflow-hidden">
-                <div className="h-2 w-full bg-primary" />
-                <div className="p-4 sm:p-6 space-y-6">
-                  {/* Routing Flow */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between relative gap-4 sm:gap-0">
-                    {/* Sender */}
-                    <div className="w-full sm:flex-1 flex flex-row sm:flex-col items-center sm:text-center z-10 gap-4 sm:gap-0 bg-surface-container-lowest sm:bg-transparent p-3 sm:p-0 rounded-2xl">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex shrink-0 items-center justify-center text-primary sm:mb-3">
-                        <span className="material-symbols-outlined text-xl sm:text-2xl">person_pin_circle</span>
-                      </div>
-                      <div className="flex-1 text-left sm:text-center">
-                        <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-0.5 sm:mb-1">ผู้ส่งต้นทาง</p>
-                        <p className="text-sm sm:text-base font-bold text-on-surface leading-tight mb-0.5 sm:mb-1">{formData.senderName}</p>
-                        <p className="text-xs text-on-surface-variant sm:max-w-[120px] truncate">{resolveSelectValue(formData.senderBranch)}</p>
-                      </div>
-                    </div>
-
-                    {/* Connecting Line */}
-                    <div className="hidden sm:flex flex-1 flex-col items-center justify-center px-2 relative z-0">
-                      <div className="w-full border-t-2 border-dashed border-outline-variant/50 absolute top-1/2 -translate-y-1/2" />
-                      <div className="bg-white px-3 relative z-10 text-primary">
-                        <span className="material-symbols-outlined text-3xl">local_shipping</span>
-                      </div>
-                    </div>
-                    <div className="sm:hidden flex items-center justify-center w-full py-1 text-outline-variant">
-                      <span className="material-symbols-outlined">south</span>
-                    </div>
-
-                    {/* Receiver */}
-                    <div className="w-full sm:flex-1 flex flex-row sm:flex-col items-center sm:text-center z-10 gap-4 sm:gap-0 bg-surface-container-lowest sm:bg-transparent p-3 sm:p-0 rounded-2xl">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary/10 rounded-full flex shrink-0 items-center justify-center text-secondary sm:mb-3">
-                        <span className="material-symbols-outlined text-xl sm:text-2xl">location_on</span>
-                      </div>
-                      <div className="flex-1 text-left sm:text-center">
-                        <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mb-0.5 sm:mb-1">ผู้รับปลายทาง</p>
-                        <p className="text-sm sm:text-base font-bold text-on-surface leading-tight mb-0.5 sm:mb-1">{formData.receiverName}</p>
-                        <p className="text-xs text-on-surface-variant sm:max-w-[120px] truncate">{resolveSelectValue(formData.receiverBranch)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-dashed border-outline-variant/40" />
-
-                  {/* Parcel Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-surface-container-low/50 p-4 rounded-2xl">
-                      <div className="flex items-center gap-2 mb-2 text-primary opacity-80">
-                        <span className="material-symbols-outlined text-sm">category</span>
-                        <p className="text-[10px] font-bold uppercase tracking-widest">ประเภทพัสดุ</p>
-                      </div>
-                      <p className="text-sm font-bold text-on-surface">{resolveSelectValue(formData.docType)}</p>
-                    </div>
-                    <div className="bg-surface-container-low/50 p-4 rounded-2xl">
-                      <div className="flex items-center gap-2 mb-2 text-primary opacity-80">
-                        <span className="material-symbols-outlined text-sm">description</span>
-                        <p className="text-[10px] font-bold uppercase tracking-widest">รายละเอียด</p>
-                      </div>
-                      <p className="text-sm font-bold text-on-surface">{formData.description || '-'}</p>
-                    </div>
-                  </div>
-
-                  {/* Note */}
-                  {formData.note && (
-                    <div className="bg-tertiary-container/30 p-4 rounded-2xl border border-tertiary/10">
-                      <div className="flex items-center gap-2 mb-1 text-tertiary">
-                        <span className="material-symbols-outlined text-sm">edit_note</span>
-                        <p className="text-[10px] font-bold uppercase tracking-widest">หมายเหตุเพิ่มเติม</p>
-                      </div>
-                      <p className="text-sm text-on-surface italic">{formData.note}</p>
-                    </div>
-                  )}
+            <div className="relative overflow-hidden bg-primary px-5 py-4 text-white sm:px-6">
+              <div className="relative flex items-center gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary-container text-primary shadow-sm">
+                  <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
+                </div>
+                <div className="min-w-0 text-left">
+                  <DialogTitle className="font-display text-xl font-black leading-tight sm:text-2xl">ตรวจสอบข้อมูล</DialogTitle>
+                  <p className="mt-0.5 text-xs font-semibold text-white/65">ยืนยันรายละเอียดก่อนสร้างรายการพัสดุ</p>
                 </div>
               </div>
             </div>
 
+            <div className="flex-1 overflow-y-auto bg-surface-container-lowest p-4 sm:p-5">
+              <div className="space-y-3">
+                {/* Route summary */}
+                <div className="rounded-2xl border border-outline-variant/25 bg-white p-4 shadow-sm">
+                  <div className="relative space-y-4">
+                    <div className="absolute bottom-10 left-[21px] top-10 w-px bg-outline-variant/30" />
+                    <div className="relative flex min-w-0 gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>person_pin_circle</span>
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/50">ผู้ส่งต้นทาง</p>
+                        <p className="truncate font-display text-lg font-black leading-tight text-primary">{formData.senderName}</p>
+                        <p className="truncate text-xs font-semibold text-on-surface-variant/70">{resolveSelectValue(formData.senderBranch)}</p>
+                      </div>
+                    </div>
+
+                    <div className="relative flex min-w-0 gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
+                        <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                      </div>
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/50">ผู้รับปลายทาง</p>
+                        <p className="truncate font-display text-lg font-black leading-tight text-primary">{formData.receiverName}</p>
+                        <p className="truncate text-xs font-semibold text-on-surface-variant/70">{resolveSelectValue(formData.receiverBranch)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Parcel Details */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-outline-variant/25 bg-white p-4 shadow-sm">
+                    <div className="mb-2 flex items-center gap-2 text-primary">
+                      <span className="material-symbols-outlined text-lg">category</span>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/55">ประเภทพัสดุ</p>
+                    </div>
+                    <p className="font-display text-base font-black text-primary">{resolveSelectValue(formData.docType)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-outline-variant/25 bg-white p-4 shadow-sm">
+                    <div className="mb-2 flex items-center gap-2 text-primary">
+                      <span className="material-symbols-outlined text-lg">description</span>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/55">รายละเอียด</p>
+                    </div>
+                    <p className="break-words font-display text-base font-black text-primary">{formData.description || '-'}</p>
+                  </div>
+                </div>
+
+                {position && (
+                  <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 shadow-sm">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="material-symbols-outlined text-lg">my_location</span>
+                      <p className="text-[10px] font-black uppercase tracking-widest">GPS จุดเริ่มต้น</p>
+                    </div>
+                    <p className="font-mono text-sm font-black">
+                      {position.latitude.toFixed(6)}, {position.longitude.toFixed(6)}
+                    </p>
+                  </div>
+                )}
+
+                {/* Note */}
+                {formData.note && (
+                  <div className="rounded-2xl border border-tertiary/10 bg-tertiary-container/25 p-4">
+                    <div className="mb-1 flex items-center gap-2 text-tertiary">
+                      <span className="material-symbols-outlined text-lg">edit_note</span>
+                      <p className="text-[10px] font-black uppercase tracking-widest">หมายเหตุเพิ่มเติม</p>
+                    </div>
+                    <p className="break-words text-sm font-medium leading-relaxed text-on-surface">{formData.note}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Footer */}
-            <div className="p-4 md:p-6 bg-surface-container-lowest border-t border-outline-variant/20">
-              <div className="flex gap-4">
+            <div className="border-t border-outline-variant/15 bg-white p-4 sm:p-5">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row">
                 <button
                   onClick={() => setIsConfirmOpen(false)}
-                  className="flex-1 h-14 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors text-base"
+                  className="h-12 flex-1 rounded-2xl border border-outline-variant/50 font-display font-bold text-on-surface-variant transition-colors hover:bg-surface-container sm:h-13"
                 >
                   แก้ไข
                 </button>
                 <button
                   onClick={handleConfirmSubmit}
                   disabled={isLoading}
-                  className="flex-[2] flex items-center justify-center gap-2 h-14 bg-primary text-white rounded-2xl font-display font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all text-base disabled:opacity-50"
+                  className="flex h-12 flex-[2] items-center justify-center gap-2 rounded-2xl bg-primary font-display font-bold text-white shadow-lg shadow-primary/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-50 sm:h-13"
                 >
                   {isLoading ? (
                     <span className="material-symbols-outlined animate-spin">progress_activity</span>
@@ -410,9 +480,9 @@ export default function CreateParcel() {
       {/* Success Dialog */}
       <Dialog open={isResultOpen} onOpenChange={setIsResultOpen}>
         <DialogContent 
-            className="w-full max-w-[92vw] sm:max-w-3xl rounded-3xl p-0 border-none shadow-2xl bg-background flex flex-col justify-center items-center" 
+            className="w-[calc(100vw-2rem)] max-w-md rounded-3xl p-0 border-none shadow-2xl bg-background overflow-hidden"
           >
-          <div className="bg-primary p-8 text-white text-center relative">
+          <div className="w-full bg-primary p-7 text-white text-center relative">
             <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
               <span className="material-symbols-outlined text-4xl text-secondary-container">check_circle</span>
             </div>
@@ -420,7 +490,7 @@ export default function CreateParcel() {
             <p className="text-primary-fixed-dim text-sm mt-1">บันทึกข้อมูลพัสดุเรียบร้อยแล้ว</p>
           </div>
 
-          <div className="p-8 space-y-6">
+          <div className="w-full p-6 space-y-5">
             <div className="bg-white p-6 rounded-2xl border border-outline-variant/30 flex flex-col items-center gap-5 shadow-sm">
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-[0.2em]">หมายเลขติดตาม</span>
@@ -442,7 +512,7 @@ export default function CreateParcel() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={handleCopyTrackingId}
                 className="flex-1 flex items-center justify-center gap-2 h-12 bg-surface-container-high text-primary border border-outline-variant/20 rounded-xl font-display font-bold hover:bg-surface-container transition-colors"
@@ -454,7 +524,10 @@ export default function CreateParcel() {
                 onClick={async () => {
                   const printWindow = window.open('', '', 'width=400,height=500');
                   if (printWindow) {
-                    const v = getFinalValues();
+                    const labelDetails = createdParcelDetails ?? {
+                      ...getFinalValues(),
+                      createdAt: new Date().toISOString(),
+                    };
                     const trackingId = createdTrackingId ?? '';
                     // Generate QR locally for print
                     let printQrSrc = '';
@@ -492,9 +565,9 @@ export default function CreateParcel() {
                     `);
                     const doc = printWindow.document;
                     doc.getElementById('tracking-id')!.textContent = trackingId;
-                    doc.getElementById('sender-info')!.textContent = `${v.senderName} (${v.senderBranch})`;
-                    doc.getElementById('receiver-info')!.textContent = `${v.receiverName} (${v.receiverBranch})`;
-                    doc.getElementById('created-at')!.textContent = `สร้างเมื่อ: ${formatThaiDate(new Date().toISOString())}`;
+                    doc.getElementById('sender-info')!.textContent = `${labelDetails.senderName} (${labelDetails.senderBranch})`;
+                    doc.getElementById('receiver-info')!.textContent = `${labelDetails.receiverName} (${labelDetails.receiverBranch})`;
+                    doc.getElementById('created-at')!.textContent = `สร้างเมื่อ: ${formatThaiDateTime(labelDetails.createdAt)}`;
                     if (printQrSrc) {
                       doc.getElementById('qr-code')!.setAttribute('src', printQrSrc);
                     }

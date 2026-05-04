@@ -23,6 +23,32 @@ describe('parseParcelTimeline', () => {
     });
     const events = parseParcelTimeline(parcel);
     expect(events.map((e) => e.title)).toEqual(['รับพัสดุเข้าระบบ', 'ส่งต่อพัสดุ', 'กำลังจัดส่ง']);
+    expect(events[0].destLocation).toBe('มีนบุรี');
+    expect(events[1].destLocation).toBe('มหาชัย');
+  });
+
+  it('keeps created event GPS so maps can start from the real origin point', () => {
+    const parcel = createParcel({
+      events: [{
+        id: 'EVT1',
+        trackingId: 'TRK1',
+        timestamp: '1 มกราคม 2569',
+        eventType: 'CREATED',
+        location: 'MS',
+        destLocation: 'มีนบุรี',
+        person: 'A',
+        latitude: 13.7,
+        longitude: 100.5,
+      }],
+    });
+    const events = parseParcelTimeline(parcel);
+    expect(events[0]).toMatchObject({
+      title: 'รับพัสดุเข้าระบบ',
+      location: 'MS',
+      destLocation: 'มีนบุรี',
+      latitude: 13.7,
+      longitude: 100.5,
+    });
   });
 
   it('parses delivered proxy event', () => {

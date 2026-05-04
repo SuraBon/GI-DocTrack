@@ -11,7 +11,8 @@ import type { Parcel } from '@/types/parcel';
 import { getParcel, searchParcels, BRANCHES_WITH_COORDS } from '@/lib/parcelService';
 import { parseParcelTimeline } from '@/lib/timeline';
 import TrackingMap from '@/components/TrackingMap';
-import { formatThaiDate } from '@/lib/dateUtils';
+import { formatThaiDateTime } from '@/lib/dateUtils';
+import { isValidTrackingId, sanitizeTextInput } from '@/lib/validation';
 
 export default function Track() {
   const [trackingId, setTrackingId] = useState('');
@@ -36,7 +37,9 @@ export default function Track() {
   }, []);
 
   const addToRecent = (id: string) => {
-    const next = [id, ...recentSearches.filter(i => i !== id)].slice(0, 5);
+    const safeId = sanitizeTextInput(id, 100).toUpperCase();
+    if (!safeId) return;
+    const next = [safeId, ...recentSearches.filter(i => i !== safeId)].slice(0, 5);
     setRecentSearches(next);
     localStorage.setItem('recent_searches', JSON.stringify(next));
   };
@@ -49,7 +52,7 @@ export default function Track() {
 
   const handleSearch = async (e?: React.FormEvent, searchId?: string) => {
     if (e) e.preventDefault();
-    const id = (searchId ?? trackingId).trim();
+    const id = sanitizeTextInput(searchId ?? trackingId, 100).toUpperCase();
     if (!id) { toast.error('กรุณากรอกหมายเลขติดตาม'); return; }
     // ✅ FIX: sync input display with what we're actually searching
     if (searchId && searchId !== trackingId) setTrackingId(searchId);
@@ -60,13 +63,21 @@ export default function Track() {
         setParcel(res.parcel); setSearchResults([]); addToRecent(res.parcel.TrackingID);
         toast.success('พบข้อมูลพัสดุ');
       } else {
+        const directTrackingLookup = isValidTrackingId(id);
+        const lookupMiss = (res.error ?? '').includes('ไม่พบ') || (res.error ?? '').includes('รูปแบบ');
+        if (directTrackingLookup && res.error && !lookupMiss) {
+          setParcel(null);
+          setSearchResults([]);
+          toast.error(res.error);
+          return;
+        }
         const results = await searchParcels(id);
         if (results?.length) {
           if (results.length === 1) { setParcel(results[0]); setSearchResults([]); addToRecent(results[0].TrackingID); }
           else { setSearchResults(results); setParcel(null); }
           toast.success(`พบข้อมูล ${results.length} รายการ`);
         } else {
-          setParcel(null); setSearchResults([]); toast.error('ไม่พบข้อมูลพัสดุ');
+          setParcel(null); setSearchResults([]); toast.error(res.error && directTrackingLookup ? res.error : 'ไม่พบข้อมูลพัสดุ');
         }
       }
     } catch { toast.error('เกิดข้อผิดพลาดในการเชื่อมต่อ'); }
@@ -76,7 +87,8 @@ export default function Track() {
   const handlePaste = async () => {
     try {
       const t = await navigator.clipboard.readText();
-      if (t) { setTrackingId(t.trim().toUpperCase()); toast.success('วางหมายเลขติดตามเรียบร้อย'); }
+      const safeText = sanitizeTextInput(t, 100).toUpperCase();
+      if (safeText) { setTrackingId(safeText); toast.success('วางหมายเลขติดตามเรียบร้อย'); }
     } catch { toast.error('ไม่สามารถวางข้อมูลได้'); }
   };
 
@@ -87,6 +99,7 @@ export default function Track() {
     if (!parcel) return false;
     // GPS coordinates available?
     if (typeof parcel['Latitude'] === 'number' && typeof parcel['Longitude'] === 'number') return true;
+    if (parcel.events?.some(event => typeof event.latitude === 'number' && typeof event.longitude === 'number')) return true;
     // Known branch coordinates available?
     return (
       BRANCHES_WITH_COORDS.includes(parcel['สาขาผู้ส่ง']) ||
@@ -118,7 +131,7 @@ export default function Track() {
             <input
               placeholder="กรอกหมายเลขติดตาม หรือชื่อผู้รับ..."
               value={trackingId}
-              onChange={e => setTrackingId(e.target.value.toUpperCase())}
+              onChange={e => setTrackingId(sanitizeTextInput(e.target.value, 100).toUpperCase())}
               autoFocus
               className="h-13 w-full rounded-xl border border-outline-variant/40 bg-surface-container-lowest pl-11 pr-12 text-base font-semibold text-primary outline-none transition-all placeholder:font-medium placeholder:text-outline-variant/55 focus:border-primary focus:bg-white focus:ring-4 focus:ring-primary/8 sm:h-14"
             />
@@ -190,7 +203,7 @@ export default function Track() {
                 </div>
                 <div className="flex items-center gap-1 mt-1.5 text-xs text-on-surface-variant/50">
                   <span className="material-symbols-outlined text-sm">event</span>
-                  {formatThaiDate(p['วันที่สร้าง'])}
+                  {formatThaiDateTime(p['วันที่สร้าง'])}
                 </div>
               </div>
             ))}

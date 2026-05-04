@@ -24,6 +24,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
           description: `ผู้ส่ง: ${evt.person || '-'} → ผู้รับ: ${evt.destLocation || '-'}`,
           timestamp: evt.timestamp,
           location: evt.location,
+          destLocation: evt.destLocation,
           latitude: evt.latitude,
           longitude: evt.longitude,
         });
@@ -35,6 +36,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
           description: `ส่งต่อโดย: ${evt.person || '-'} ไปยังสาขา: ${evt.destLocation || '-'}`,
           timestamp: evt.timestamp,
           location: evt.location,
+          destLocation: evt.destLocation,
           imageUrl: evt.photoUrl,
           latitude: evt.latitude,
           longitude: evt.longitude,
@@ -98,6 +100,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     description: `ผู้ส่ง: ${parcel['ผู้ส่ง']} → ผู้รับ: ${parcel['ผู้รับ']}`,
     timestamp: parcel['วันที่สร้าง'],
     location: parcel['สาขาผู้ส่ง'],
+    destLocation: parcel['สาขาผู้รับ'],
   });
 
   // ── 2. Forward events
@@ -117,6 +120,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
         description: `ส่งต่อโดย: ${match[1].trim()} ไปยังสาขา: ${match[3].trim()}`,
         timestamp: match[4].trim(),
         location: match[2].trim(),
+        destLocation: match[3].trim(),
         imageUrl: match[5]?.trim() || undefined,
         latitude: fwdLat,
         longitude: fwdLng,

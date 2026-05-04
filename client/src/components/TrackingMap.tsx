@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, useMemo, memo } from 'react';
 import L from 'leaflet';
 import { MapView } from './Map';
 import type { TimelineEvent } from '@/types/timeline';
-import { formatThaiDate } from '@/lib/dateUtils';
+import { formatThaiDateTime } from '@/lib/dateUtils';
 
 const BRANCH_COORDS: Record<string, { lat: number; lng: number }> = {
   'MS':                   { lat: 13.6863417, lng: 100.5473102 },
@@ -79,8 +79,16 @@ function TrackingMap({ events }: TrackingMapProps) {
         });
       }
 
-      // Also check for forward destinations in the description
-      if (!resolveCoords(e) && e.description?.includes('ไปยังสาขา:')) {
+      // Draw the destination branch as the next point when it is known.
+      if (e.destLocation && BRANCH_COORDS[e.destLocation]) {
+        entries.push({
+          ...BRANCH_COORDS[e.destLocation],
+          label: e.destLocation,
+          isGps: false,
+          isLast: false,
+          event: e,
+        });
+      } else if (!resolveCoords(e) && e.description?.includes('ไปยังสาขา:')) {
         const match = e.description.match(/ไปยังสาขา:\s*(.*)/);
         const dest = match?.[1]?.trim();
         if (dest && BRANCH_COORDS[dest]) {
@@ -138,7 +146,7 @@ function TrackingMap({ events }: TrackingMapProps) {
 
     pathEntries.forEach((entry) => {
       const { lat, lng, label, isGps, isLast, event } = entry;
-      const eventDate = event.timestamp ? formatThaiDate(event.timestamp) : '';
+      const eventDate = event.timestamp ? formatThaiDateTime(event.timestamp) : '';
       const safeLabel     = escapeHtml(label || 'GPS');
       const iconName      = isLast ? 'local_shipping' : isGps ? 'my_location' : 'location_on';
       const bgClass       = isLast

@@ -1,6 +1,7 @@
 ﻿const SHEET_NAME = "Parcels";
 const API_KEY_PROPERTY = "API_KEY";
 const ADMIN_INITIAL_PIN_PROPERTY = "ADMIN_INITIAL_PIN";
+const DOC_TRACK_FOLDER_ID_PROPERTY = "DOC_TRACK_FOLDER_ID";
 const VALID_ROLES = ["USER", "MESSENGER", "ADMIN"];
 // Fallback key (ใช้กรณีไม่อยากตั้ง Script Properties)
 // ตั้งค่านี้ให้ตรงกับ VITE_GAS_API_KEY แล้ว Deploy ใหม่
@@ -9,9 +10,12 @@ const SCRIPT_API_KEY = "";
 const MAX_NOTE_LENGTH = 2000;
 const MAX_BASE64_LENGTH = 6 * 1024 * 1024;
 const TRACKING_ID_REGEX = /^TRK\d{8}\d{4,}$/;
+const EMPLOYEE_ID_REGEX = /^[A-Z0-9_]{1,50}$/;
+const SAFE_PASSWORD_REGEX = /^[A-Za-z0-9!@#$%^&*()_\-+=.?]{4,100}$/;
+const VALID_EVENT_TYPES = ["FORWARD", "PROXY", "DELIVERED"];
 
 const SHEET_URL = "";
-const DOC_TRACK_FOLDER_ID = "19OGCWa52JD6nFSBYcesfx51i7KjuAOT-";
+const DOC_TRACK_FOLDER_ID = "";
 const YEAR_SPREADSHEETS_PROPERTY = "YEAR_SPREADSHEETS";
 const YEAR_SPREADSHEET_PREFIX = "DocTrack";
 const LEGACY_PARCEL_SHEET_NAME = SHEET_NAME;
@@ -30,7 +34,9 @@ const PARCEL_HEADERS = [
   "รูปยืนยัน",
   "Latitude",
   "Longitude",
-  "CreatedBy"
+  "CreatedBy",
+  "OriginLatitude",
+  "OriginLongitude"
 ];
 const EVENT_HEADERS = [
   "EventID",
@@ -55,9 +61,10 @@ function getSpreadsheet() {
 }
 
 function getDocTrackFolder() {
-  if (!DOC_TRACK_FOLDER_ID) return null;
+  const folderId = PropertiesService.getScriptProperties().getProperty(DOC_TRACK_FOLDER_ID_PROPERTY) || DOC_TRACK_FOLDER_ID;
+  if (!folderId) return null;
   try {
-    return DriveApp.getFolderById(DOC_TRACK_FOLDER_ID);
+    return DriveApp.getFolderById(folderId);
   } catch (e) {
     return null;
   }
@@ -361,11 +368,30 @@ function normalizeBranchName(branch) {
     "พันธุ์สงคราม": "พิบูลสงคราม",
     "เซ็นทรัลพระราม 2": "เซ็นทรัล พระราม 2",
   };
-  return aliases[value] || value;
+  return escapeSheetValue(aliases[value] || value);
 }
 
 function validateTrackingID(trackingID) {
   return !!trackingID && TRACKING_ID_REGEX.test(String(trackingID).trim());
+}
+
+function normalizeEmployeeId(value) {
+  return String(value || "").trim().toUpperCase();
+}
+
+function validateEmployeeId(value) {
+  return EMPLOYEE_ID_REGEX.test(normalizeEmployeeId(value));
+}
+
+function sanitizePassword(value) {
+  return String(value || "")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .trim();
+}
+
+function validatePassword(value) {
+  const password = sanitizePassword(value);
+  return SAFE_PASSWORD_REGEX.test(password) && !/^[=+\-@\t\r]/.test(password);
 }
 
 // ── Input sanitization ───────────────────────────────────────────────────────
@@ -381,6 +407,39 @@ function sanitizeText(value) {
     .replace(/[<>"'`]/g, '')          // strip remaining dangerous chars
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // strip control chars
     .trim();
+}
+
+function escapeSheetValue(value) {
+  const text = sanitizeText(value);
+  if (!text) return "";
+  return /^[=+\-@\t\r]/.test(text) ? "'" + text : text;
+}
+
+function sanitizeUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length > 2048) return "";
+  if (/^https:\/\/(drive\.google\.com|lh3\.googleusercontent\.com)\//i.test(text)) return text;
+  return "";
+}
+
+function sanitizeCoordinate(value, min, max) {
+  if (value === "" || value === null || typeof value === "undefined") return "";
+  const num = Number(value);
+  if (!isFinite(num) || num < min || num > max) return "";
+  return Math.round(num * 10000000) / 10000000;
+}
+
+function validateImagePayload(value) {
+  const text = String(value || "").trim();
+  if (!text) return { ok: false, error: "กรุณาแนบรูปภาพหลักฐาน" };
+  if (/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(text)) {
+    if (text.length > MAX_BASE64_LENGTH) return { ok: false, error: "ขนาดรูปภาพใหญ่เกินไป" };
+    return { ok: true, value: text };
+  }
+  const url = sanitizeUrl(text);
+  if (url) return { ok: true, value: url };
+  return { ok: false, error: "รูปภาพหลักฐานไม่ถูกต้อง" };
 }
 
 function authorizeDrive() {
@@ -448,7 +507,14 @@ function setup() {
     usersSheet.getRange("A1:F1").setFontWeight("bold");
     usersSheet.getRange("A1:F1").setBackground("#fef3c7");
     // Add default admin
-    usersSheet.appendRow(["admin", "System Admin", "HQ", "ADMIN", getInitialAdminPin(), formatThaiDateForSheet(new Date())]);
+    usersSheet.appendRow(["ADMIN", "System Admin", "HQ", "ADMIN", getInitialAdminPin(), formatThaiDateForSheet(new Date())]);
+  } else {
+    const data = usersSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0] || "").trim() === "admin") {
+        usersSheet.getRange(i + 1, 1).setValue("ADMIN");
+      }
+    }
   }
 }
 
@@ -473,9 +539,9 @@ function normalizeRole(role) {
 function getUserRecord(employeeId) {
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
-  const targetId = String(employeeId || "").trim();
+  const targetId = normalizeEmployeeId(employeeId);
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === targetId) {
+    if (normalizeEmployeeId(data[i][0]) === targetId) {
       return {
         rowIndex: i + 1,
         employeeId: targetId,
@@ -540,7 +606,7 @@ function doPost(e) {
     }
 
     // --- Token Signature Verification ---
-    const protectedActions = ['createParcel', 'confirmReceipt', 'getParcels', 'exportSummary', 'getUsers', 'updateUserRole', 'deleteParcel', 'editParcel'];
+    const protectedActions = ['createParcel', 'confirmReceipt', 'getParcels', 'exportSummary', 'getUsers', 'updateUserRole', 'deleteParcel', 'editParcel', 'updateProfile'];
     if (payload.token) {
       const parts = String(payload.token).split('|');
       if (parts.length === 4) {
@@ -601,7 +667,10 @@ function doPost(e) {
 
     return createJsonResponse({ success: false, error: "Invalid action" });
   } catch (error) {
-    return createJsonResponse({ success: false, error: error.toString() });
+    try {
+      console.error("doPost error: " + (error && error.stack ? error.stack : error));
+    } catch (logError) {}
+    return createJsonResponse({ success: false, error: "เกิดข้อผิดพลาดภายในระบบ กรุณาลองใหม่อีกครั้ง" });
   }
 }
 
@@ -642,13 +711,15 @@ function handleCreateParcel(payload) {
   }
 
   // Sanitize inputs
-  const senderName   = sanitizeText(payload.senderName);
-  const receiverName = sanitizeText(payload.receiverName);
-  const senderBranch = sanitizeText(payload.senderBranch);
-  const receiverBranch = sanitizeText(payload.receiverBranch);
-  const docType      = sanitizeText(payload.docType);
-  const description  = sanitizeText(payload.description || '');
-  const note         = sanitizeText(payload.note || '');
+  const senderName   = escapeSheetValue(payload.senderName);
+  const receiverName = escapeSheetValue(payload.receiverName);
+  const senderBranch = escapeSheetValue(payload.senderBranch);
+  const receiverBranch = escapeSheetValue(payload.receiverBranch);
+  const docType      = escapeSheetValue(payload.docType);
+  const description  = escapeSheetValue(payload.description || '');
+  const note         = escapeSheetValue(payload.note || '');
+  const originLatitude = sanitizeCoordinate(payload.latitude, -90, 90);
+  const originLongitude = sanitizeCoordinate(payload.longitude, -180, 180);
 
   if (!senderName || !receiverName || !senderBranch || !receiverBranch || !docType) {
     return createJsonResponse({ success: false, error: "ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง" });
@@ -660,7 +731,7 @@ function handleCreateParcel(payload) {
   if (senderBranch.length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขาผู้ส่งยาวเกินไป" });
   if (receiverBranch.length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขาผู้รับยาวเกินไป" });
   if (docType.length > 100)      return createJsonResponse({ success: false, error: "ประเภทพัสดุยาวเกินไป" });
-  if (note.length > MAX_NOTE_LENGTH) return createJsonResponse({ success: false, error: "ไม่พบพัสดุที่ระบุ" });
+  if (note.length > MAX_NOTE_LENGTH) return createJsonResponse({ success: false, error: "หมายเหตุยาวเกินไป" });
 
   // NOTE: Tracking ID is generated INSIDE the lock (called from writeActions block)
   // to prevent race conditions with concurrent requests.
@@ -689,7 +760,9 @@ function handleCreateParcel(payload) {
     "",
     "",
     "",
-    payload.employeeId || ""
+    payload.employeeId || "",
+    originLatitude,
+    originLongitude
   ]);
 
   const eventSheet = getEventSheetForSpreadsheet(yearSpreadsheet);
@@ -704,9 +777,9 @@ function handleCreateParcel(payload) {
       normalizeBranchName(receiverBranch),
       senderName,
       "",
-      "",
-      "",
-      "รับเข้าระบบ"
+      originLatitude,
+      originLongitude,
+      escapeSheetValue("รับเข้าระบบ")
     ]);
   }
 
@@ -752,8 +825,8 @@ function getParcelEventsMap() {
 }
 
 function handleGetParcels(payload) {
-  const limit = parseInt(payload.limit) || 50;
-  const offset = parseInt(payload.offset) || 0;
+  const limit = Math.min(Math.max(parseInt(payload.limit) || 50, 1), 100);
+  const offset = Math.max(parseInt(payload.offset) || 0, 0);
   const parcels = [];
   let skipped = 0;
   let totalCount = 0;
@@ -913,12 +986,26 @@ function handleConfirmReceipt(payload) {
   }
 
   // Location must be provided by the frontend payload during forwarding or delivery
-  const sanitizedNote = payload.note ? sanitizeText(payload.note) : '';
-  if (sanitizedNote.length > MAX_NOTE_LENGTH) {
-    return createJsonResponse({ success: false, error: "ไม่พบพัสดุที่ระบุ" });
+  if (VALID_EVENT_TYPES.indexOf(String(payload.eventType || "")) === -1) {
+    return createJsonResponse({ success: false, error: "ประเภทการยืนยันไม่ถูกต้อง" });
   }
-  if (String(payload.photoUrl).startsWith("data:image") && String(payload.photoUrl).length > MAX_BASE64_LENGTH) {
-    return createJsonResponse({ success: false, error: "ขนาดรูปภาพใหญ่เกินไป" });
+
+  const sanitizedNote = payload.note ? escapeSheetValue(payload.note) : '';
+  const eventLocation = escapeSheetValue(payload.location || "");
+  const eventDestLocation = escapeSheetValue(payload.destLocation || "");
+  const eventPerson = escapeSheetValue(payload.person || "");
+  if (sanitizedNote.length > MAX_NOTE_LENGTH) {
+    return createJsonResponse({ success: false, error: "หมายเหตุยาวเกินไป" });
+  }
+  if (eventLocation.length > 100 || eventDestLocation.length > 100) {
+    return createJsonResponse({ success: false, error: "ชื่อสาขายาวเกินไป" });
+  }
+  if (eventPerson.length > 200) {
+    return createJsonResponse({ success: false, error: "ชื่อผู้รับ/ผู้ส่งต่อยาวเกินไป" });
+  }
+  const imageValidation = validateImagePayload(payload.photoUrl);
+  if (!imageValidation.ok) {
+    return createJsonResponse({ success: false, error: imageValidation.error });
   }
   const storage = getParcelStorageByTrackingId(payload.trackingID);
   if (!storage) {
@@ -962,9 +1049,9 @@ function handleConfirmReceipt(payload) {
         sheet.getRange(rowIndex, 10).setValue(newStatus);
       }
 
-      let finalPhotoUrl = payload.photoUrl;
+      let finalPhotoUrl = imageValidation.value;
 
-      if (payload.photoUrl && payload.photoUrl.startsWith('data:image')) {
+      if (finalPhotoUrl && finalPhotoUrl.startsWith('data:image')) {
         try {
           // ค้นหาหรือสร้างโฟลเดอร์หลักชื่อ DocTrack_Images
           const systemFolder = getDocTrackFolder();
@@ -980,9 +1067,7 @@ function handleConfirmReceipt(payload) {
               : DriveApp.createFolder("DocTrack_Images");
             try {
               rootFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-            } catch (e) {
-              console.log("Sharing restriction: " + e.message);
-            }
+            } catch (e) {}
           }
 
           // สร้างโฟลเดอร์ย่อยตามเดือน (เช่น 2026-04)
@@ -995,16 +1080,14 @@ function handleConfirmReceipt(payload) {
             folder = rootFolder.createFolder(dateStr);
             try {
               folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-            } catch (e) {
-              console.log("Sharing restriction: " + e.message);
-            }
+            } catch (e) {}
           }
 
-          const splitData = payload.photoUrl.split(',');
+          const splitData = finalPhotoUrl.split(',');
           const base64Data = splitData[1];
           const mimeTypeMatch = splitData[0].match(/:(.*?);/);
           const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-          const extension = mimeType.split('/')[1] || 'jpg';
+          const extension = mimeType === 'image/jpeg' ? 'jpg' : (mimeType.split('/')[1] || 'jpg');
 
           const filename = payload.trackingID + "_" + new Date().getTime() + "." + extension;
           const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, filename);
@@ -1012,13 +1095,11 @@ function handleConfirmReceipt(payload) {
           const file = folder.createFile(blob);
           try {
             file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          } catch (e) {
-            console.log("Sharing restriction: " + e.message);
-          }
+          } catch (e) {}
 
           finalPhotoUrl = "https://drive.google.com/uc?export=view&id=" + file.getId();
         } catch (e) {
-          return createJsonResponse({ success: false, error: "Drive Error: " + e.toString() });
+          return createJsonResponse({ success: false, error: "ไม่สามารถบันทึกรูปภาพได้ กรุณาลองใหม่" });
         }
       }
 
@@ -1032,12 +1113,13 @@ function handleConfirmReceipt(payload) {
         sheet.getRange(rowIndex, 9).setValue(existingNote ? existingNote + "\n" + sanitizedNote : sanitizedNote);
       }
 
-      // Save raw coordinates into new columns for main tracking (if provided)
-      if (typeof payload.latitude === 'number' && typeof payload.longitude === 'number'
-          && payload.latitude >= -90 && payload.latitude <= 90
-          && payload.longitude >= -180 && payload.longitude <= 180) {
-        sheet.getRange(rowIndex, 12).setValue(payload.latitude);
-        sheet.getRange(rowIndex, 13).setValue(payload.longitude);
+      const eventLatitude = sanitizeCoordinate(payload.latitude, -90, 90);
+      const eventLongitude = sanitizeCoordinate(payload.longitude, -180, 180);
+
+      // Save sanitized coordinates into main tracking columns (if provided)
+      if (eventLatitude !== "" && eventLongitude !== "") {
+        sheet.getRange(rowIndex, 12).setValue(eventLatitude);
+        sheet.getRange(rowIndex, 13).setValue(eventLongitude);
       }
 
       // Insert structured event into ParcelEvents
@@ -1051,12 +1133,12 @@ function handleConfirmReceipt(payload) {
             payload.trackingID,
             eventTimeStr,
             payload.eventType,
-            payload.location || "",
-            payload.destLocation || "",
-            payload.person || "",
+            eventLocation,
+            eventDestLocation,
+            eventPerson,
             finalPhotoUrl || "",
-            typeof payload.latitude === 'number' ? payload.latitude : "",
-            typeof payload.longitude === 'number' ? payload.longitude : "",
+            eventLatitude,
+            eventLongitude,
             sanitizedNote || ""
           ]);
         }
@@ -1072,7 +1154,7 @@ function handleConfirmReceipt(payload) {
 
 
 function handleSearchParcels(payload) {
-  const query = (payload.query || "").toString().trim();
+  const query = sanitizeText(payload.query || "");
   if (!query) {
     return createJsonResponse({ success: true, parcels: [] });
   }
@@ -1084,7 +1166,7 @@ function handleSearchParcels(payload) {
 
   // Rate limit: max 30 searches per minute per IP (using cache)
   const cache = CacheService.getScriptCache();
-  const rateLimitKey = "search_rate_" + (payload.clientIp || "global");
+  const rateLimitKey = "search_rate_global";
   const rateRaw = cache.get(rateLimitKey);
   const rateCount = rateRaw ? Number(rateRaw) : 0;
   if (rateCount >= 30) {
@@ -1168,10 +1250,10 @@ function writeAuditLog(actorId, action, targetId, details) {
     }
     auditSheet.appendRow([
       formatThaiDateForSheet(new Date()),
-      String(actorId || ""),
-      String(action || ""),
-      String(targetId || ""),
-      String(details || "")
+      escapeSheetValue(actorId || ""),
+      escapeSheetValue(action || ""),
+      escapeSheetValue(targetId || ""),
+      escapeSheetValue(details || "")
     ]);
   } catch (e) {
     // Audit log failure should not block the main operation
@@ -1188,7 +1270,7 @@ const WRITE_WINDOW_SECONDS = 600; // 10 minutes
 
 function checkWriteRateLimit(employeeId, action) {
   const cache = CacheService.getScriptCache();
-  const key = "write_rate_" + action + "_" + employeeId;
+  const key = "write_rate_" + sanitizeText(action) + "_" + normalizeEmployeeId(employeeId);
   const raw = cache.get(key);
   let count = 0;
   try { if (raw) count = parseInt(raw) || 0; } catch {}
@@ -1201,7 +1283,7 @@ function checkWriteRateLimit(employeeId, action) {
 
 function checkLoginRateLimit(employeeId) {
   const cache = CacheService.getScriptCache();
-  const key = "login_attempts_" + employeeId;
+  const key = "login_attempts_" + normalizeEmployeeId(employeeId);
   const raw = cache.get(key);
   if (!raw) return { allowed: true, remaining: MAX_LOGIN_ATTEMPTS };
   try {
@@ -1218,7 +1300,7 @@ function checkLoginRateLimit(employeeId) {
 
 function recordFailedLogin(employeeId) {
   const cache = CacheService.getScriptCache();
-  const key = "login_attempts_" + employeeId;
+  const key = "login_attempts_" + normalizeEmployeeId(employeeId);
   const raw = cache.get(key);
   let data = { count: 0, lockedUntil: null };
   try { if (raw) data = JSON.parse(raw); } catch {}
@@ -1232,18 +1314,18 @@ function recordFailedLogin(employeeId) {
 
 function clearLoginAttempts(employeeId) {
   const cache = CacheService.getScriptCache();
-  cache.remove("login_attempts_" + employeeId);
+  cache.remove("login_attempts_" + normalizeEmployeeId(employeeId));
 }
 
 // --- RBAC & Users ---
 
 function handleLogin(payload) {
-  const employeeId = String(payload.employeeId || "").trim();
-  const pin = String(payload.pin || "").trim();
+  const employeeId = normalizeEmployeeId(payload.employeeId);
+  const pin = sanitizePassword(payload.pin);
   if (!employeeId) return createJsonResponse({ success: false, error: "กรุณาระบุรหัสพนักงาน" });
 
   // Validate employeeId format (A-Z, 0-9 only, max 50 chars)
-  if (!/^[A-Z0-9_]{1,50}$/.test(employeeId)) {
+  if (!validateEmployeeId(employeeId)) {
     return createJsonResponse({ success: false, error: "รหัสพนักงานไม่ถูกต้อง" });
   }
 
@@ -1258,7 +1340,7 @@ function handleLogin(payload) {
   const data = sheet.getDataRange().getValues();
   
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === employeeId) {
+    if (normalizeEmployeeId(data[i][0]) === employeeId) {
       const storedPin = String(data[i][4] || "").trim();
       const role = normalizeRole(data[i][3] || "USER");
       const name = String(data[i][1]).trim();
@@ -1288,14 +1370,14 @@ function handleLogin(payload) {
 }
 
 function handleSetupPin(payload) {
-  const employeeId = String(payload.employeeId || "").trim();
-  const pin = String(payload.pin || "").trim();
-  const name = sanitizeText(payload.name || "");
-  const branch = sanitizeText(payload.branch || "");
+  const employeeId = normalizeEmployeeId(payload.employeeId);
+  const pin = sanitizePassword(payload.pin);
+  const name = escapeSheetValue(payload.name || "");
+  const branch = escapeSheetValue(payload.branch || "");
 
   if (!employeeId || !pin) return createJsonResponse({ success: false, error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
-  if (!/^[A-Z0-9_]{1,50}$/.test(employeeId)) return createJsonResponse({ success: false, error: "รหัสพนักงานไม่ถูกต้อง" });
-  if (pin.length < 4 || pin.length > 20) return createJsonResponse({ success: false, error: "รหัสผ่านต้องมี 4-20 ตัวอักษร" });
+  if (!validateEmployeeId(employeeId)) return createJsonResponse({ success: false, error: "รหัสพนักงานไม่ถูกต้อง" });
+  if (!validatePassword(pin) || pin.length > 20) return createJsonResponse({ success: false, error: "รหัสผ่านต้องมี 4-20 ตัวอักษร และห้ามขึ้นต้นด้วย = + - หรือ @" });
   if (name && name.length > 100) return createJsonResponse({ success: false, error: "ชื่อยาวเกินไป" });
   if (branch && branch.length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขายาวเกินไป" });
 
@@ -1303,7 +1385,7 @@ function handleSetupPin(payload) {
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === employeeId) {
+    if (normalizeEmployeeId(data[i][0]) === employeeId) {
       const storedPin = String(data[i][4] || "").trim();
       if (storedPin) {
         return createJsonResponse({ success: false, error: "รหัสพนักงานนี้มีผู้ใช้งานแล้ว" });
@@ -1355,20 +1437,21 @@ function handleUpdateUserRole(payload) {
     return createJsonResponse({ success: false, error: "ไม่มีสิทธิ์เข้าถึง (เฉพาะ Admin)" });
   }
 
-  const targetId = String(payload.targetId || "").trim();
+  const targetId = normalizeEmployeeId(payload.targetId);
   const newRole = normalizeRole(payload.newRole);
   if (!targetId || !newRole) return createJsonResponse({ success: false, error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+  if (!validateEmployeeId(targetId)) return createJsonResponse({ success: false, error: "รหัสพนักงานไม่ถูกต้อง" });
   if (VALID_ROLES.indexOf(newRole) === -1) {
     return createJsonResponse({ success: false, error: "สิทธิ์ไม่ถูกต้อง" });
   }
-  if (targetId === String(payload.employeeId || "").trim() && newRole !== 'ADMIN') {
+  if (targetId === normalizeEmployeeId(payload.employeeId) && newRole !== 'ADMIN') {
     return createJsonResponse({ success: false, error: "ไม่สามารถลดสิทธิ์ของตัวเองได้" });
   }
 
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() === targetId) {
+    if (normalizeEmployeeId(data[i][0]) === targetId) {
       sheet.getRange(i + 1, 4).setValue(newRole);
       return createJsonResponse({ success: true });
     }
@@ -1414,7 +1497,8 @@ function handleEditParcel(payload) {
     return createJsonResponse({ success: false, error: "ไม่มีสิทธิ์เข้าถึง (เฉพาะ Admin)" });
   }
 
-  const { trackingID, updates } = payload;
+  const trackingID = String(payload.trackingID || "").trim();
+  const updates = payload.updates;
   if (!trackingID || !updates) return createJsonResponse({ success: false, error: "กรุณากรอกข้อมูลให้ครบถ้วน" });
   if (!validateTrackingID(trackingID)) return createJsonResponse({ success: false, error: "รูปแบบหมายเลขติดตามไม่ถูกต้อง" });
 
@@ -1424,7 +1508,7 @@ function handleEditParcel(payload) {
   for (const key of Object.keys(updates)) {
     if (!allowedFields.includes(key)) return createJsonResponse({ success: false, error: "ฟิลด์ไม่ถูกต้อง: " + key });
     if (typeof updates[key] !== 'string' || updates[key].length > 200) return createJsonResponse({ success: false, error: "ค่าไม่ถูกต้องสำหรับฟิลด์: " + key });
-    updates[key] = sanitizeText(updates[key]);
+    updates[key] = escapeSheetValue(updates[key]);
   }
 
   const storage = getParcelStorageByTrackingId(trackingID);
@@ -1460,25 +1544,25 @@ function handleUpdateProfile(payload) {
     return createJsonResponse({ success: false, error: "ไม่มีสิทธิ์เข้าถึง" });
   }
 
-  const employeeId = String(payload.employeeId || "").trim();
+  const employeeId = normalizeEmployeeId(payload.employeeId);
   if (!employeeId) return createJsonResponse({ success: false, error: "Missing employeeId" });
 
-  const newName     = payload.newName     ? sanitizeText(payload.newName)     : null;
-  const newBranch   = payload.newBranch   ? sanitizeText(payload.newBranch)   : null;
-  const newPassword = payload.newPassword ? String(payload.newPassword).trim() : null;
-  const currentPassword = payload.currentPassword ? String(payload.currentPassword).trim() : null;
+  const newName     = payload.newName     ? escapeSheetValue(payload.newName)     : null;
+  const newBranch   = payload.newBranch   ? escapeSheetValue(payload.newBranch)   : null;
+  const newPassword = payload.newPassword ? sanitizePassword(payload.newPassword) : null;
+  const currentPassword = payload.currentPassword ? sanitizePassword(payload.currentPassword) : null;
 
   // Validate lengths
   if (newName && newName.length > 200) return createJsonResponse({ success: false, error: "ชื่อยาวเกินไป" });
   if (newBranch && newBranch.length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขายาวเกินไป" });
-  if (newPassword && newPassword.length < 4) return createJsonResponse({ success: false, error: "รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร" });
+  if (newPassword && !validatePassword(newPassword)) return createJsonResponse({ success: false, error: "รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร และห้ามขึ้นต้นด้วย = + - หรือ @" });
   if (newPassword && newPassword.length > 100) return createJsonResponse({ success: false, error: "รหัสผ่านยาวเกินไป" });
 
   const sheet = getUsersSheet();
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).trim() !== employeeId) continue;
+    if (normalizeEmployeeId(data[i][0]) !== employeeId) continue;
 
     const rowIndex = i + 1;
     const currentPin = String(data[i][4] || "").trim();
