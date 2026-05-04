@@ -561,7 +561,7 @@ function doPost(e) {
       payload.role = 'GUEST';
     }
 
-    const writeActions = ['createParcel', 'confirmReceipt', 'login', 'setupPin', 'updateUserRole', 'deleteParcel', 'editParcel'];
+    const writeActions = ['createParcel', 'confirmReceipt', 'login', 'setupPin', 'updateUserRole', 'deleteParcel', 'editParcel', 'updateProfile'];
     const isWrite = writeActions.includes(action);
 
     let result;
@@ -602,6 +602,7 @@ function routeAction(action, payload) {
   if (action === 'updateUserRole') return handleUpdateUserRole(payload);
   if (action === 'deleteParcel') return handleDeleteParcel(payload);
   if (action === 'editParcel') return handleEditParcel(payload);
+  if (action === 'updateProfile') return handleUpdateProfile(payload);
   return null;
 }
 
@@ -1403,6 +1404,74 @@ function handleEditParcel(payload) {
     }
   }
   return createJsonResponse({ success: false, error: "Parcel not found" });
+}
+
+function handleUpdateProfile(payload) {
+  // Any authenticated user can update their own profile
+  if (!hasAnyRole(payload, ['ADMIN', 'MESSENGER', 'USER'])) {
+    return createJsonResponse({ success: false, error: "Forbidden" });
+  }
+
+  const employeeId = String(payload.employeeId || "").trim();
+  if (!employeeId) return createJsonResponse({ success: false, error: "Missing employeeId" });
+
+  const newName     = payload.newName     ? String(payload.newName).trim()     : null;
+  const newBranch   = payload.newBranch   ? String(payload.newBranch).trim()   : null;
+  const newPassword = payload.newPassword ? String(payload.newPassword).trim() : null;
+  const currentPassword = payload.currentPassword ? String(payload.currentPassword).trim() : null;
+
+  // Validate lengths
+  if (newName && newName.length > 200) return createJsonResponse({ success: false, error: "ชื่อยาวเกินไป" });
+  if (newBranch && newBranch.length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขายาวเกินไป" });
+  if (newPassword && newPassword.length < 4) return createJsonResponse({ success: false, error: "รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร" });
+  if (newPassword && newPassword.length > 100) return createJsonResponse({ success: false, error: "รหัสผ่านยาวเกินไป" });
+
+  const sheet = getUsersSheet();
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() !== employeeId) continue;
+
+    const rowIndex = i + 1;
+    const currentPin = String(data[i][4] || "").trim();
+
+    // If changing password, must verify current password first
+    if (newPassword) {
+      if (!currentPassword) return createJsonResponse({ success: false, error: "กรุณากรอกรหัสผ่านปัจจุบันเพื่อเปลี่ยนรหัสผ่าน" });
+      if (currentPin !== currentPassword) return createJsonResponse({ success: false, error: "รหัสผ่านปัจจุบันไม่ถูกต้อง" });
+    }
+
+    const changedFields = [];
+    if (newName) {
+      sheet.getRange(rowIndex, 2).setValue(newName);
+      changedFields.push("name=" + newName);
+    }
+    if (newBranch) {
+      sheet.getRange(rowIndex, 3).setValue(newBranch);
+      changedFields.push("branch=" + newBranch);
+    }
+    if (newPassword) {
+      sheet.getRange(rowIndex, 5).setValue(newPassword);
+      changedFields.push("password=***");
+    }
+
+    if (changedFields.length === 0) return createJsonResponse({ success: false, error: "ไม่มีข้อมูลที่ต้องการแก้ไข" });
+
+    writeAuditLog(employeeId, "UPDATE_PROFILE", employeeId, changedFields.join(", "));
+
+    // Return updated user info (without password)
+    const updatedName   = newName   || String(data[i][1] || "").trim();
+    const updatedBranch = newBranch || String(data[i][2] || "").trim();
+    const role          = normalizeRole(data[i][3] || "USER");
+    const token         = generateToken(employeeId, role, getApiKey());
+
+    return createJsonResponse({
+      success: true,
+      user: { employeeId, name: updatedName, branch: updatedBranch, role, token }
+    });
+  }
+
+  return createJsonResponse({ success: false, error: "ไม่พบผู้ใช้งาน" });
 }
 
 function doOptions(e) {

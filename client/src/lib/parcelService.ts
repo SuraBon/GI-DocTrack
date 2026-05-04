@@ -387,3 +387,26 @@ export async function editParcel(trackingID: string, updates: Partial<Record<str
     return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
   }
 }
+
+export async function updateProfile(
+  newName?: string,
+  newBranch?: string,
+  newPassword?: string,
+  currentPassword?: string,
+): Promise<{ success: boolean; user?: User; error?: string }> {
+  try {
+    const res = await callAPI<{ success: boolean; user?: User; error?: string }>({
+      action: 'updateProfile',
+      newName,
+      newBranch,
+      newPassword,
+      currentPassword,
+    });
+    if (res.success && res.user) {
+      res.user = { ...res.user, role: normalizeRole(res.user.role) };
+    }
+    return res;
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'เกิดข้อผิดพลาด' };
+  }
+}

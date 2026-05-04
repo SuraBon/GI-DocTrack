@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { User, login, setupPin } from '@/lib/parcelService';
+import { User, login, setupPin, updateProfile } from '@/lib/parcelService';
 import { normalizeRole } from '@/lib/roles';
 import { toast } from 'sonner';
 
@@ -8,6 +8,7 @@ interface AuthContextValue {
   loading: boolean;
   loginUser: (employeeId: string, pin?: string) => Promise<{ success: boolean, needsSetup?: boolean, error?: string, role?: string, name?: string, branch?: string }>;
   setupUserPin: (employeeId: string, pin: string, name: string, branch: string) => Promise<{ success: boolean, error?: string }>;
+  updateUserProfile: (newName?: string, newBranch?: string, newPassword?: string, currentPassword?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -116,8 +117,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
   };
 
+  const updateUserProfile = async (newName?: string, newBranch?: string, newPassword?: string, currentPassword?: string) => {
+    const res = await updateProfile(newName, newBranch, newPassword, currentPassword);
+    if (res.success && res.user) {
+      setUser(res.user);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(res.user));
+    }
+    return { success: res.success, error: res.error };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, loginUser, setupUserPin, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginUser, setupUserPin, updateUserProfile, logout }}>
       {children}
     </AuthContext.Provider>
   );

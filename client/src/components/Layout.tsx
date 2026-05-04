@@ -4,6 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Parcel } from '@/types/parcel';
 import { formatThaiDate, getDateTime } from '@/lib/dateUtils';
 import { normalizeRole, ROLE_LABELS, type AppRole } from '@/lib/roles';
+import { getBranches } from '@/lib/parcelService';
+import { toast } from 'sonner';
+import SelectDropdown from '@/components/SelectDropdown';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 type PageId = "dashboard" | "create" | "confirm" | "track" | "users";
 
@@ -32,9 +36,12 @@ type NavItem = {
 
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }) => {
   const { parcels } = useParcelStore();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUserProfile } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', branch: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [profileLoading, setProfileLoading] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => {
     try {
       const stored = localStorage.getItem('seen_parcel_ids');
@@ -113,6 +120,37 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
     event.preventDefault();
     setCurrentPage(id);
     if (window.innerWidth < 1024) setIsSidebarOpen(false);
+  };
+
+  const openProfile = () => {
+    setProfileForm({ name: user?.name ?? '', branch: user?.branch ?? '', currentPassword: '', newPassword: '', confirmPassword: '' });
+    setIsProfileOpen(true);
+  };
+
+  const handleProfileSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const { name, branch, currentPassword, newPassword, confirmPassword } = profileForm;
+    if (!name.trim()) { toast.error('กรุณากรอกชื่อ-นามสกุล'); return; }
+    if (!branch.trim()) { toast.error('กรุณาเลือกสาขา'); return; }
+    if (newPassword && newPassword.length < 4) { toast.error('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
+    if (newPassword && newPassword !== confirmPassword) { toast.error('รหัสผ่านใหม่ไม่ตรงกัน'); return; }
+    if (newPassword && !currentPassword) { toast.error('กรุณากรอกรหัสผ่านปัจจุบัน'); return; }
+
+    setProfileLoading(true);
+    const res = await updateUserProfile(
+      name.trim() !== user?.name ? name.trim() : undefined,
+      branch.trim() !== user?.branch ? branch.trim() : undefined,
+      newPassword || undefined,
+      newPassword ? currentPassword : undefined,
+    );
+    setProfileLoading(false);
+
+    if (res.success) {
+      toast.success('บันทึกข้อมูลสำเร็จ');
+      setIsProfileOpen(false);
+    } else {
+      toast.error(res.error || 'เกิดข้อผิดพลาด');
+    }
   };
 
   return (
@@ -206,17 +244,24 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
         <div className="relative mt-auto pt-4 border-t border-white/8 space-y-2 pb-3">
           {user ? (
             <>
-              <div className={`flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 rounded-xl bg-white/[0.07] ring-1 ring-white/8`}>
+              <button
+                onClick={openProfile}
+                title={isSidebarOpen ? 'แก้ไขโปรไฟล์' : user.name}
+                className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 rounded-xl bg-white/[0.07] ring-1 ring-white/8 hover:bg-white/[0.12] transition-colors text-left`}
+              >
                 <div className="w-9 h-9 rounded-xl bg-white/10 ring-1 ring-white/10 flex items-center justify-center shrink-0 text-white font-black text-xs uppercase">
                   {user.name.charAt(0)}
                 </div>
                 {isSidebarOpen && (
-                  <div className="flex flex-col min-w-0 overflow-hidden text-left">
+                  <div className="flex flex-col min-w-0 overflow-hidden flex-1">
                     <span className="text-white text-xs font-bold truncate">{user.name}</span>
                     <span className="text-white/40 text-[10px] truncate">{ROLE_LABELS[currentRole]} • {user.branch}</span>
                   </div>
                 )}
-              </div>
+                {isSidebarOpen && (
+                  <span className="material-symbols-outlined text-white/30 text-base shrink-0">edit</span>
+                )}
+              </button>
               <button
                 onClick={logout}
                 className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 text-red-300 hover:text-white hover:bg-red-500/15 font-display text-sm font-semibold cursor-pointer rounded-xl transition-all`}
@@ -337,6 +382,114 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
           {children}
         </main>
       </div>
+
+      {/* ── Edit Profile Dialog ── */}
+      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-3xl border-none bg-white p-0 shadow-2xl">
+          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5">
+            <div className="flex items-center gap-3 pr-8">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>manage_accounts</span>
+              </div>
+              <div>
+                <DialogTitle className="font-display text-xl font-black text-primary">แก้ไขโปรไฟล์</DialogTitle>
+                <DialogDescription className="mt-1 text-xs text-on-surface-variant">
+                  แก้ไขชื่อ สาขา หรือรหัสผ่านของคุณ
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleProfileSave} className="p-6 space-y-4">
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-bold text-on-surface-variant mb-1.5">ชื่อ-นามสกุล</label>
+              <input
+                type="text"
+                value={profileForm.name}
+                onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))}
+                disabled={profileLoading}
+                className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                placeholder="ชื่อ-นามสกุล"
+              />
+            </div>
+
+            {/* Branch */}
+            <div>
+              <label className="block text-sm font-bold text-on-surface-variant mb-1.5">สาขาประจำ</label>
+              <SelectDropdown
+                value={profileForm.branch}
+                onChange={v => setProfileForm(f => ({ ...f, branch: v }))}
+                options={getBranches().map(b => ({ value: b, label: b }))}
+                placeholder="เลือกสาขา"
+                icon="apartment"
+                disabled={profileLoading}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="pt-2 border-t border-outline-variant/20">
+              <p className="text-xs font-bold text-on-surface-variant/50 uppercase tracking-wider mb-3">เปลี่ยนรหัสผ่าน (ไม่บังคับ)</p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-bold text-on-surface-variant mb-1.5">รหัสผ่านปัจจุบัน</label>
+                  <input
+                    type="password"
+                    value={profileForm.currentPassword}
+                    onChange={e => setProfileForm(f => ({ ...f, currentPassword: e.target.value }))}
+                    disabled={profileLoading}
+                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-on-surface-variant mb-1.5">รหัสผ่านใหม่</label>
+                  <input
+                    type="password"
+                    value={profileForm.newPassword}
+                    onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))}
+                    disabled={profileLoading}
+                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                    placeholder="อย่างน้อย 4 ตัวอักษร"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-on-surface-variant mb-1.5">ยืนยันรหัสผ่านใหม่</label>
+                  <input
+                    type="password"
+                    value={profileForm.confirmPassword}
+                    onChange={e => setProfileForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                    disabled={profileLoading}
+                    className="w-full h-12 bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-4 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-50"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsProfileOpen(false)}
+                disabled={profileLoading}
+                className="flex-1 h-12 rounded-xl border border-outline-variant/40 font-bold text-on-surface-variant hover:bg-surface-container transition-all disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                disabled={profileLoading}
+                className="flex-1 h-12 bg-primary text-white rounded-xl font-display font-bold shadow-md shadow-primary/20 hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {profileLoading ? (
+                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                ) : 'บันทึก'}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
