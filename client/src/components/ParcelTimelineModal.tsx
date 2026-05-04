@@ -32,11 +32,12 @@ export default function ParcelTimelineModal({
   const { user } = useAuth();
   const role = normalizeRole(user?.role);
   const canConfirmParcel = role === 'ADMIN' || role === 'MESSENGER';
+
+  if (!selectedParcel) return null;
+
   // Use derived status so forwarded parcels show correctly
   const derivedParcel = applyDerivedStatus(selectedParcel);
   const isActuallyDelivered = derivedParcel['สถานะ'] === 'ส่งถึงแล้ว';
-
-  if (!selectedParcel) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
