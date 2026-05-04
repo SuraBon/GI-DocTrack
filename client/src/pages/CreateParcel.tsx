@@ -37,9 +37,18 @@ export default function CreateParcel() {
   const [pin, setPin] = useState('');
 
   const [createdTrackingId, setCreatedTrackingId] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Generate QR code locally whenever a new tracking ID is created
+  useEffect(() => {
+    if (!createdTrackingId) { setQrDataUrl(null); return; }
+    QRCode.toDataURL(createdTrackingId, { width: 256, margin: 1 })
+      .then(url => setQrDataUrl(url))
+      .catch(() => setQrDataUrl(null));
+  }, [createdTrackingId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -468,21 +477,18 @@ export default function CreateParcel() {
                 <code className="text-3xl font-mono font-black text-primary">{createdTrackingId}</code>
               </div>
               <div className="bg-surface-container-low p-3 rounded-2xl border border-outline-variant/20">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(createdTrackingId ?? '')}`}
-                  className="w-32 h-32 mix-blend-multiply"
-                  alt="คิวอาร์โค้ด"
-                  onError={(e) => {
-                    const target = e.currentTarget;
-                    target.style.display = 'none';
-                    const fallback = target.nextElementSibling as HTMLElement | null;
-                    if (fallback) fallback.style.display = 'flex';
-                  }}
-                />
-                <div className="w-32 h-32 hidden flex-col items-center justify-center text-on-surface-variant/40 text-center">
-                  <span className="material-symbols-outlined text-3xl mb-1">qr_code</span>
-                  <span className="text-[10px]">ไม่สามารถโหลด QR ได้</span>
-                </div>
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    className="w-32 h-32 mix-blend-multiply"
+                    alt="คิวอาร์โค้ด"
+                  />
+                ) : (
+                  <div className="w-32 h-32 flex flex-col items-center justify-center text-on-surface-variant/40 text-center">
+                    <span className="material-symbols-outlined text-3xl mb-1">qr_code</span>
+                    <span className="text-[10px]">กำลังสร้าง QR...</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -495,11 +501,16 @@ export default function CreateParcel() {
                 คัดลอก ID
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   const printWindow = window.open('', '', 'width=400,height=500');
                   if (printWindow) {
                     const v = getFinalValues();
                     const trackingId = createdTrackingId ?? '';
+                    // Generate QR locally for print
+                    let printQrSrc = '';
+                    try {
+                      printQrSrc = await QRCode.toDataURL(trackingId, { width: 200, margin: 1 });
+                    } catch { /* fallback: no QR */ }
                     printWindow.document.write(`
                       <!doctype html>
                       <html>
@@ -534,10 +545,9 @@ export default function CreateParcel() {
                     doc.getElementById('sender-info')!.textContent = `${v.senderName} (${v.senderBranch})`;
                     doc.getElementById('receiver-info')!.textContent = `${v.receiverName} (${v.receiverBranch})`;
                     doc.getElementById('created-at')!.textContent = `สร้างเมื่อ: ${formatThaiDate(new Date().toISOString())}`;
-                    doc.getElementById('qr-code')!.setAttribute(
-                      'src',
-                      `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(trackingId)}`,
-                    );
+                    if (printQrSrc) {
+                      doc.getElementById('qr-code')!.setAttribute('src', printQrSrc);
+                    }
                     printWindow.document.close();
                     printWindow.onload = () => {
                       printWindow.print();

@@ -16,6 +16,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatThaiDate } from '@/lib/dateUtils';
 import ParcelTimelineModal from '@/components/ParcelTimelineModal';
 import { normalizeRole } from '@/lib/roles';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface DashboardProps { isConfigured: boolean; onConfirmParcel: (trackingId: string) => void; }
 
@@ -70,6 +74,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
   const [statusFilter, setStatusFilter] = useState('ทั้งหมด');
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [refreshCountdown, setRefreshCountdown] = useState(120);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -168,21 +173,22 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
 
   const handleDelete = async () => {
     if (!selectedParcel) return;
-    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบรายการ ${selectedParcel.TrackingID}?`)) {
-      const trackingID = selectedParcel.TrackingID;
-      setIsTimelineOpen(false);
-      
-      // Optimistic UI update
-      removeParcelLocally(trackingID);
-      toast.success('กำลังลบรายการ...');
+    setIsDeleteConfirmOpen(true);
+  };
 
-      const res = await deleteParcel(trackingID);
-      if (res.success) {
-        toast.success('ลบรายการสำเร็จ');
-      } else {
-        toast.error('ไม่สามารถลบรายการได้ จะทำการรีโหลดข้อมูล');
-        loadParcels(undefined, true); // revert
-      }
+  const executeDelete = async () => {
+    if (!selectedParcel) return;
+    const trackingID = selectedParcel.TrackingID;
+    setIsTimelineOpen(false);
+    setIsDeleteConfirmOpen(false);
+    removeParcelLocally(trackingID);
+    toast.success('กำลังลบรายการ...');
+    const res = await deleteParcel(trackingID);
+    if (res.success) {
+      toast.success('ลบรายการสำเร็จ');
+    } else {
+      toast.error('ไม่สามารถลบรายการได้ จะทำการรีโหลดข้อมูล');
+      loadParcels(undefined, true);
     }
   };
 
@@ -484,6 +490,31 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
         onConfirmParcel={onConfirmParcel}
         onDeleteParcel={handleDelete}
       />
+
+      {/* ── Delete Confirm Dialog ── */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-primary">ยืนยันการลบรายการ</AlertDialogTitle>
+            <AlertDialogDescription>
+              คุณแน่ใจหรือไม่ว่าต้องการลบรายการ{' '}
+              <code className="font-mono font-bold text-primary bg-primary/8 px-1.5 py-0.5 rounded">
+                {selectedParcel?.TrackingID}
+              </code>
+              {' '}การดำเนินการนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl">ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={executeDelete}
+              className="rounded-xl bg-error text-white hover:bg-error/90"
+            >
+              ลบรายการ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

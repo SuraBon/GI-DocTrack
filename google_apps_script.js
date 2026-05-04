@@ -1264,10 +1264,9 @@ function handleLogin(payload) {
     }
   }
 
-  // Auto-create new user if not found
-  sheet.appendRow([employeeId, "Unknown", "Unknown", "USER", "", formatThaiDateForSheet(new Date())]);
-  writeAuditLog(employeeId, "USER_AUTO_CREATED", employeeId, "New user created on first login");
-  return createJsonResponse({ success: true, needsSetup: true, role: "USER", name: "Unknown", branch: "Unknown" });
+  // User not found — do NOT auto-create; require registration via setupPin
+  writeAuditLog(employeeId, "LOGIN_NOT_FOUND", employeeId, "Employee ID not registered");
+  return createJsonResponse({ success: false, error: "ไม่พบรหัสพนักงานนี้ในระบบ กรุณาสมัครสมาชิกก่อน" });
 }
 
 function handleSetupPin(payload) {

@@ -112,6 +112,13 @@ export default function ConfirmReceipt({
     onInitialTrackingIdConsumed?.();
   }, [initialTrackingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-request GPS whenever entering step 2 (handles back-navigation from step 3)
+  useEffect(() => {
+    if (currentStep === 2 && geoStatus === 'idle') {
+      requestLocation();
+    }
+  }, [currentStep]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCheckParcel = async () => {
     if (!trackingId.trim()) {
       toast.error('กรุณากรอกหมายเลขติดตามก่อนตรวจสอบ');
@@ -139,17 +146,30 @@ export default function ConfirmReceipt({
 
         setCheckedParcel(p);
 
+        // ── Determine if truly delivered using events array (primary) or note regex (fallback) ──
         const currentStatus = p['สถานะ'];
-        const noteStr = String(p['หมายเหตุ'] || "");
         let actuallyDelivered = currentStatus === "ส่งถึงแล้ว";
+
         if (actuallyDelivered) {
-          const maxIdx = Math.max(
-            noteStr.lastIndexOf('[ส่งต่อโดย:'),
-            noteStr.lastIndexOf('[รับแทนโดย:'),
-            noteStr.lastIndexOf('[รับพัสดุเรียบร้อย')
-          );
-          if (maxIdx >= 0 && maxIdx === noteStr.lastIndexOf('[ส่งต่อโดย:')) {
-            actuallyDelivered = false;
+          if (Array.isArray(p.events) && p.events.length > 0) {
+            // Use structured events — more reliable than note regex
+            const actionEvents = p.events.filter(
+              e => e.eventType === 'FORWARD' || e.eventType === 'DELIVERED' || e.eventType === 'PROXY'
+            );
+            if (actionEvents.length > 0 && actionEvents[actionEvents.length - 1].eventType === 'FORWARD') {
+              actuallyDelivered = false;
+            }
+          } else {
+            // Fallback: legacy note regex
+            const noteStr = String(p['หมายเหตุ'] || "");
+            const maxIdx = Math.max(
+              noteStr.lastIndexOf('[ส่งต่อโดย:'),
+              noteStr.lastIndexOf('[รับแทนโดย:'),
+              noteStr.lastIndexOf('[รับพัสดุเรียบร้อย')
+            );
+            if (maxIdx >= 0 && maxIdx === noteStr.lastIndexOf('[ส่งต่อโดย:')) {
+              actuallyDelivered = false;
+            }
           }
         }
         setIsDelivered(actuallyDelivered);

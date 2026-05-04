@@ -131,18 +131,17 @@ export function useGeolocation(): UseGeolocationReturn {
       handleError,
       {
         enableHighAccuracy: true,
-        timeout: 15000,
+        timeout: 12000,  // slightly longer than our custom 10s timeout to avoid race
         maximumAge: 0, 
       }
     );
 
-    // Set a timeout to accept the best location we've found after 10 seconds,
-    // even if it hasn't reached our desired accuracy threshold (40m).
+    // Accept the best location found after 10 seconds even if accuracy threshold not met.
+    // This fires before watchPosition's own 12s timeout, so we control the UX.
     timeoutIdRef.current = setTimeout(() => {
       if (bestPosition) {
         finishWatch(bestPosition);
       } else {
-        // If we got nothing after 10s, trigger an error
         if (watchIdRef.current !== null) {
           navigator.geolocation.clearWatch(watchIdRef.current);
           watchIdRef.current = null;

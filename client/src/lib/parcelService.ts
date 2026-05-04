@@ -331,11 +331,12 @@ const REAL_AUTH_ERRORS = [
   'รหัสผ่านไม่ถูกต้อง',
   'PIN ไม่ถูกต้อง',
   'ไม่พบผู้ใช้งาน',
+  'ไม่พบรหัสพนักงาน',   // not registered
   'Invalid credentials',
   'Wrong password',
   'User not found',
-  'บัญชีถูกล็อคชั่วคราว',  // brute force lockout
-  'เหลือ',                   // "เหลือ X ครั้ง" wrong PIN warning
+  'บัญชีถูกล็อคชั่วคราว',
+  'เหลือ',
 ];
 
 export async function login(employeeId: string, pin?: string): Promise<{ success: boolean, needsSetup?: boolean, user?: User, error?: string, role?: string, name?: string, branch?: string }> {

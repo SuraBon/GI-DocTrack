@@ -76,7 +76,22 @@ export default function Login() {
           toast.success('เข้าสู่ระบบสำเร็จ');
         }
       } else {
-        toast.error(res.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+        // Show specific error messages
+        const err = res.error || '';
+        if (err.includes('บัญชีถูกล็อค')) {
+          toast.error(err, { duration: 6000 });
+        } else if (err.includes('PIN ไม่ถูกต้อง') || err.includes('รหัสผ่านไม่ถูกต้อง') || err.includes('เหลือ')) {
+          toast.error(err || 'รหัสผ่านไม่ถูกต้อง');
+        } else if (err.includes('ไม่พบรหัสพนักงาน') || err.includes('กรุณาสมัครสมาชิก')) {
+          toast.error('ไม่พบรหัสพนักงานนี้ในระบบ', {
+            description: 'กรุณากดปุ่ม "สมัครสมาชิกใหม่" เพื่อลงทะเบียนก่อน',
+            duration: 6000,
+          });
+        } else if (err.includes('ไม่พบ') || err.includes('not found') || err.includes('UNAVAILABLE')) {
+          toast.error('ไม่พบรหัสพนักงานนี้ในระบบ กรุณาตรวจสอบหรือสมัครสมาชิกใหม่');
+        } else {
+          toast.error(err || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+        }
       }
     }
   };

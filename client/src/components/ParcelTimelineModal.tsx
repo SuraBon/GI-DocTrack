@@ -8,6 +8,7 @@ import type { Parcel } from '@/types/parcel';
 import type { TimelineEvent } from '@/types/timeline';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeRole } from '@/lib/roles';
+import { applyDerivedStatus } from '@/lib/parcelStatus';
 
 interface ParcelTimelineModalProps {
   isOpen: boolean;
@@ -31,6 +32,9 @@ export default function ParcelTimelineModal({
   const { user } = useAuth();
   const role = normalizeRole(user?.role);
   const canConfirmParcel = role === 'ADMIN' || role === 'MESSENGER';
+  // Use derived status so forwarded parcels show correctly
+  const derivedParcel = applyDerivedStatus(selectedParcel);
+  const isActuallyDelivered = derivedParcel['สถานะ'] === 'ส่งถึงแล้ว';
 
   if (!selectedParcel) return null;
 
@@ -51,7 +55,7 @@ export default function ParcelTimelineModal({
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {canConfirmParcel && selectedParcel['สถานะ'] !== 'ส่งถึงแล้ว' && (
+                {canConfirmParcel && !isActuallyDelivered && (
                   <button
                     onClick={() => { setIsOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
                     className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all"

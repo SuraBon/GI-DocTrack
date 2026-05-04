@@ -59,6 +59,9 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   const [currentStatus, setCurrentStatus] = useState('ทั้งหมด');
   const offsetRef = useRef(0);
 
+  const summaryRef = useRef(summary);
+  useEffect(() => { summaryRef.current = summary; }, [summary]);
+
   const loadParcels = useCallback(async (status = 'ทั้งหมด', reset = true) => {
     setCurrentStatus(status);
     if (reset) {
@@ -70,7 +73,8 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
     try {
       const [res, summaryRes] = await Promise.all([
         parcelService.getParcels(status, 50, offsetRef.current),
-        reset ? parcelService.exportSummary() : Promise.resolve(summary)
+        // Only fetch summary on reset — use ref to avoid stale closure without adding summary to deps
+        reset ? parcelService.exportSummary() : Promise.resolve(summaryRef.current)
       ]);
 
       if (res.success) {
@@ -86,16 +90,16 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
         if (reset) {
           setSummary(summaryRes || summarizeParcels(nextParcels));
         }
-        setError(null); // clear any previous error on success
+        setError(null);
       } else {
         setError(res.error ?? 'ไม่สามารถโหลดข้อมูลได้');
       }
-    } catch (err) {
+    } catch {
       setError('เกิดข้อผิดพลาดในการโหลดข้อมูล');
     } finally {
       setLoading(false);
     }
-  }, [summary]);
+  }, []); // ✅ No deps — uses refs to avoid stale closures
 
   const loadMoreParcels = useCallback(async () => {
     if (!hasMore || loading) return;
@@ -130,7 +134,9 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
       try {
         const res = await parcelService.confirmReceipt(trackingID, photoUrl, note, latitude, longitude, eventType, location, destLocation, person, pin);
         if (res.success) {
-          await loadParcels();
+          // Optimistic update already applied by the caller (ConfirmReceipt page).
+          // Only do a background refresh — don't block the UI.
+          loadParcels().catch(() => {});
         } else {
           setError(res.error ?? 'ไม่สามารถยืนยันการรับได้');
         }
