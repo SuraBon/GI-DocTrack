@@ -2,11 +2,6 @@ const SHEET_NAME = "Parcels";
 const API_KEY_PROPERTY = "API_KEY";
 const ADMIN_INITIAL_PIN_PROPERTY = "ADMIN_INITIAL_PIN";
 const VALID_ROLES = ["USER", "MESSENGER", "ADMIN"];
-const DEMO_USERS = [
-  ["user_test", "Demo User", "HQ", "USER", "user123"],
-  ["messenger_test", "Demo Messenger", "HQ", "MESSENGER", "messenger123"],
-  ["admin_test", "Demo Admin", "HQ", "ADMIN", "admin123"]
-];
 // Fallback key (ใช้กรณีไม่อยากตั้ง Script Properties)
 // ตั้งค่านี้ให้ตรงกับ VITE_GAS_API_KEY แล้ว Deploy ใหม่
 // แนะนำ: อย่า commit ค่า key ลง git ถ้า repo เป็น public
@@ -439,7 +434,6 @@ function setup() {
     // Add default admin
     usersSheet.appendRow(["admin", "System Admin", "HQ", "ADMIN", getInitialAdminPin(), formatThaiDateForSheet(new Date())]);
   }
-  ensureDemoUsers(usersSheet);
 }
 
 function getUsersSheet() {
@@ -449,7 +443,6 @@ function getUsersSheet() {
     setup();
     usersSheet = ss.getSheetByName("Users");
   }
-  ensureDemoUsers(usersSheet);
   return usersSheet;
 }
 
@@ -459,31 +452,6 @@ function normalizeRole(role) {
   if (value === "MESSENGER" || value === "MANAGER") return "MESSENGER";
   if (value === "USER") return "USER";
   return "GUEST";
-}
-
-function ensureDemoUsers(usersSheet) {
-  const data = usersSheet.getDataRange().getValues();
-  const existingRows = {};
-  for (let i = 1; i < data.length; i++) {
-    existingRows[String(data[i][0] || "").trim()] = i + 1;
-  }
-
-  DEMO_USERS.forEach(function(user) {
-    const rowIndex = existingRows[user[0]];
-    if (rowIndex) {
-      const row = data[rowIndex - 1];
-      if (
-        String(row[1] || "") !== user[1] ||
-        String(row[2] || "") !== user[2] ||
-        normalizeRole(row[3]) !== user[3] ||
-        String(row[4] || "") !== user[4]
-      ) {
-        usersSheet.getRange(rowIndex, 2, 1, 4).setValues([[user[1], user[2], user[3], user[4]]]);
-      }
-    } else {
-      usersSheet.appendRow([user[0], user[1], user[2], user[3], user[4], formatThaiDateForSheet(new Date())]);
-    }
-  });
 }
 
 function getUserRecord(employeeId) {

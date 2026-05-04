@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getUsers, updateUserRole, UserRow } from '@/lib/parcelService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { ROLE_LABELS, SYSTEM_ROLES, type SystemRole } from '@/lib/roles';
+import { SYSTEM_ROLES, type SystemRole } from '@/lib/roles';
 import { Search, RefreshCw, Users, ShieldCheck, Truck, User } from 'lucide-react';
 
 const ROLE_CONFIG: Record<SystemRole, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
