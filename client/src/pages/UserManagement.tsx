@@ -202,9 +202,81 @@ export default function UserManagement() {
         />
       </div>
 
-      {/* Table */}
+      {/* Users */}
       <div className="bg-white border border-outline-variant/30 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="sm:hidden">
+          {loading ? (
+            <div className="py-16 text-center">
+              <span className="material-symbols-outlined animate-spin text-3xl text-primary">progress_activity</span>
+              <p className="text-sm text-on-surface-variant mt-2">กำลังโหลด...</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-16 text-center">
+              <Users className="mx-auto h-10 w-10 text-on-surface-variant/20 mb-2" />
+              <p className="text-sm font-bold text-on-surface-variant/50">
+                {search ? 'ไม่พบผู้ใช้ที่ค้นหา' : 'ยังไม่มีผู้ใช้งาน'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-outline-variant/10">
+              {filtered.map(u => {
+                const isSelf = u.employeeId === currentUser?.employeeId;
+                const isUpdating = updatingId === u.employeeId;
+                const cfg = ROLE_CONFIG[u.role as SystemRole] ?? ROLE_CONFIG.USER;
+                return (
+                  <div key={u.employeeId} className={`p-4 ${isSelf ? 'bg-primary/[0.03]' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-surface-container flex items-center justify-center shrink-0 text-sm font-black text-on-surface-variant uppercase">
+                        {u.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <code className="font-mono text-sm font-black text-primary truncate">{u.employeeId}</code>
+                          {isSelf && (
+                            <span className="text-[10px] font-bold text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded-md">คุณ</span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm font-bold text-on-surface truncate">{u.name}</p>
+                        <p className="text-xs text-on-surface-variant/70 truncate">{u.branch}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-bold ${cfg.color} ${cfg.bg} ${cfg.border}`}>
+                        {cfg.icon}
+                        {cfg.label}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <div>
+                        {u.hasPin ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                            <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            ตั้งค่าแล้ว
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                            <span className="material-symbols-outlined text-[13px]">pending</span>
+                            รอดำเนินการ
+                          </span>
+                        )}
+                      </div>
+                      {isUpdating ? (
+                        <span className="material-symbols-outlined animate-spin text-lg text-primary">progress_activity</span>
+                      ) : (
+                        <RoleDropdown
+                          value={u.role as SystemRole}
+                          onChange={(role) => handleRoleChange(u.employeeId, role)}
+                          disabled={isSelf}
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-lowest border-b border-outline-variant/20">

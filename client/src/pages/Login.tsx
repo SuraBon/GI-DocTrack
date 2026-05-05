@@ -261,8 +261,11 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl sm:shadow-2xl p-6 sm:p-8 border border-outline-variant/20">
+    <div className="min-h-screen w-screen overflow-x-hidden flex items-center justify-center bg-surface p-4">
+      <div
+        className="bg-white rounded-2xl shadow-xl sm:shadow-2xl p-6 sm:p-8 border border-outline-variant/20"
+        style={{ width: 'min(28rem, calc(100vw - 2rem))' }}
+      >
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <PackageSearch className="h-8 w-8 text-primary" aria-hidden="true" />
@@ -275,7 +278,7 @@ export default function Login() {
           </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="mx-auto space-y-4" style={{ width: 'min(100%, calc(100vw - 5rem))' }}>
           <div>
             <label className="block text-sm font-bold text-on-surface-variant mb-1.5">Username</label>
             <input
