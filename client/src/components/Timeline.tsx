@@ -11,9 +11,10 @@ import { formatThaiDateTime } from '@/lib/dateUtils';
 interface TimelineProps {
   events: TimelineEvent[];
   className?: string;
+  compact?: boolean;
 }
 
-export default function Timeline({ events, className = '' }: TimelineProps) {
+export default function Timeline({ events, className = '', compact = false }: TimelineProps) {
   const isDelivered = events.some((event) => event.title.includes('ส่งถึงแล้ว'));
   const currentEvent = events.find(e => e.status === 'current') || events[0];
   const isTransit = currentEvent?.title.includes('จัดส่ง') || currentEvent?.title.includes('เดินทาง') || currentEvent?.title.includes('ส่งต่อ');
@@ -25,31 +26,33 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
       : { icon: 'pending_actions', color: 'bg-amber-500', shadow: 'shadow-amber-200', badge: 'bg-amber-100 text-amber-800 border-amber-200', text: 'รับพัสดุเข้าระบบ', sub: 'พัสดุของคุณถูกรับเข้าสู่ระบบและรอคิวจัดส่ง', badgeText: 'กำลังดำเนินการ' };
 
   const getStatusIcon = (status: TimelineEvent['status'], title: string) => {
+    const iconSize = compact ? 'w-7 h-7' : 'w-8 h-8';
+    const iconText = compact ? 'text-base' : 'text-lg';
     switch (status) {
       case 'completed':
         return (
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white shadow-lg shadow-primary/20">
-            <span className="material-symbols-outlined text-lg font-bold">check</span>
+          <div className={`relative flex items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/20 ${iconSize}`}>
+            <span className={`material-symbols-outlined font-bold ${iconText}`}>check</span>
           </div>
         );
       case 'current':
         return (
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-secondary text-primary shadow-lg shadow-secondary/30">
+          <div className={`relative flex items-center justify-center rounded-full bg-secondary text-primary shadow-lg shadow-secondary/30 ${iconSize}`}>
             <div className="absolute inset-0 rounded-full bg-secondary animate-ping opacity-25"></div>
-            <span className="material-symbols-outlined text-lg font-bold">
+            <span className={`material-symbols-outlined font-bold ${iconText}`}>
               {title.includes('ส่งต่อ') ? 'local_shipping' : 'radio_button_checked'}
             </span>
           </div>
         );
       case 'pending':
         return (
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-surface-container border-2 border-outline-variant">
-            <span className="material-symbols-outlined text-lg text-outline-variant">pending</span>
+          <div className={`relative flex items-center justify-center rounded-full bg-surface-container border-2 border-outline-variant ${iconSize}`}>
+            <span className={`material-symbols-outlined text-outline-variant ${iconText}`}>pending</span>
           </div>
         );
       default:
         return (
-          <div className="w-8 h-8 rounded-full bg-surface-container border border-outline-variant"></div>
+          <div className={`${iconSize} rounded-full bg-surface-container border border-outline-variant`}></div>
         );
     }
   };
@@ -73,24 +76,26 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
   return (
     <div className={`relative px-1 ${className}`}>
       {/* Header Summary */}
-      <div className="mb-10 rounded-3xl border border-outline-variant/20 bg-white p-6 shadow-md flex flex-col items-center gap-4">
-        <div className={`flex items-center justify-center w-10 h-10 rounded-xl ${headerStyle.color} text-white ${headerStyle.shadow} shadow-lg`}>
-          <span className="material-symbols-outlined text-xl">
-            {headerStyle.icon}
-          </span>
+      {!compact && (
+        <div className="mb-10 rounded-3xl border border-outline-variant/20 bg-white p-6 shadow-md flex flex-col items-center gap-4">
+          <div className={`flex items-center justify-center w-10 h-10 rounded-xl ${headerStyle.color} text-white ${headerStyle.shadow} shadow-lg`}>
+            <span className="material-symbols-outlined text-xl">
+              {headerStyle.icon}
+            </span>
+          </div>
+          <div className="text-center">
+            <h3 className="font-display font-black text-primary text-xl leading-tight uppercase tracking-tight">
+              {headerStyle.text}
+            </h3>
+            <p className="text-sm text-on-surface-variant/70 mt-1 font-medium">
+              {headerStyle.sub}
+            </p>
+          </div>
+          <div className={`text-[11px] uppercase tracking-widest px-4 py-2 rounded-full font-black shadow-sm border ${headerStyle.badge}`}>
+            {headerStyle.badgeText}
+          </div>
         </div>
-        <div className="text-center">
-          <h3 className="font-display font-black text-primary text-xl leading-tight uppercase tracking-tight">
-            {headerStyle.text}
-          </h3>
-          <p className="text-sm text-on-surface-variant/70 mt-1 font-medium">
-            {headerStyle.sub}
-          </p>
-        </div>
-        <div className={`text-[11px] uppercase tracking-widest px-4 py-2 rounded-full font-black shadow-sm border ${headerStyle.badge}`}>
-          {headerStyle.badgeText}
-        </div>
-      </div>
+      )}
 
       <div className="relative space-y-0">
         {events.map((event, index) => {
@@ -98,14 +103,14 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
           return (
             <div
               key={event.id}
-              className="pb-10 relative group"
+              className={`${compact ? 'pb-3' : 'pb-10'} relative group`}
             >
               {/* Event Card */}
-              <div className={`p-6 rounded-3xl border transition-all duration-300 ${getCardStyle(event.status, event.title)}`}>
-                <div className="flex items-start gap-4">
+              <div className={`${compact ? 'rounded-2xl p-4' : 'rounded-3xl p-6'} border transition-all duration-300 ${getCardStyle(event.status, event.title)}`}>
+                <div className={`flex items-start ${compact ? 'gap-3' : 'gap-4'}`}>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2.5 mb-1.5">
-                      <h4 className={`font-display font-black text-lg leading-tight ${event.status === 'pending' ? 'text-on-surface-variant/40' : 'text-primary'}`}>
+                    <div className={`flex items-center gap-2.5 ${compact ? 'mb-1' : 'mb-1.5'}`}>
+                      <h4 className={`font-display font-black leading-tight ${compact ? 'text-base' : 'text-lg'} ${event.status === 'pending' ? 'text-on-surface-variant/40' : 'text-primary'}`}>
                         {event.title}
                       </h4>
                       {event.status === 'current' && (
@@ -116,7 +121,7 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
                       )}
                     </div>
                     {event.description && (
-                      <p className={`text-sm leading-relaxed font-medium ${event.status === 'pending' ? 'text-on-surface-variant/40' : 'text-on-surface-variant/70'}`}>
+                      <p className={`${compact ? 'text-xs leading-snug' : 'text-sm leading-relaxed'} font-medium ${event.status === 'pending' ? 'text-on-surface-variant/40' : 'text-on-surface-variant/70'}`}>
                         {event.description}
                       </p>
                     )}
@@ -126,10 +131,10 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
                   </div>
                 </div>
                 
-                <div className="mt-4 space-y-4">
+                <div className={`${compact ? 'mt-3 space-y-3' : 'mt-4 space-y-4'}`}>
                   {event.status === 'current' && (
                     <div>
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black border uppercase tracking-widest ${
+                      <span className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
                         event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') 
                           ? 'bg-blue-50 text-blue-700 border-blue-100' 
                           : 'bg-secondary/10 text-primary border-secondary/20'
@@ -143,7 +148,7 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
                   )}
 
                   {/* Metadata Row */}
-                  <div className="flex flex-wrap items-center gap-4 border-t border-outline-variant/10 pt-4">
+                  <div className={`flex flex-wrap items-center border-t border-outline-variant/10 ${compact ? 'gap-3 pt-3' : 'gap-4 pt-4'}`}>
                     <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant/60">
                       <span className="material-symbols-outlined text-base">schedule</span>
                       <time className="tracking-tight uppercase">{event.timestamp ? formatThaiDateTime(event.timestamp) : '-'}</time>
@@ -158,7 +163,7 @@ export default function Timeline({ events, className = '' }: TimelineProps) {
 
                   {/* Proof Image */}
                   {event.imageUrl && (
-                    <div className="p-1 bg-surface-container-low rounded-2xl inline-block border border-outline-variant/30 overflow-hidden group/img transition-transform hover:scale-[1.02]">
+                    <div className={`${compact ? 'p-0.5 rounded-xl' : 'p-1 rounded-2xl'} bg-surface-container-low inline-block border border-outline-variant/30 overflow-hidden group/img transition-transform hover:scale-[1.02]`}>
                       <div className="relative">
                         <ImagePopup url={event.imageUrl} className="rounded-xl overflow-hidden" />
                         <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover/img:opacity-100 transition-opacity pointer-events-none" />

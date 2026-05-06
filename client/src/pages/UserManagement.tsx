@@ -100,6 +100,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | SystemRole>('ALL');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => { fetchUsers(); }, []);
@@ -133,6 +134,7 @@ export default function UserManagement() {
 
   const filtered = users.filter(u => {
     const q = search.toLowerCase();
+    if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
     return (
       u.employeeId.toLowerCase().includes(q) ||
       u.name.toLowerCase().includes(q) ||
@@ -174,12 +176,22 @@ export default function UserManagement() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'ทั้งหมด', value: counts.total, icon: <Users className="h-5 w-5" />, color: 'text-primary', bg: 'bg-primary/10' },
-          { label: 'Admin', value: counts.admin, icon: <ShieldCheck className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' },
-          { label: 'Messenger', value: counts.messenger, icon: <Truck className="h-5 w-5" />, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'User', value: counts.user, icon: <User className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { key: 'ALL' as const, label: 'ทั้งหมด', value: counts.total, icon: <Users className="h-5 w-5" />, color: 'text-primary', bg: 'bg-primary/10' },
+          { key: 'ADMIN' as const, label: 'Admin', value: counts.admin, icon: <ShieldCheck className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' },
+          { key: 'MESSENGER' as const, label: 'Messenger', value: counts.messenger, icon: <Truck className="h-5 w-5" />, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { key: 'USER' as const, label: 'User', value: counts.user, icon: <User className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-outline-variant/30 p-4 flex items-center gap-3">
+          <button
+            key={s.label}
+            type="button"
+            onClick={() => setRoleFilter(s.key)}
+            className={`bg-white rounded-2xl border p-4 flex items-center gap-3 text-left shadow-sm transition-all active:scale-[0.99] ${
+              roleFilter === s.key
+                ? 'border-primary/45 ring-2 ring-primary/10'
+                : 'border-outline-variant/30 hover:border-primary/25 hover:shadow-md'
+            }`}
+            aria-pressed={roleFilter === s.key}
+          >
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.bg} ${s.color}`}>
               {s.icon}
             </div>
@@ -187,7 +199,7 @@ export default function UserManagement() {
               <p className="text-2xl font-black text-primary leading-none">{s.value}</p>
               <p className="text-xs text-on-surface-variant mt-0.5">{s.label}</p>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -222,52 +234,33 @@ export default function UserManagement() {
               {filtered.map(u => {
                 const isSelf = u.employeeId === currentUser?.employeeId;
                 const isUpdating = updatingId === u.employeeId;
-                const cfg = ROLE_CONFIG[u.role as SystemRole] ?? ROLE_CONFIG.USER;
                 return (
                   <div key={u.employeeId} className={`p-4 ${isSelf ? 'bg-primary/[0.03]' : ''}`}>
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-surface-container flex items-center justify-center shrink-0 text-sm font-black text-on-surface-variant uppercase">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/8 text-base font-black uppercase text-primary">
                         {u.name.charAt(0)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <code className="font-mono text-sm font-black text-primary truncate">{u.employeeId}</code>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <code className="truncate font-mono text-sm font-black text-primary">{u.employeeId}</code>
                           {isSelf && (
-                            <span className="text-[10px] font-bold text-primary/60 bg-primary/10 px-1.5 py-0.5 rounded-md">คุณ</span>
+                            <span className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary/60">คุณ</span>
                           )}
                         </div>
-                        <p className="mt-1 text-sm font-bold text-on-surface truncate">{u.name}</p>
-                        <p className="text-xs text-on-surface-variant/70 truncate">{u.branch}</p>
+                        <p className="mt-1 truncate text-base font-black leading-tight text-on-surface">{u.name}</p>
+                        <p className="mt-0.5 truncate text-sm text-on-surface-variant/70">{u.branch}</p>
                       </div>
-                      <span className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1 text-[11px] font-bold ${cfg.color} ${cfg.bg} ${cfg.border}`}>
-                        {cfg.icon}
-                        {cfg.label}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <div>
-                        {u.hasPin ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
-                            <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                            ตั้งค่าแล้ว
-                          </span>
+                      <div className="shrink-0">
+                        {isUpdating ? (
+                          <span className="material-symbols-outlined animate-spin text-lg text-primary">progress_activity</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
-                            <span className="material-symbols-outlined text-[13px]">pending</span>
-                            รอดำเนินการ
-                          </span>
+                          <RoleDropdown
+                            value={u.role as SystemRole}
+                            onChange={(role) => handleRoleChange(u.employeeId, role)}
+                            disabled={isSelf}
+                          />
                         )}
                       </div>
-                      {isUpdating ? (
-                        <span className="material-symbols-outlined animate-spin text-lg text-primary">progress_activity</span>
-                      ) : (
-                        <RoleDropdown
-                          value={u.role as SystemRole}
-                          onChange={(role) => handleRoleChange(u.employeeId, role)}
-                          disabled={isSelf}
-                        />
-                      )}
                     </div>
                   </div>
                 );
@@ -284,20 +277,19 @@ export default function UserManagement() {
                 <th className="px-5 py-3.5 text-[11px] font-black text-on-surface-variant/60 uppercase tracking-widest">ชื่อ-นามสกุล</th>
                 <th className="px-5 py-3.5 text-[11px] font-black text-on-surface-variant/60 uppercase tracking-widest">สาขา</th>
                 <th className="px-5 py-3.5 text-[11px] font-black text-on-surface-variant/60 uppercase tracking-widest">สิทธิ์</th>
-                <th className="px-5 py-3.5 text-[11px] font-black text-on-surface-variant/60 uppercase tracking-widest">PIN</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center">
+                  <td colSpan={4} className="py-16 text-center">
                     <span className="material-symbols-outlined animate-spin text-3xl text-primary">progress_activity</span>
                     <p className="text-sm text-on-surface-variant mt-2">กำลังโหลด...</p>
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center">
+                  <td colSpan={4} className="py-16 text-center">
                     <Users className="mx-auto h-10 w-10 text-on-surface-variant/20 mb-2" />
                     <p className="text-sm font-bold text-on-surface-variant/50">
                       {search ? 'ไม่พบผู้ใช้ที่ค้นหา' : 'ยังไม่มีผู้ใช้งาน'}
@@ -338,19 +330,6 @@ export default function UserManagement() {
                             onChange={(role) => handleRoleChange(u.employeeId, role)}
                             disabled={isSelf}
                           />
-                        )}
-                      </td>
-                      <td className="px-5 py-4">
-                        {u.hasPin ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
-                            <span className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                            ตั้งค่าแล้ว
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
-                            <span className="material-symbols-outlined text-[13px]">pending</span>
-                            รอดำเนินการ
-                          </span>
                         )}
                       </td>
                     </tr>

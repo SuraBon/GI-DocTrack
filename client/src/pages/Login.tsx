@@ -587,11 +587,11 @@ export default function Login() {
         onOpenChange={(open) => {
           if (authDialog.status !== 'loading') setAuthDialog((current) => ({ ...current, open }));
         }}
-      >
-        <DialogContent
-          className="w-[calc(100vw-2rem)] max-w-sm rounded-3xl border-none bg-white p-6 text-center shadow-2xl"
-          showCloseButton={authDialog.status !== 'loading'}
         >
+          <DialogContent
+            className="w-[calc(100vw-2rem)] max-w-md rounded-3xl border-none bg-white p-6 text-center shadow-2xl"
+            showCloseButton={authDialog.status !== 'loading'}
+          >
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
             {authDialog.status === 'loading' ? (
               <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
@@ -600,13 +600,13 @@ export default function Login() {
             ) : (
               <XCircle className="h-9 w-9 text-destructive" aria-hidden="true" />
             )}
-          </div>
-          <DialogHeader className="items-center text-center">
-            <DialogTitle className="font-display text-xl font-black text-primary">{authDialog.title}</DialogTitle>
-            <DialogDescription className="text-sm leading-relaxed text-on-surface-variant">
-              {authDialog.message}
-            </DialogDescription>
-          </DialogHeader>
+            </div>
+            <DialogHeader className="items-center text-center">
+              <DialogTitle className="font-display text-xl font-black text-primary">{authDialog.title}</DialogTitle>
+              <DialogDescription className="whitespace-nowrap text-[11px] leading-relaxed text-on-surface-variant min-[380px]:text-xs sm:text-sm">
+                {authDialog.message}
+              </DialogDescription>
+            </DialogHeader>
           {authDialog.status !== 'loading' && (
             <button
               type="button"

@@ -41,65 +41,74 @@ export default function ParcelTimelineModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="w-full max-w-[92vw] sm:max-w-4xl max-h-[90vh] overflow-hidden p-0 rounded-3xl border-none shadow-2xl">
-        <div className="flex flex-col max-h-[90vh]">
-          <DialogHeader className="shrink-0 p-5 sm:p-6 text-white"
+      <DialogContent className="w-full max-w-[92vw] sm:max-w-3xl max-h-[88vh] overflow-hidden p-0 rounded-2xl border-none shadow-2xl" showCloseButton={false}>
+        <div className="flex flex-col max-h-[88vh]">
+          <DialogHeader className="shrink-0 p-4 sm:p-5 text-white"
             style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #091426 100%)' }}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <DialogTitle className="text-lg sm:text-xl font-black font-display text-white">เส้นทางการจัดส่ง</DialogTitle>
-                <DialogDescription className="min-w-0 text-white/50 mt-1 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-base sm:text-lg font-black font-display text-white leading-tight">เส้นทางการจัดส่ง</DialogTitle>
+                <DialogDescription className="mt-1 min-w-0 text-xs leading-tight text-white/55">
                   หมายเลขติดตาม: <code className="font-mono text-white/80 font-bold break-all">{selectedParcel.TrackingID}</code>
                 </DialogDescription>
-                <div className="flex items-center gap-2 mt-2">
-                  <StatusBadge status={selectedParcel['สถานะ']} />
-                </div>
               </div>
-              <div className="flex items-center justify-end gap-2 shrink-0">
+              <div className="flex shrink-0 items-center justify-end gap-2">
                 {canConfirmParcel && !isActuallyDelivered && (
                   <button
                     onClick={() => { setIsOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all"
+                    className="hidden items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:flex"
                   >
                     <span className="material-symbols-outlined text-base">local_shipping</span>
                     ส่งพัสดุ
                   </button>
                 )}
                 <button onClick={() => setIsOpen(false)}
-                  className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors">
-                  <span className="material-symbols-outlined text-white text-xl">close</span>
+                  className="p-1.5 bg-white/10 rounded-xl hover:bg-white/20 transition-colors">
+                  <span className="material-symbols-outlined text-white text-lg">close</span>
                 </button>
               </div>
             </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 sm:justify-start">
+              <StatusBadge status={selectedParcel['สถานะ']} />
+              {canConfirmParcel && !isActuallyDelivered && (
+                <button
+                  onClick={() => { setIsOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:hidden"
+                >
+                  <span className="material-symbols-outlined text-base">local_shipping</span>
+                  ส่งพัสดุ
+                </button>
+              )}
+            </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-background">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-1.5">
+                <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-sm">history</span>
                   ไทม์ไลน์การจัดส่ง
                 </p>
-                <Timeline events={selectedTimelineEvents} />
+                <Timeline events={selectedTimelineEvents} compact />
               </div>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {hasKnownBranches ? (
                   <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm">
                     <TrackingMap events={selectedTimelineEvents} />
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-outline-variant/30 shadow-sm h-[220px] sm:h-[260px] bg-surface-container-lowest flex flex-col items-center justify-center p-6 text-center">
-                    <span className="material-symbols-outlined text-4xl text-on-surface-variant/30 mb-3">map_off</span>
+                  <div className="rounded-2xl border border-outline-variant/30 shadow-sm h-[150px] sm:h-[180px] bg-surface-container-lowest flex flex-col items-center justify-center p-4 text-center">
+                    <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">map_off</span>
                     <p className="text-sm font-bold text-on-surface-variant">ยังไม่มีพิกัด GPS</p>
                     <p className="text-xs text-on-surface-variant/60 mt-1">แผนที่จะแสดงเมื่อมีการบันทึกตำแหน่งจากการสร้างหรือยืนยันรับพัสดุ</p>
                   </div>
                 )}
-                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-outline-variant/30 shadow-sm">
-                  <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-1.5">
+                <div className="bg-white rounded-2xl p-3 sm:p-4 border border-outline-variant/30 shadow-sm">
+                  <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.16em] mb-3 flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm">info</span>
                     รายละเอียดพัสดุ
                   </p>
-                  <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                     {[
                       { label: 'ประเภท', value: selectedParcel['ประเภทเอกสาร'] },
                       { label: 'สถานะ', value: selectedParcel['สถานะ'] },
@@ -113,15 +122,15 @@ export default function ParcelTimelineModal({
                     ))}
                   </div>
                   {selectedParcel['รายละเอียด'] && (
-                    <div className="mt-4 pt-4 border-t border-outline-variant/10">
+                    <div className="mt-3 pt-3 border-t border-outline-variant/10">
                       <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider mb-1.5">รายละเอียด</p>
-                      <p className="text-sm text-primary font-medium leading-relaxed bg-surface-container-low/50 rounded-xl p-3 border border-outline-variant/20">
+                      <p className="text-sm text-primary font-medium leading-snug bg-surface-container-low/50 rounded-xl p-2.5 border border-outline-variant/20">
                         {selectedParcel['รายละเอียด']}
                       </p>
                     </div>
                   )}
                   {role === 'ADMIN' && (
-                    <div className="mt-4 pt-4 border-t border-outline-variant/10 flex gap-3">
+                    <div className="mt-3 pt-3 border-t border-outline-variant/10 flex gap-3">
                       <button
                         onClick={onDeleteParcel}
                         className="flex-1 flex items-center justify-center gap-1.5 bg-error/10 text-error font-bold py-2 rounded-xl hover:bg-error hover:text-white transition-colors text-sm"
