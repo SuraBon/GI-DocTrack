@@ -53,7 +53,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
   const handleSearch = async (e?: React.FormEvent, searchId?: string) => {
     if (e) e.preventDefault();
     const id = sanitizeTextInput(searchId ?? trackingId, 100).toUpperCase();
-    if (!id) { toast.error('กรุณากรอกหมายเลขติดตาม'); return; }
+    if (!id) { toast.error('กรุณากรอกหมายเลขติดตามหรือชื่อผู้รับ'); return; }
     // ✅ FIX: sync input display with what we're actually searching
     if (searchId && searchId !== trackingId) setTrackingId(searchId);
     setIsLoading(true);
@@ -113,8 +113,8 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
             <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_searching</span>
           </div>
           <div>
-            <h1 className="font-display text-3xl font-black leading-tight text-primary sm:text-[34px]">ติดตามพัสดุ</h1>
-            <p className="mt-1 text-sm text-on-surface-variant/75">ค้นหาสถานะพัสดุจากหมายเลขติดตาม หรือชื่อผู้รับ</p>
+            <h1 className="font-display text-3xl font-black leading-tight text-primary sm:text-[34px]">ค้นหาพัสดุ</h1>
+            <p className="mt-1 text-sm text-on-surface-variant/75">ค้นหาพัสดุด้วยหมายเลขติดตามหรือชื่อผู้รับ</p>
           </div>
         </div>
       </section>
@@ -141,14 +141,14 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
             className="h-13 rounded-xl bg-primary px-6 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary/95 active:scale-[0.98] disabled:opacity-50 sm:h-14 sm:px-8">
             {isLoading
               ? <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
-              : 'ติดตามพัสดุ'}
+              : 'ค้นหาพัสดุ'}
           </button>
         </form>
 
         {recentSearches.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-outline-variant/10">
             <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm">history</span>ล่าสุด:
+              <span className="material-symbols-outlined text-sm">history</span>ค้นหาล่าสุด:
             </span>
             {recentSearches.map(id => (
               <div key={id} className="flex items-center gap-0.5 rounded-xl bg-primary/5 p-0.5 ring-1 ring-primary/10">
@@ -180,7 +180,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
             </div>
             <button onClick={() => setSearchResults([])}
               className="text-xs text-on-surface-variant/60 hover:text-error font-semibold flex items-center gap-1 transition-colors">
-              <span className="material-symbols-outlined text-sm">close</span>ล้าง
+              <span className="material-symbols-outlined text-sm">close</span>ล้างผลค้นหา
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -212,7 +212,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
         <div className="space-y-5 animate-in zoom-in-95 duration-400">
           <button onClick={() => setParcel(null)}
             className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-primary font-semibold transition-colors">
-            <span className="material-symbols-outlined text-base">arrow_back</span>ค้นหาใหม่
+            <span className="material-symbols-outlined text-base">arrow_back</span>กลับไปค้นหา
           </button>
 
           <div className="bg-white/95 backdrop-blur-sm border border-outline-variant/40 rounded-2xl overflow-hidden shadow-xl shadow-primary/10">
@@ -250,8 +250,8 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
                     <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em]">รายละเอียดพัสดุ</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {[
-                        { label: 'ชื่อผู้ส่ง', name: parcel['ผู้ส่ง'], branch: parcel['สาขาผู้ส่ง'], icon: 'person', color: 'text-primary' },
-                        { label: 'ชื่อผู้รับ', name: parcel['ผู้รับ'], branch: parcel['สาขาผู้รับ'], icon: 'location_on', color: 'text-secondary' },
+                        { label: 'ผู้ส่ง', name: parcel['ผู้ส่ง'], branch: parcel['สาขาผู้ส่ง'], icon: 'person', color: 'text-primary' },
+                        { label: 'ผู้รับ / สถานที่รับ', name: parcel['ผู้รับ'], branch: parcel['สาขาผู้รับ'], icon: 'person_pin_circle', color: 'text-secondary' },
                       ].map(({ label, name, branch, icon, color }) => (
                         <div key={label} className="flex items-start gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-surface-container flex items-center justify-center shrink-0 mt-0.5">
@@ -306,7 +306,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
                   {parcel['รูปยืนยัน'] && (
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">photo_library</span>รูปภาพหลักฐาน
+                        <span className="material-symbols-outlined text-sm">photo_library</span>รูปหลักฐาน
                       </p>
                       <ImagePopup url={parcel['รูปยืนยัน']} className="w-full rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-all" />
                     </div>
@@ -317,7 +317,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
                 <div className="space-y-5">
                   <div className="bg-surface-container-lowest rounded-2xl p-4 sm:p-5 border border-outline-variant/30">
                     <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em] mb-4 flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-sm">route</span>ไทม์ไลน์การจัดส่ง
+                      <span className="material-symbols-outlined text-sm">route</span>ลำดับการจัดส่ง
                     </p>
                     <Timeline events={timelineEvents} />
                   </div>
@@ -329,7 +329,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
                     <div className="rounded-2xl border border-outline-variant/30 shadow-sm h-[260px] bg-surface-container-lowest flex flex-col items-center justify-center p-6 text-center">
                       <span className="material-symbols-outlined text-4xl text-on-surface-variant/30 mb-3">map_off</span>
                       <p className="text-sm font-bold text-on-surface-variant">ยังไม่มีพิกัด GPS</p>
-                      <p className="text-xs text-on-surface-variant/60 mt-1">แผนที่จะแสดงเมื่อมีการบันทึกตำแหน่งจากการสร้างหรือยืนยันรับพัสดุ</p>
+                      <p className="text-xs text-on-surface-variant/60 mt-1">แผนที่จะแสดงเมื่อมีการบันทึกพิกัดจากการสร้างพัสดุหรือบันทึกการจัดส่ง</p>
                     </div>
                   )}
                 </div>

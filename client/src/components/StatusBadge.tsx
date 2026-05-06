@@ -13,11 +13,11 @@ interface StatusBadgeProps {
 export default function StatusBadge({ status, className = '' }: StatusBadgeProps) {
   const getStatusStyles = (status: ParcelStatus) => {
     switch (status) {
-      case 'รอจัดส่ง':
+      case 'รอสถานะจัดส่ง':
         return 'bg-amber-100 text-amber-900 border border-amber-200/60 shadow-[0_1px_4px_rgba(245,158,11,0.16)]';
       case 'กำลังจัดส่ง':
         return 'bg-blue-100 text-blue-900 border border-blue-200/60 shadow-[0_1px_4px_rgba(37,99,235,0.16)]';
-      case 'ส่งถึงแล้ว':
+      case 'ส่งสำเร็จ':
         return 'bg-emerald-100 text-emerald-900 border border-emerald-200/60 shadow-[0_1px_4px_rgba(16,185,129,0.16)]';
       default:
         return 'bg-slate-100 text-slate-700 border border-slate-200/50';
@@ -26,18 +26,18 @@ export default function StatusBadge({ status, className = '' }: StatusBadgeProps
 
   const getStatusDot = (status: ParcelStatus) => {
     switch (status) {
-      case 'รอจัดส่ง':
+      case 'รอสถานะจัดส่ง':
         return 'bg-amber-500';
       case 'กำลังจัดส่ง':
         return 'bg-blue-500';
-      case 'ส่งถึงแล้ว':
+      case 'ส่งสำเร็จ':
         return 'bg-emerald-500';
       default:
         return 'bg-slate-400';
     }
   };
 
-  const isDelivered = status === 'ส่งถึงแล้ว';
+  const isDelivered = status === 'ส่งสำเร็จ';
 
   return (
     <span

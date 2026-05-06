@@ -142,7 +142,7 @@ export default function ConfirmReceipt({
 
         // ── Determine if truly delivered using events array (primary) or note regex (fallback) ──
         const currentStatus = p['สถานะ'];
-        let actuallyDelivered = currentStatus === "ส่งถึงแล้ว";
+        let actuallyDelivered = currentStatus === "ส่งสำเร็จ";
 
         if (actuallyDelivered) {
           if (Array.isArray(p.events) && p.events.length > 0) {
@@ -171,7 +171,7 @@ export default function ConfirmReceipt({
         if (actuallyDelivered) {
           toast.warning(`พัสดุนี้ถูกจัดส่งถึงที่หมายเรียบร้อยแล้ว`);
         } else {
-          toast.success(`พบข้อมูลพัสดุ ปลายทาง: ${p['สาขาผู้รับ']}`);
+          toast.success(`พบข้อมูลพัสดุ สถานที่รับ: ${p['สาขาผู้รับ']}`);
           setCurrentStep(2); // Auto move to photo step
           requestLocation(); // Request GPS automatically on step 2
           if (shouldOpenCamera) {
@@ -271,7 +271,7 @@ export default function ConfirmReceipt({
         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         setPhotoPreview(dataUrl);
         setPhotoUrl(dataUrl);
-        toast.success('เลือกรูปภาพสำเร็จ');
+        toast.success('แนบรูปหลักฐานแล้ว');
         return;
       }
     } catch {
@@ -301,7 +301,7 @@ export default function ConfirmReceipt({
             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
             setPhotoPreview(dataUrl);
             setPhotoUrl(dataUrl);
-            toast.success('เลือกรูปภาพสำเร็จ');
+            toast.success('แนบรูปหลักฐานแล้ว');
           } else {
             toast.error('ไม่สามารถประมวลผลรูปภาพได้');
           }
@@ -351,8 +351,8 @@ export default function ConfirmReceipt({
       }
 
       const validationError =
-        !photoUrl ? 'กรุณาแนบรูปภาพหลักฐาน' :
-        !eventType ? 'กรุณาเลือกประเภทการยืนยัน' :
+        !photoUrl ? 'กรุณาแนบรูปหลักฐาน' :
+        !eventType ? 'กรุณาเลือกวิธีบันทึกการจัดส่ง' :
         isForwarding ? (
           validateRequiredText(eventPerson, 'ชื่อผู้ส่งต่อ', 1, 200) ||
           validateRequiredText(eventLocation, 'สาขาต้นทาง', 1, 100) ||
@@ -371,12 +371,12 @@ export default function ConfirmReceipt({
       const finalEventType = eventType;
       
       // Optimistic Update
-      const newStatus = isForwarding ? 'กำลังจัดส่ง' : 'ส่งถึงแล้ว';
+      const newStatus = isForwarding ? 'กำลังจัดส่ง' : 'ส่งสำเร็จ';
       if (typeof updateParcelLocally === 'function') {
         updateParcelLocally(finalTrackingId, { 'สถานะ': newStatus });
       }
 
-      toast.success('กำลังบันทึกข้อมูล...');
+      toast.success('กำลังบันทึกการจัดส่ง...');
       
       const response = await confirmReceipt(
         finalTrackingId,
@@ -391,7 +391,7 @@ export default function ConfirmReceipt({
       );
       
       if (response && response.success) {
-        toast.success('บันทึกข้อมูลเรียบร้อยแล้ว');
+        toast.success('บันทึกการจัดส่งเรียบร้อยแล้ว');
         // Reset all state
         setCurrentStep(1);
         setTrackingId('');
@@ -409,7 +409,7 @@ export default function ConfirmReceipt({
         resetGeo();
         onComplete?.();
       } else {
-        toast.error(response?.error ? `เกิดข้อผิดพลาด: ${response.error}` : 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่');
+        toast.error(response?.error ? `เกิดข้อผิดพลาด: ${response.error}` : 'ไม่สามารถบันทึกการจัดส่งได้ กรุณาลองใหม่');
         // Revert local update
         if (typeof loadParcels === 'function') loadParcels(undefined, true);
       }
@@ -422,8 +422,8 @@ export default function ConfirmReceipt({
     <div className={`${embedded ? 'max-w-none pb-4' : 'max-w-2xl mx-auto pb-20'} space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700`}>
       {/* Header Section */}
       <div className={`${embedded ? 'hidden' : 'text-center space-y-2 mb-8 sm:mb-10'}`}>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary tracking-tight">ยืนยันรับพัสดุ</h1>
-        <p className="text-xs sm:text-sm text-on-surface-variant">ทำตามขั้นตอนเพื่อยืนยันการรับหรือส่งต่อพัสดุผ่านระบบ LogiTrack</p>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary tracking-tight">บันทึกการจัดส่ง</h1>
+        <p className="text-xs sm:text-sm text-on-surface-variant">ถ่ายรูปหลักฐานและบันทึกสถานะการจัดส่งของพัสดุ</p>
       </div>
 
       {!embedded && <StepIndicator currentStep={currentStep} />}
@@ -433,7 +433,7 @@ export default function ConfirmReceipt({
           <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-4">
             <span className="material-symbols-outlined text-5xl text-primary animate-spin">progress_activity</span>
           </div>
-          <p className="text-lg font-bold text-primary font-display">กำลังบันทึกข้อมูล...</p>
+          <p className="text-lg font-bold text-primary font-display">กำลังบันทึกการจัดส่ง...</p>
           <p className="text-on-surface-variant text-sm">กรุณารอสักครู่ ระบบกำลังประมวลผล</p>
         </div>,
         document.body
@@ -445,7 +445,7 @@ export default function ConfirmReceipt({
             <span className="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
           </div>
           <h2 className="font-display text-xl font-black text-primary">กำลังเปิดกล้อง...</h2>
-          <p className="mt-1 text-sm font-semibold text-on-surface-variant/60">ระบบกำลังตรวจสอบพัสดุและเตรียมหน้าถ่ายรูปหลักฐาน</p>
+          <p className="mt-1 text-sm font-semibold text-on-surface-variant/60">ระบบกำลังตรวจสอบพัสดุและเตรียมถ่ายรูปหลักฐาน</p>
         </div>
       )}
 
@@ -457,7 +457,7 @@ export default function ConfirmReceipt({
               <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>search</span>
             </div>
             <h2 className="font-display text-xl font-bold text-primary">ระบุหมายเลขติดตาม</h2>
-            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">กรอกเลขที่พัสดุเพื่อเริ่มต้นทำรายการ</p>
+            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">กรอกหมายเลขติดตามเพื่อเริ่มบันทึกการจัดส่ง</p>
           </div>
           <div className="p-5 sm:p-8 space-y-6">
             <div className="space-y-4">
@@ -502,7 +502,7 @@ export default function ConfirmReceipt({
                 </>
               ) : (
                 <>
-                  ตรวจสอบข้อมูลพัสดุ
+                  ตรวจสอบพัสดุ
                   <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
                 </>
               )}
@@ -519,7 +519,7 @@ export default function ConfirmReceipt({
               <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
             </div>
             <h2 className="font-display text-lg font-black text-primary">ถ่ายรูปหลักฐาน</h2>
-            <p className="mt-0.5 text-xs font-semibold text-on-surface-variant/60">ถ่ายรูปพัสดุหรือหลักฐานการรับ</p>
+            <p className="mt-0.5 text-xs font-semibold text-on-surface-variant/60">ถ่ายรูปพัสดุหรือหลักฐานการจัดส่ง</p>
           </div>
           <div className="space-y-4 p-4 sm:p-5">
             {!photoPreview ? (
@@ -593,7 +593,7 @@ export default function ConfirmReceipt({
                   {geoStatus === 'success' && position
                     ? `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)} (ความแม่นยำ ~${Math.round(position.accuracy)}m${position.accuracy > 100 ? ' — ต่ำ' : ''})`
                     : geoError ? geoError
-                    : 'ต้องมีพิกัด GPS ก่อนยืนยันรายการ'}
+                    : 'ต้องมีพิกัด GPS ก่อนบันทึกการจัดส่ง'}
                 </p>
                 {(geoStatus === 'error' || geoStatus === 'denied') && (
                   <button
@@ -619,7 +619,7 @@ export default function ConfirmReceipt({
                 disabled={!photoPreview || geoStatus === 'loading'}
                 className="group flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 font-display text-base font-black text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] hover:bg-primary/95 active:scale-[0.98] disabled:scale-100 disabled:bg-on-surface-variant/30 disabled:shadow-none"
               >
-                ไปขั้นตอนยืนยัน
+                ไปขั้นตอนต่อไป
                 <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
               </button>
             </div>
@@ -629,58 +629,58 @@ export default function ConfirmReceipt({
 
       {/* Step 3: Final Details & Confirm */}
       {currentStep === 3 && (
-        <div className="bg-white border border-outline-variant rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-surface-container-low/30 p-5 sm:p-8 border-b border-outline-variant/10 text-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary">
-              <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
+        <div className="overflow-hidden rounded-3xl border border-outline-variant bg-white shadow-xl animate-in slide-in-from-right-4 duration-500">
+          <div className="border-b border-outline-variant/10 bg-surface-container-low/30 p-4 text-center sm:p-5">
+            <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
             </div>
-            <h2 className="font-display text-xl font-bold text-primary">ข้อมูลเพิ่มเติมและยืนยัน</h2>
-            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">ระบุรายละเอียดการรับพัสดุให้ครบถ้วน</p>
+            <h2 className="font-display text-lg font-black text-primary">ข้อมูลเพิ่มเติม</h2>
+            <p className="mt-0.5 text-xs font-semibold text-on-surface-variant/60">ระบุรายละเอียดก่อนบันทึกการจัดส่ง</p>
           </div>
-          <div className="p-5 sm:p-8 space-y-6 sm:space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-container-lowest border border-outline-variant p-5 rounded-2xl text-sm">
-              <div className="flex items-center gap-3 text-on-surface-variant">
-                <span className="material-symbols-outlined text-primary text-xl">barcode_scanner</span>
+          <div className="space-y-4 p-4 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-outline-variant bg-surface-container-lowest p-3 text-sm sm:grid-cols-2">
+              <div className="flex items-center gap-2.5 text-on-surface-variant">
+                <span className="material-symbols-outlined text-lg text-primary">barcode_scanner</span>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 leading-none">หมายเลขติดตาม</span>
-                  <span className="font-mono font-bold text-primary text-base leading-tight">{trackingId}</span>
+                  <span className="font-mono text-sm font-black leading-tight text-primary">{trackingId}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3 text-on-surface-variant">
-                <span className="material-symbols-outlined text-primary text-xl">person</span>
+              <div className="flex items-center gap-2.5 text-on-surface-variant">
+                <span className="material-symbols-outlined text-lg text-primary">person</span>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 leading-none">ชื่อผู้รับต้นฉบับ</span>
-                  <span className="font-bold text-primary text-base leading-tight">{checkedParcel?.['ผู้รับ']}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 leading-none">ผู้รับตามรายการ</span>
+                  <span className="text-sm font-black leading-tight text-primary">{checkedParcel?.['ผู้รับ']}</span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${isForwarding ? 'bg-secondary-fixed/10 border-secondary-container' : 'bg-white border-outline-variant/30 hover:border-outline-variant'}`}>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className={`rounded-2xl border-2 p-3 transition-all duration-300 ${isForwarding ? 'bg-secondary-fixed/10 border-secondary-container' : 'bg-white border-outline-variant/30 hover:border-outline-variant'}`}>
                   <div className="flex items-center justify-between cursor-pointer group" onClick={() => { setIsForwarding(!isForwarding); if (!isForwarding) setIsProxy(false); }}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isForwarding ? 'bg-secondary text-white' : 'bg-surface-container text-on-surface-variant'}`}>
-                        <span className="material-symbols-outlined text-2xl">fork_right</span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${isForwarding ? 'bg-secondary text-white' : 'bg-surface-container text-on-surface-variant'}`}>
+                        <span className="material-symbols-outlined text-xl">fork_right</span>
                       </div>
-                      <div>
-                        <p className="font-display font-bold text-primary">ส่งต่อพัสดุ</p>
-                        <p className="text-[11px] text-on-surface-variant opacity-60">ส่งพัสดุต่อให้พนักงานคนอื่นหรือรถเที่ยวถัดไป</p>
+                      <div className="min-w-0">
+                        <p className="font-display text-sm font-black text-primary">ส่งต่อพัสดุ</p>
+                        <p className="text-[11px] leading-tight text-on-surface-variant/60">ส่งต่อให้พนักงานคนอื่นหรือรถเที่ยวถัดไป</p>
                       </div>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isForwarding ? 'border-secondary bg-secondary' : 'border-outline-variant group-hover:border-primary'}`}>
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${isForwarding ? 'border-secondary bg-secondary' : 'border-outline-variant group-hover:border-primary'}`}>
                       {isForwarding && <span className="material-symbols-outlined text-white text-base">check</span>}
                     </div>
                   </div>
                   {isForwarding && (
-                    <div className="mt-5 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                    <div className="mt-3 space-y-3 animate-in slide-in-from-top-2 duration-300">
                       <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">person</span>
                         <input
                           placeholder="ระบุชื่อพนักงานที่ส่งต่อ"
                           value={forwardSender}
                           onChange={(e) => setForwardSender(sanitizeTextInput(e.target.value, 200))}
-                          className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-secondary outline-none font-display"
+                          className="w-full rounded-2xl border border-outline-variant bg-white py-2.5 pl-10 pr-4 font-display text-sm outline-none focus:ring-1 focus:ring-secondary"
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -711,30 +711,30 @@ export default function ConfirmReceipt({
                   )}
                 </div>
 
-                <div className={`p-5 rounded-2xl border-2 transition-all duration-300 ${isProxy ? 'bg-blue-50 border-blue-500' : 'bg-white border-outline-variant/30 hover:border-outline-variant'}`}>
+                <div className={`rounded-2xl border-2 p-3 transition-all duration-300 ${isProxy ? 'bg-blue-50 border-blue-500' : 'bg-white border-outline-variant/30 hover:border-outline-variant'}`}>
                   <div className="flex items-center justify-between cursor-pointer group" onClick={() => { setIsProxy(!isProxy); if (!isProxy) setIsForwarding(false); }}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isProxy ? 'bg-blue-600 text-white' : 'bg-surface-container text-on-surface-variant'}`}>
-                        <span className="material-symbols-outlined text-2xl">account_circle</span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${isProxy ? 'bg-blue-600 text-white' : 'bg-surface-container text-on-surface-variant'}`}>
+                        <span className="material-symbols-outlined text-xl">account_circle</span>
                       </div>
-                      <div>
-                        <p className="font-display font-bold text-primary">มีผู้รับแทน</p>
-                        <p className="text-[11px] text-on-surface-variant opacity-60">กรณีบุคคลอื่นรับแทนผู้รับตัวจริง</p>
+                      <div className="min-w-0">
+                        <p className="font-display text-sm font-black text-primary">ผู้รับแทน</p>
+                        <p className="text-[11px] leading-tight text-on-surface-variant/60">กรณีบุคคลอื่นรับแทนผู้รับตัวจริง</p>
                       </div>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isProxy ? 'border-blue-600 bg-blue-600' : 'border-outline-variant group-hover:border-primary'}`}>
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${isProxy ? 'border-blue-600 bg-blue-600' : 'border-outline-variant group-hover:border-primary'}`}>
                       {isProxy && <span className="material-symbols-outlined text-white text-base">check</span>}
                     </div>
                   </div>
                   {isProxy && (
-                    <div className="mt-5 animate-in slide-in-from-top-2 duration-300">
+                    <div className="mt-3 animate-in slide-in-from-top-2 duration-300">
                       <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">person</span>
                         <input
                           placeholder="ระบุชื่อผู้รับแทน"
                           value={proxyName}
                           onChange={(e) => setProxyName(sanitizeTextInput(e.target.value, 200))}
-                          className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-blue-500 outline-none font-display"
+                          className="w-full rounded-2xl border border-outline-variant bg-white py-2.5 pl-10 pr-4 font-display text-sm outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -748,16 +748,17 @@ export default function ConfirmReceipt({
                   placeholder="เช่น กล่องบุบนิดหน่อย, วางไว้ที่ป้อมยาม, ฝากไว้ที่เคาน์เตอร์..."
                   value={note}
                   onChange={(e) => setNote(sanitizeTextInput(e.target.value, 2000))}
-                  className="w-full bg-white border border-outline-variant rounded-2xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary outline-none font-display min-h-[100px] transition-all resize-none"
+                  className="min-h-[68px] w-full resize-none rounded-2xl border border-outline-variant bg-white px-4 py-2.5 font-display text-sm outline-none transition-all focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <div className="grid grid-cols-[0.9fr_1.4fr] gap-2.5 sm:gap-3">
               <button
                 onClick={() => setCurrentStep(2)}
-                className="flex items-center justify-center gap-2 h-14 flex-1 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
+                className="flex h-13 min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-outline-variant/70 bg-white px-2 font-display text-sm font-black text-on-surface-variant shadow-sm transition-all hover:border-primary/30 hover:bg-surface-container-lowest hover:text-primary active:scale-[0.98] sm:text-base"
               >
+                <span className="material-symbols-outlined text-lg sm:text-xl">arrow_back</span>
                 ย้อนกลับ
               </button>
               <button
@@ -769,10 +770,10 @@ export default function ConfirmReceipt({
                     || !resolveSelectValue(forwardFromBranch)
                   ))
                   || (isProxy && !proxyName.trim())}
-                className="flex items-center justify-center gap-2 h-14 flex-[2] bg-green-600 text-white rounded-2xl font-display font-bold shadow-lg shadow-green-200 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+                className="group flex h-13 min-w-0 items-center justify-center gap-2 rounded-2xl bg-primary px-3 font-display text-sm font-black text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] hover:bg-primary/95 active:scale-[0.98] disabled:scale-100 disabled:bg-on-surface-variant/30 disabled:shadow-none sm:text-base"
               >
-                ยืนยันรายการ
-                <span className="material-symbols-outlined">verified</span>
+                บันทึกการจัดส่ง
+                <span className="material-symbols-outlined text-xl transition-transform group-hover:translate-x-1 sm:text-2xl">verified</span>
               </button>
             </div>
           </div>
@@ -799,7 +800,7 @@ export default function ConfirmReceipt({
             </div>
             <div className="flex-1">
               <DialogTitle className="text-lg font-black font-display text-primary leading-tight">
-                {isForwarding ? 'ยืนยันส่งต่อพัสดุ' : isProxy ? 'ยืนยันรับแทน' : 'ยืนยันรับพัสดุ'}
+                {isForwarding ? 'ยืนยันส่งต่อพัสดุ' : isProxy ? 'ยืนยันผู้รับแทน' : 'ยืนยันส่งสำเร็จ'}
               </DialogTitle>
               <p className="text-xs text-on-surface-variant mt-0.5">กรุณาตรวจสอบข้อมูลก่อนยืนยัน</p>
             </div>

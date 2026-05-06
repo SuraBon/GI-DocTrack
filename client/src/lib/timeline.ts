@@ -50,7 +50,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
         events.push({
           id: String(idCounter++),
           status: 'completed',
-          title: 'พัสดุส่งถึงแล้ว',
+          title: 'ส่งสำเร็จ',
           description: `รับแทนโดย: ${evt.person || '-'}`,
           timestamp: evt.timestamp,
           location: evt.location,
@@ -62,7 +62,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
         events.push({
           id: String(idCounter++),
           status: 'completed',
-          title: 'พัสดุส่งถึงแล้ว',
+          title: 'ส่งสำเร็จ',
           description: 'ส่งถึงผู้รับเรียบร้อย',
           timestamp: evt.timestamp,
           location: evt.location,
@@ -86,7 +86,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     }
 
     // Also support adding a pending state if just created
-    if (parcel['สถานะ'] === 'รอจัดส่ง' && events.length === 1) {
+    if (parcel['สถานะ'] === 'รอสถานะจัดส่ง' && events.length === 1) {
        events[0].status = 'current';
     }
 
@@ -97,7 +97,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
   const note = parcel['หมายเหตุ'] ?? '';
 
   // ── 1. Creation event
-  const isCreationCurrent = parcel['สถานะ'] === 'รอจัดส่ง';
+  const isCreationCurrent = parcel['สถานะ'] === 'รอสถานะจัดส่ง';
   events.push({
     id: String(idCounter++),
     status: isCreationCurrent ? 'current' : 'completed',
@@ -137,7 +137,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
   }
 
   if (
-    parcel['สถานะ'] !== 'ส่งถึงแล้ว' &&
+    parcel['สถานะ'] !== 'ส่งสำเร็จ' &&
     parcel['รูปยืนยัน'] &&
     forwardEvents.length > 0
   ) {
@@ -147,7 +147,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
   events.push(...forwardEvents);
 
   // ── 3. Terminal event
-  if (parcel['สถานะ'] === 'ส่งถึงแล้ว') {
+  if (parcel['สถานะ'] === 'ส่งสำเร็จ') {
     const proxyRegex =
       /\[รับแทนโดย:\s*(.*?)\s*เมื่อ:\s*(.*?)(?:\s*รูปภาพ:\s*(.*?))?(?:\s*GPS:\s*([\d.-]+),\s*([\d.-]+))?\]/;
     const normalRegex =
@@ -172,7 +172,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     events.push({
       id: String(idCounter++),
       status: 'completed',
-      title: 'พัสดุส่งถึงแล้ว',
+      title: 'ส่งสำเร็จ',
       description,
       timestamp,
       location: parcel['สาขาผู้รับ'],

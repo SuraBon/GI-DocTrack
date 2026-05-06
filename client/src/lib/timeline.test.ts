@@ -53,7 +53,7 @@ describe('parseParcelTimeline', () => {
 
   it('parses delivered proxy event', () => {
     const parcel = createParcel({
-      'สถานะ': 'ส่งถึงแล้ว',
+      'สถานะ': 'ส่งสำเร็จ',
       'หมายเหตุ': '[รับแทนโดย: สมชาย เมื่อ: 1 มกราคม 2569 รูปภาพ: https://example.com/p.jpg]',
     });
     const events = parseParcelTimeline(parcel);

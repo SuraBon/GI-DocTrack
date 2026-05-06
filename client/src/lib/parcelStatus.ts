@@ -7,11 +7,11 @@ import type { Parcel, ParcelSummary } from '@/types/parcel';
  * Fallback: parse the `หมายเหตุ` note field for legacy parcels that pre-date
  * the events system.
  *
- * A parcel marked 'ส่งถึงแล้ว' in the backend may actually still be
+ * A parcel marked 'ส่งสำเร็จ' in the backend may actually still be
  * 'กำลังจัดส่ง' if the last recorded action was a FORWARD, not a delivery.
  */
 export function applyDerivedStatus(parcel: Parcel): Parcel {
-  if (parcel['สถานะ'] !== 'ส่งถึงแล้ว') return parcel;
+  if (parcel['สถานะ'] !== 'ส่งสำเร็จ') return parcel;
 
   // ── Primary: use structured events array ──────────────────────────────────
   if (Array.isArray(parcel.events) && parcel.events.length > 0) {
@@ -26,6 +26,7 @@ export function applyDerivedStatus(parcel: Parcel): Parcel {
       }
       // DELIVERED or PROXY → truly delivered
       return parcel;
+
     }
   }
 
@@ -52,9 +53,9 @@ export function summarizeParcels(parcels: Parcel[]): ParcelSummary {
   const summary: ParcelSummary = { total: 0, pending: 0, transit: 0, delivered: 0 };
   for (const parcel of derived) {
     summary.total++;
-    if (parcel['สถานะ'] === 'รอจัดส่ง')       summary.pending++;
+    if (parcel['สถานะ'] === 'รอสถานะจัดส่ง')    summary.pending++;
     else if (parcel['สถานะ'] === 'กำลังจัดส่ง') summary.transit++;
-    else if (parcel['สถานะ'] === 'ส่งถึงแล้ว')  summary.delivered++;
+    else if (parcel['สถานะ'] === 'ส่งสำเร็จ')   summary.delivered++;
   }
   return summary;
 }

@@ -3,7 +3,7 @@
  * ประเภทข้อมูลสำหรับระบบติดตามพัสดุ
  */
 
-export type ParcelStatus = 'รอจัดส่ง' | 'กำลังจัดส่ง' | 'ส่งถึงแล้ว';
+export type ParcelStatus = 'รอสถานะจัดส่ง' | 'กำลังจัดส่ง' | 'ส่งสำเร็จ';
 
 export interface Parcel {
   TrackingID: string;

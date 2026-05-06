@@ -101,7 +101,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   }, []);
 
   const getStatusColor = (status: Parcel['สถานะ']) => {
-    if (status === 'ส่งถึงแล้ว') return 'bg-emerald-500';
+    if (status === 'ส่งสำเร็จ') return 'bg-emerald-500';
     if (status === 'กำลังจัดส่ง') return 'bg-blue-500';
     return 'bg-amber-500';
   };
@@ -205,7 +205,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                     <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-base text-primary">notifications_active</span>
-                        <span className="font-display font-bold text-sm text-primary">อัพเดทล่าสุด</span>
+                      <span className="font-display font-bold text-sm text-primary">อัปเดตล่าสุด</span>
                       </div>
                       <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">{recentParcels.length} รายการ</span>
                     </div>

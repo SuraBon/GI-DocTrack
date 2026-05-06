@@ -38,7 +38,7 @@ export default function ParcelTimelineModal({
 
   // Use derived status so forwarded parcels show correctly
   const derivedParcel = applyDerivedStatus(selectedParcel);
-  const isActuallyDelivered = derivedParcel['สถานะ'] === 'ส่งถึงแล้ว';
+  const isActuallyDelivered = derivedParcel['สถานะ'] === 'ส่งสำเร็จ';
   const createdEventNote = selectedParcel.events?.find(evt => evt.eventType === 'CREATED')?.note?.trim();
   const cleanCreationNote = createdEventNote && createdEventNote !== 'รับเข้าระบบ'
     ? createdEventNote
@@ -52,7 +52,7 @@ export default function ParcelTimelineModal({
             style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #091426 100%)' }}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <DialogTitle className="text-base sm:text-lg font-black font-display text-white leading-tight">เส้นทางการจัดส่ง</DialogTitle>
+                <DialogTitle className="text-base sm:text-lg font-black font-display text-white leading-tight">รายละเอียดการจัดส่ง</DialogTitle>
                 <DialogDescription className="mt-1 min-w-0 text-xs leading-tight text-white/55">
                   หมายเลขติดตาม: <code className="font-mono text-white/80 font-bold break-all">{selectedParcel.TrackingID}</code>
                 </DialogDescription>
@@ -92,7 +92,7 @@ export default function ParcelTimelineModal({
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-on-surface-variant/45">
                     <span className="material-symbols-outlined text-sm">route</span>
-                    ไทม์ไลน์การจัดส่ง
+                    ลำดับการจัดส่ง
                   </p>
                   <button
                     type="button"
@@ -153,7 +153,7 @@ export default function ParcelTimelineModal({
             <div className="relative">
               <div className="pointer-events-none absolute bottom-12 left-3 z-[500] inline-flex items-center gap-2 rounded-2xl bg-primary/90 px-3 py-2 text-white shadow-lg backdrop-blur-sm sm:bottom-auto sm:left-4 sm:top-4">
                 <span className="material-symbols-outlined text-lg text-secondary">map</span>
-                <span className="text-sm font-black">แผนที่เส้นทางพัสดุ</span>
+                <span className="text-sm font-black">แผนที่การจัดส่ง</span>
               </div>
               <button
                 type="button"

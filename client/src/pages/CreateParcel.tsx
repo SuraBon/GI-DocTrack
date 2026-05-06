@@ -189,7 +189,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
       return;
     }
     if (!position) {
-      toast.error('กรุณาอนุญาต GPS เพื่อบันทึกจุดเริ่มต้นก่อนสร้างรายการ');
+      toast.error('กรุณาอนุญาต GPS เพื่อบันทึกพิกัดต้นทางก่อนสร้างพัสดุ');
       if (geoStatus !== 'loading') requestLocation();
       return;
     }
@@ -203,7 +203,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
   const handleConfirmSubmit = async () => {
     if (isLoading) return;
     if (!position) {
-      toast.error('กรุณาอนุญาต GPS เพื่อบันทึกจุดเริ่มต้นก่อนสร้างรายการ');
+      toast.error('กรุณาอนุญาต GPS เพื่อบันทึกพิกัดต้นทางก่อนสร้างพัสดุ');
       if (geoStatus !== 'loading') requestLocation();
       return;
     }
@@ -256,7 +256,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
       <div className={`${embedded ? 'hidden' : 'flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2'}`}>
         <div>
           <h1 className="font-display text-2xl sm:text-3xl font-black text-primary mb-0.5">สร้างพัสดุใหม่</h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant">กรอกข้อมูลรายละเอียดของพัสดุหรือเอกสารเพื่อเริ่มต้นการจัดส่ง</p>
+          <p className="text-xs sm:text-sm text-on-surface-variant">กรอกข้อมูลพัสดุ สถานที่รับ และแนบรูปหลักฐานก่อนสร้างรายการจัดส่ง</p>
         </div>
       </div>
 
@@ -273,7 +273,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                 </div>
                 <div>
                   <h2 className="font-display font-bold text-primary text-sm">ข้อมูลผู้ส่ง</h2>
-                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">รายละเอียดต้นทาง</p>
+                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ผู้ส่งและสาขาต้นทาง</p>
                 </div>
               </div>
             </div>
@@ -315,10 +315,10 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="font-bold">
-                      {geoStatus === 'success' ? 'บันทึก GPS จุดเริ่มต้นแล้ว' :
-                       geoStatus === 'loading' ? 'กำลังดึง GPS จุดเริ่มต้น...' :
+                      {geoStatus === 'success' ? 'บันทึกพิกัดต้นทางแล้ว' :
+                       geoStatus === 'loading' ? 'กำลังดึงพิกัดต้นทาง...' :
                        geoStatus === 'denied' ? 'ไม่ได้รับอนุญาต GPS' :
-                       geoStatus === 'error' ? 'ยังไม่ได้ GPS จุดเริ่มต้น' : 'รอการดึง GPS จุดเริ่มต้น'}
+                       geoStatus === 'error' ? 'ยังไม่ได้พิกัดต้นทาง' : 'รอการดึงพิกัดต้นทาง'}
                     </p>
                     <p className="mt-0.5 opacity-80">
                       {geoStatus === 'success' && position
@@ -331,7 +331,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                         onClick={requestLocation}
                         className="mt-1 font-bold underline underline-offset-2"
                       >
-                        ลองดึง GPS อีกครั้ง
+                        ลองดึงพิกัดอีกครั้ง
                       </button>
                     )}
                   </div>
@@ -351,7 +351,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                 </div>
                 <div>
                   <h2 className="font-display font-bold text-primary text-sm">ข้อมูลผู้รับ</h2>
-                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ชื่อผู้รับและสถานที่รับ</p>
+                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ผู้รับและสถานที่รับ</p>
                 </div>
               </div>
             </div>
@@ -393,8 +393,8 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                 <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>inventory_2</span>
               </div>
               <div>
-                <h2 className="font-display font-bold text-primary text-sm">รายละเอียดพัสดุ</h2>
-                <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ข้อมูลสิ่งที่ส่งและหมายเหตุ</p>
+                <h2 className="font-display font-bold text-primary text-sm">ข้อมูลพัสดุ</h2>
+                <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ประเภท รายละเอียด และรูปหลักฐาน</p>
               </div>
             </div>
           </div>
@@ -494,7 +494,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
             <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>
               {isLoading ? 'progress_activity' : 'add_circle'}
             </span>
-            {isLoading ? 'กำลังสร้างรายการ...' : 'ยืนยันสร้างรายการ'}
+            {isLoading ? 'กำลังสร้างพัสดุ...' : 'สร้างพัสดุ'}
           </button>
         </div>
       </form>
@@ -510,8 +510,8 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
                 </div>
                 <div className="min-w-0 text-left">
-                  <DialogTitle className="font-display text-xl font-black leading-tight sm:text-2xl">ตรวจสอบข้อมูล</DialogTitle>
-                  <p className="mt-0.5 text-xs font-semibold text-white/65">ยืนยันรายละเอียดก่อนสร้างรายการพัสดุ</p>
+                  <DialogTitle className="font-display text-xl font-black leading-tight sm:text-2xl">ตรวจสอบก่อนสร้างพัสดุ</DialogTitle>
+                  <p className="mt-0.5 text-xs font-semibold text-white/65">ตรวจสอบข้อมูลและรูปหลักฐานก่อนบันทึกเข้าระบบ</p>
                 </div>
               </div>
             </div>
@@ -538,7 +538,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                         <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
                       </div>
                       <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/50">ผู้รับปลายทาง</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/50">ผู้รับ / สถานที่รับ</p>
                         <p className="truncate font-display text-lg font-black leading-tight text-primary">{formData.receiverName}</p>
                         <p className="truncate text-xs font-semibold text-on-surface-variant/70">{resolveSelectValue(formData.receiverBranch)}</p>
                       </div>
@@ -568,7 +568,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800 shadow-sm">
                     <div className="mb-1 flex items-center gap-2">
                       <span className="material-symbols-outlined text-lg">my_location</span>
-                      <p className="text-[10px] font-black uppercase tracking-widest">GPS จุดเริ่มต้น</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">พิกัดต้นทาง</p>
                     </div>
                     <p className="font-mono text-sm font-black">
                       {position.latitude.toFixed(6)}, {position.longitude.toFixed(6)}
@@ -617,7 +617,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                     <span className="material-symbols-outlined animate-spin">progress_activity</span>
                   ) : (
                     <>
-                      ยืนยันสร้างรายการ
+                      ยืนยันสร้างพัสดุ
                       <span className="material-symbols-outlined text-xl">verified</span>
                     </>
                   )}
@@ -638,7 +638,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
               <span className="material-symbols-outlined text-3xl sm:text-4xl text-secondary-container">check_circle</span>
             </div>
-            <DialogTitle className="text-xl sm:text-2xl font-bold font-display">สร้างรายการสำเร็จ!</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl font-bold font-display">สร้างพัสดุสำเร็จ</DialogTitle>
             <p className="text-primary-fixed-dim text-sm mt-1">บันทึกข้อมูลพัสดุเรียบร้อยแล้ว</p>
           </div>
 
@@ -670,7 +670,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                 className="flex min-w-0 flex-1 items-center justify-center gap-2 h-12 bg-surface-container-high text-primary border border-outline-variant/20 rounded-xl font-display font-bold hover:bg-surface-container transition-colors"
               >
                 <span className="material-symbols-outlined text-xl">content_copy</span>
-                คัดลอก ID
+                คัดลอกหมายเลข
               </button>
               <button
                 onClick={async () => {

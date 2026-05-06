@@ -28,9 +28,9 @@ interface DashboardProps { isConfigured: boolean; }
 
 const STATS = [
   { key: 'total',     filter: 'ทั้งหมด',     label: 'ทั้งหมด',  icon: 'inventory_2',     iconBg: 'bg-slate-100',    iconText: 'text-primary' },
-  { key: 'pending',   filter: 'รอจัดส่ง',    label: 'รอส่ง',     icon: 'pending_actions', iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
-  { key: 'transit',   filter: 'กำลังจัดส่ง', label: 'กำลังส่ง',  icon: 'local_shipping', iconBg: 'bg-blue-50',     iconText: 'text-blue-600' },
-  { key: 'delivered', filter: 'ส่งถึงแล้ว',   label: 'ส่งถึง',    icon: 'task_alt',       iconBg: 'bg-emerald-50',  iconText: 'text-emerald-600' },
+  { key: 'pending',   filter: 'รอสถานะจัดส่ง',    label: 'รอสถานะจัดส่ง', icon: 'pending_actions', iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
+  { key: 'transit',   filter: 'กำลังจัดส่ง', label: 'กำลังจัดส่ง', icon: 'local_shipping', iconBg: 'bg-blue-50',     iconText: 'text-blue-600' },
+  { key: 'delivered', filter: 'ส่งสำเร็จ',   label: 'ส่งสำเร็จ', icon: 'task_alt',       iconBg: 'bg-emerald-50',  iconText: 'text-emerald-600' },
 ] as const;
 
 const StatsCard = ({
@@ -89,13 +89,13 @@ const TableSkeleton = () => (
 );
 
 const PARCEL_MILESTONES = [
-  { status: 'รอจัดส่ง', label: 'รอส่ง', icon: 'inventory_2' },
-  { status: 'กำลังจัดส่ง', label: 'ระหว่างส่ง', icon: 'local_shipping' },
-  { status: 'ส่งถึงแล้ว', label: 'ส่งถึง', icon: 'task_alt' },
+  { status: 'รอสถานะจัดส่ง', label: 'รอสถานะจัดส่ง', icon: 'pending_actions' },
+  { status: 'กำลังจัดส่ง', label: 'กำลังจัดส่ง', icon: 'local_shipping' },
+  { status: 'ส่งสำเร็จ', label: 'ส่งสำเร็จ', icon: 'task_alt' },
 ] as const;
 
 const getMilestoneIndex = (status: Parcel['สถานะ']) => {
-  if (status === 'ส่งถึงแล้ว') return 2;
+  if (status === 'ส่งสำเร็จ') return 2;
   if (status === 'กำลังจัดส่ง') return 1;
   return 0;
 };
@@ -123,7 +123,7 @@ const ParcelMilestone = ({ status }: { status: Parcel['สถานะ'] }) => {
                     {step.icon}
                   </span>
                 </span>
-                <span className={`max-w-[64px] truncate text-[10px] font-black leading-none ${active ? 'text-primary' : done ? 'text-on-surface-variant/65' : 'text-on-surface-variant/35'}`}>
+                <span className={`max-w-[82px] truncate text-[9px] font-black leading-none sm:text-[10px] ${active ? 'text-primary' : done ? 'text-on-surface-variant/65' : 'text-on-surface-variant/35'}`}>
                   {step.label}
                 </span>
               </div>
@@ -506,7 +506,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                   key={parcel.TrackingID}
                   parcel={parcel}
                   onOpen={() => { setSelectedParcel(parcel); setIsTimelineOpen(true); }}
-                  canConfirm={canConfirmParcel && parcel['สถานะ'] !== 'ส่งถึงแล้ว'}
+                  canConfirm={canConfirmParcel && parcel['สถานะ'] !== 'ส่งสำเร็จ'}
                   onConfirm={() => openConfirmFlow(parcel.TrackingID)}
                 />
               ))}
@@ -561,7 +561,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                       <StatusBadge status={parcel['สถานะ']} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {canConfirmParcel && parcel['สถานะ'] !== 'ส่งถึงแล้ว' ? (
+                      {canConfirmParcel && parcel['สถานะ'] !== 'ส่งสำเร็จ' ? (
                         <button
                           onClick={(event) => {
                             event.stopPropagation();
@@ -716,7 +716,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
           showCloseButton={false}
           className="max-h-[92vh] w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-3xl border-none bg-transparent p-0 shadow-none"
         >
-          <div className="relative max-h-[92vh] overflow-y-auto p-3 sm:p-5">
+          <div className="modal-scroll relative max-h-[92vh] overflow-y-auto p-3 pr-4 sm:p-5 sm:pr-6">
             {!isConfirmPreparingCamera && (
               <button
                 type="button"
