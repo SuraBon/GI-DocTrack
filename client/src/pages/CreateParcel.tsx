@@ -480,27 +480,28 @@ export default function CreateParcel() {
       {/* Success Dialog */}
       <Dialog open={isResultOpen} onOpenChange={setIsResultOpen}>
         <DialogContent 
-            className="w-[calc(100vw-2rem)] max-w-md rounded-3xl p-0 border-none shadow-2xl bg-background overflow-hidden"
+            className="w-[calc(100vw-1rem)] max-w-md max-h-[92vh] rounded-3xl p-0 border-none shadow-2xl bg-background overflow-hidden"
           >
-          <div className="w-full bg-primary p-7 text-white text-center relative">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
-              <span className="material-symbols-outlined text-4xl text-secondary-container">check_circle</span>
+          <div className="max-h-[92vh] overflow-y-auto">
+          <div className="w-full bg-primary px-5 py-6 sm:p-7 text-white text-center relative">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
+              <span className="material-symbols-outlined text-3xl sm:text-4xl text-secondary-container">check_circle</span>
             </div>
-            <DialogTitle className="text-2xl font-bold font-display">สร้างรายการสำเร็จ!</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl font-bold font-display">สร้างรายการสำเร็จ!</DialogTitle>
             <p className="text-primary-fixed-dim text-sm mt-1">บันทึกข้อมูลพัสดุเรียบร้อยแล้ว</p>
           </div>
 
-          <div className="w-full p-6 space-y-5">
-            <div className="bg-white p-6 rounded-2xl border border-outline-variant/30 flex flex-col items-center gap-5 shadow-sm">
-              <div className="flex flex-col items-center gap-1">
+          <div className="w-full p-4 sm:p-6 space-y-5">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl border border-outline-variant/30 flex flex-col items-center gap-5 shadow-sm min-w-0">
+              <div className="flex w-full min-w-0 flex-col items-center gap-1">
                 <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-[0.2em]">หมายเลขติดตาม</span>
-                <code className="text-3xl font-mono font-black text-primary">{createdTrackingId}</code>
+                <code className="block max-w-full break-all text-center font-mono text-[clamp(1.25rem,7vw,1.875rem)] font-black leading-tight text-primary">{createdTrackingId}</code>
               </div>
               <div className="bg-surface-container-low p-3 rounded-2xl border border-outline-variant/20">
                 {qrDataUrl ? (
                   <img
                     src={qrDataUrl}
-                    className="w-32 h-32 mix-blend-multiply"
+                    className="h-32 w-32 max-w-[46vw] max-h-[46vw] mix-blend-multiply"
                     alt="คิวอาร์โค้ด"
                   />
                 ) : (
@@ -515,7 +516,7 @@ export default function CreateParcel() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={handleCopyTrackingId}
-                className="flex-1 flex items-center justify-center gap-2 h-12 bg-surface-container-high text-primary border border-outline-variant/20 rounded-xl font-display font-bold hover:bg-surface-container transition-colors"
+                className="flex min-w-0 flex-1 items-center justify-center gap-2 h-12 bg-surface-container-high text-primary border border-outline-variant/20 rounded-xl font-display font-bold hover:bg-surface-container transition-colors"
               >
                 <span className="material-symbols-outlined text-xl">content_copy</span>
                 คัดลอก ID
@@ -542,11 +543,11 @@ export default function CreateParcel() {
                         <title>LogiTrack Label</title>
                       </head>
                       <body>
-                      <div style="text-align:center;font-family:sans-serif;padding:40px;border:4px solid #091426;border-radius:20px;max-width:400px;margin:auto;">
+                      <div style="text-align:center;font-family:sans-serif;padding:28px;border:4px solid #091426;border-radius:20px;max-width:400px;margin:auto;box-sizing:border-box;">
                         <div style="background:#091426;color:#fff;padding:15px;border-radius:12px;margin-bottom:20px;">
                           <h2 style="margin:0;font-size:24px;">LogiTrack</h2>
                         </div>
-                        <h1 id="tracking-id" style="font-size:42px;margin:10px 0;font-family:monospace;letter-spacing:2px;"></h1>
+                        <h1 id="tracking-id" style="font-size:clamp(24px,8vw,38px);margin:10px 0;font-family:monospace;letter-spacing:1px;overflow-wrap:anywhere;line-height:1.1;"></h1>
                         <img id="qr-code" alt="QR code" style="width:180px;height:180px;margin:20px 0;" />
                         <div style="margin-top:20px;text-align:left;border-top:2px solid #eee;padding-top:20px;">
                           <div style="margin-bottom:10px;">
@@ -578,12 +579,13 @@ export default function CreateParcel() {
                     };
                   }
                 }}
-                className="flex-1 flex items-center justify-center gap-2 h-12 bg-primary text-white rounded-xl font-display font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
+                className="flex min-w-0 flex-1 items-center justify-center gap-2 h-12 bg-primary text-white rounded-xl font-display font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
               >
                 <span className="material-symbols-outlined text-xl">print</span>
                 พิมพ์ใบปะหน้า
               </button>
             </div>
+          </div>
           </div>
         </DialogContent>
       </Dialog>

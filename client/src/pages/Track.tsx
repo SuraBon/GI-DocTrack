@@ -189,7 +189,7 @@ export default function Track() {
                 onClick={() => { setParcel(p); setSearchResults([]); addToRecent(p.TrackingID); }}
                 className="bg-white/95 border border-outline-variant/40 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 transition-all cursor-pointer group">
                 <div className="flex justify-between items-start mb-3">
-                  <code className="text-xs font-mono font-black text-primary bg-primary/6 px-2.5 py-1 rounded-lg">{p.TrackingID}</code>
+                  <code className="min-w-0 break-all text-xs font-mono font-black text-primary bg-primary/6 px-2.5 py-1 rounded-lg">{p.TrackingID}</code>
                   <StatusBadge status={p['สถานะ']} />
                 </div>
                 <div className="flex items-center gap-1.5 text-sm">
@@ -222,7 +222,7 @@ export default function Track() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-xl sm:text-2xl font-black tracking-wider font-mono">{parcel.TrackingID}</h2>
+                    <h2 className="min-w-0 break-all text-xl sm:text-2xl font-black tracking-wider font-mono leading-tight">{parcel.TrackingID}</h2>
                     <button
                       onClick={() => { navigator.clipboard.writeText(parcel.TrackingID); toast.success(`คัดลอก ${parcel.TrackingID}`); }}
                       className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 transition-colors">

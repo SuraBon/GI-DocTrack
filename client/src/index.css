@@ -95,6 +95,13 @@
     @apply bg-background text-on-background font-body antialiased;
     background: linear-gradient(135deg, #f8f9ff 0%, #e5eeff 50%, #f0f4ff 100%);
     background-attachment: fixed;
+    overflow-x: hidden;
+  }
+
+  html,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {

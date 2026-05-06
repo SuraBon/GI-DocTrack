@@ -340,7 +340,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
               </button>
 
               {isNotifOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-outline-variant/20 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 bg-white rounded-2xl shadow-2xl border border-outline-variant/20 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-base text-primary">notifications_active</span>
@@ -360,7 +360,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                           <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${getStatusColor(p['สถานะ'])}`} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
-                              <code className="text-xs font-mono font-black text-primary">{p.TrackingID}</code>
+                              <code className="min-w-0 break-all text-xs font-mono font-black text-primary">{p.TrackingID}</code>
                               <span className="text-[10px] text-on-surface-variant/40 shrink-0">{p['สถานะ']}</span>
                             </div>
                             <p className="text-xs text-on-surface-variant mt-0.5 truncate">

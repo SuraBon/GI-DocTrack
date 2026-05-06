@@ -45,17 +45,17 @@ export default function ParcelTimelineModal({
         <div className="flex flex-col max-h-[90vh]">
           <DialogHeader className="shrink-0 p-5 sm:p-6 text-white"
             style={{ background: 'linear-gradient(135deg, #0d1f3c 0%, #091426 100%)' }}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <DialogTitle className="text-lg sm:text-xl font-black font-display text-white">เส้นทางการจัดส่ง</DialogTitle>
-                <DialogDescription className="text-white/50 mt-1 text-xs">
-                  หมายเลขติดตาม: <code className="font-mono text-white/80 font-bold">{selectedParcel.TrackingID}</code>
+                <DialogDescription className="min-w-0 text-white/50 mt-1 text-xs">
+                  หมายเลขติดตาม: <code className="font-mono text-white/80 font-bold break-all">{selectedParcel.TrackingID}</code>
                 </DialogDescription>
                 <div className="flex items-center gap-2 mt-2">
                   <StatusBadge status={selectedParcel['สถานะ']} />
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center justify-end gap-2 shrink-0">
                 {canConfirmParcel && !isActuallyDelivered && (
                   <button
                     onClick={() => { setIsOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
@@ -99,7 +99,7 @@ export default function ParcelTimelineModal({
                     <span className="material-symbols-outlined text-sm">info</span>
                     รายละเอียดพัสดุ
                   </p>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                     {[
                       { label: 'ประเภท', value: selectedParcel['ประเภทเอกสาร'] },
                       { label: 'สถานะ', value: selectedParcel['สถานะ'] },
@@ -108,7 +108,7 @@ export default function ParcelTimelineModal({
                     ].map(({ label, value }) => (
                       <div key={label} className="space-y-0.5">
                         <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider">{label}</p>
-                        <p className="font-bold text-primary text-sm leading-tight">{value}</p>
+                        <p className="break-words font-bold text-primary text-sm leading-tight">{value}</p>
                       </div>
                     ))}
                   </div>

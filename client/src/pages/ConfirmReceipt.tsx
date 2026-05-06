@@ -567,7 +567,7 @@ export default function ConfirmReceipt({
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <button
                 onClick={() => {
                   setCurrentStep(1);
@@ -728,7 +728,7 @@ export default function ConfirmReceipt({
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
               <button
                 onClick={() => setCurrentStep(2)}
                 className="flex items-center justify-center gap-2 h-14 flex-1 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
@@ -756,7 +756,7 @@ export default function ConfirmReceipt({
 
       {/* Confirmation Modal */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent showCloseButton={false} className="w-full max-w-[92vw] sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl bg-white overflow-hidden">
+        <DialogContent showCloseButton={false} className="w-[calc(100vw-1rem)] max-w-[92vw] sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl bg-white overflow-hidden">
           {/* Header */}
           <div className={`px-6 pt-6 pb-5 flex items-center gap-4 ${
             isForwarding ? 'bg-gradient-to-br from-secondary/15 to-secondary/5' :
@@ -789,12 +789,12 @@ export default function ConfirmReceipt({
           {/* Body */}
           <div className="px-6 py-5 space-y-4">
             {/* Tracking ID row */}
-            <div className="flex items-center justify-between bg-surface-container-lowest rounded-2xl px-4 py-3 border border-outline-variant/20">
+            <div className="flex flex-col gap-2 bg-surface-container-lowest rounded-2xl px-4 py-3 border border-outline-variant/20 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-on-surface-variant">
                 <span className="material-symbols-outlined text-base">barcode_scanner</span>
                 <span className="text-xs font-bold uppercase tracking-wider">หมายเลขติดตาม</span>
               </div>
-              <code className="font-mono font-black text-primary text-base tracking-wider">{trackingId}</code>
+              <code className="min-w-0 break-all font-mono font-black text-primary text-base tracking-wider">{trackingId}</code>
             </div>
 
             {/* Forwarding details */}

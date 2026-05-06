@@ -64,6 +64,53 @@ const TableSkeleton = () => (
   </div>
 );
 
+const MOBILE_STATUS_FILTERS = [
+  { value: 'ทั้งหมด', label: 'ทั้งหมด' },
+  { value: 'รอจัดส่ง', label: 'รอส่ง' },
+  { value: 'กำลังจัดส่ง', label: 'กำลังส่ง' },
+  { value: 'ส่งถึงแล้ว', label: 'ส่งถึง' },
+];
+
+const MobileParcelCard = ({
+  parcel,
+  onOpen,
+}: {
+  parcel: Parcel;
+  onOpen: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onOpen}
+    className="w-full rounded-2xl border border-outline-variant/25 bg-white p-4 text-left shadow-sm transition-all active:scale-[0.99]"
+  >
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <code className="inline-block max-w-full break-all rounded-lg bg-primary/6 px-2.5 py-1 font-mono text-xs font-black leading-tight text-primary">
+          {parcel.TrackingID}
+        </code>
+        <div className="mt-3 flex min-w-0 items-center gap-2">
+          <span className="truncate text-base font-black text-primary">{parcel['ผู้ส่ง']}</span>
+          <span className="material-symbols-outlined shrink-0 text-lg text-outline-variant">arrow_forward</span>
+          <span className="truncate text-base font-black text-primary">{parcel['ผู้รับ']}</span>
+        </div>
+        <div className="mt-1 flex min-w-0 items-center gap-1 text-xs text-on-surface-variant/55">
+          <span className="truncate">{parcel['สาขาผู้ส่ง']}</span>
+          <span className="shrink-0">→</span>
+          <span className="truncate">{parcel['สาขาผู้รับ']}</span>
+        </div>
+        <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant/60">
+          <span className="material-symbols-outlined text-sm">event</span>
+          <span>{formatThaiDateTime(parcel['วันที่สร้าง'])}</span>
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-3">
+        <StatusBadge status={parcel['สถานะ']} />
+        <span className="material-symbols-outlined text-xl text-on-surface-variant/35">chevron_right</span>
+      </div>
+    </div>
+  </button>
+);
+
 export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardProps) {
   const { user } = useAuth();
   const { parcels, summary, loading, loadParcels, hasMore, loadMoreParcels, removeParcelLocally } = useParcelStore();
@@ -254,7 +301,18 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 gap-2 sm:hidden">
+        {stats.map(s => (
+          <div key={s.key} className="rounded-2xl border border-outline-variant/25 bg-white/90 p-3 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-[11px] font-black text-on-surface-variant/55">{s.label}</p>
+              <span className="material-symbols-outlined text-base text-primary/55">{s.icon}</span>
+            </div>
+            <p className="mt-1 text-2xl font-black leading-none text-primary">{summary?.[s.key] ?? 0}</p>
+          </div>
+        ))}
+      </div>
+      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {stats.map(s => (
           <StatsCard key={s.key} label={s.label} icon={s.icon} grad={s.grad} text={s.text}
             count={summary?.[s.key] ?? 0} />
@@ -262,7 +320,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
       </div>
 
       {/* ── Filters ── */}
-      <div className="bg-white/80 backdrop-blur-sm border border-outline-variant/40 rounded-2xl p-4 sm:p-6 shadow-sm">
+      <div className="bg-white/85 backdrop-blur-sm border border-outline-variant/35 rounded-2xl p-3 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-0">
@@ -271,12 +329,31 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="ค้นหาหมายเลขติดตาม, ผู้ส่ง หรือ ผู้รับ..."
-              className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-display transition-all"
+              className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl pl-9 pr-4 py-2.5 sm:py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-display transition-all"
             />
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex gap-2 overflow-x-auto pb-0.5 sm:hidden">
+              {MOBILE_STATUS_FILTERS.map(option => {
+                const active = statusFilter === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setStatusFilter(option.value)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black transition-colors ${
+                      active
+                        ? 'border-primary bg-primary text-white'
+                        : 'border-outline-variant/45 bg-white text-on-surface-variant'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
             {/* Status */}
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
@@ -314,7 +391,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
           )}
         </div>
 
-        <div className="overflow-x-auto">
+        <div>
           {loading && !filteredParcels.length ? (
             <TableSkeleton />
           ) : !filteredParcels.length ? (
@@ -331,6 +408,17 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
               )}
             </div>
           ) : (
+            <>
+            <div className="space-y-3 p-3 sm:hidden">
+              {paginatedParcels.map((parcel) => (
+                <MobileParcelCard
+                  key={parcel.TrackingID}
+                  parcel={parcel}
+                  onOpen={() => { setSelectedParcel(parcel); setIsTimelineOpen(true); }}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
             <table className="w-full text-left border-collapse min-w-[580px]">
               <thead>
                 <tr className="text-[10px] uppercase tracking-widest font-black text-on-surface-variant/50 border-b border-outline-variant/10">
@@ -389,6 +477,8 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
                 ))}
               </tbody>
             </table>
+            </div>
+            </>
           )}
         </div>
 
