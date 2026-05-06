@@ -1,7 +1,7 @@
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import StatusBadge from '@/components/StatusBadge';
+import { useState } from 'react';
 import Timeline from '@/components/Timeline';
 import TrackingMap from '@/components/TrackingMap';
 import type { Parcel } from '@/types/parcel';
@@ -32,12 +32,17 @@ export default function ParcelTimelineModal({
   const { user } = useAuth();
   const role = normalizeRole(user?.role);
   const canConfirmParcel = role === 'ADMIN' || role === 'MESSENGER';
+  const [isMapOpen, setIsMapOpen] = useState(false);
 
   if (!selectedParcel) return null;
 
   // Use derived status so forwarded parcels show correctly
   const derivedParcel = applyDerivedStatus(selectedParcel);
   const isActuallyDelivered = derivedParcel['สถานะ'] === 'ส่งถึงแล้ว';
+  const createdEventNote = selectedParcel.events?.find(evt => evt.eventType === 'CREATED')?.note?.trim();
+  const cleanCreationNote = createdEventNote && createdEventNote !== 'รับเข้าระบบ'
+    ? createdEventNote
+    : (selectedParcel['หมายเหตุ'] || '').replace(/\[[\s\S]*?\]/g, '').trim();
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -58,8 +63,8 @@ export default function ParcelTimelineModal({
                     onClick={() => { setIsOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
                     className="hidden items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:flex"
                   >
-                    <span className="material-symbols-outlined text-base">local_shipping</span>
-                    ส่งพัสดุ
+                    <span className="material-symbols-outlined text-base">add_a_photo</span>
+                    บันทึกหลักฐาน
                   </button>
                 )}
                 <button onClick={() => setIsOpen(false)}
@@ -68,67 +73,60 @@ export default function ParcelTimelineModal({
                 </button>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 sm:justify-start">
-              <StatusBadge status={selectedParcel['สถานะ']} />
-              {canConfirmParcel && !isActuallyDelivered && (
+            {canConfirmParcel && !isActuallyDelivered && (
+              <div className="mt-3 flex justify-start">
                 <button
                   onClick={() => { setIsOpen(false); onConfirmParcel(selectedParcel.TrackingID); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:hidden"
                 >
-                  <span className="material-symbols-outlined text-base">local_shipping</span>
-                  ส่งพัสดุ
+                  <span className="material-symbols-outlined text-base">add_a_photo</span>
+                  บันทึกหลักฐาน
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-background">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-              <div>
-                <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.16em] mb-2 flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm">history</span>
-                  ไทม์ไลน์การจัดส่ง
-                </p>
+            <div className="space-y-3 sm:space-y-4">
+              <div className="rounded-2xl border border-outline-variant/25 bg-white p-3 shadow-sm sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-on-surface-variant/45">
+                    <span className="material-symbols-outlined text-sm">route</span>
+                    ไทม์ไลน์การจัดส่ง
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => hasKnownBranches && setIsMapOpen(true)}
+                    disabled={!hasKnownBranches}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-outline-variant/25 bg-surface-container-lowest px-3 text-xs font-black text-primary transition-all hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45"
+                    title={hasKnownBranches ? 'เปิดแผนที่' : 'ยังไม่มีพิกัด GPS'}
+                  >
+                    <span className="material-symbols-outlined text-base">{hasKnownBranches ? 'map' : 'map_off'}</span>
+                    แผนที่
+                  </button>
+                </div>
                 <Timeline events={selectedTimelineEvents} compact />
               </div>
-              <div className="space-y-3">
-                {hasKnownBranches ? (
-                  <div className="rounded-2xl overflow-hidden border border-outline-variant/30 shadow-sm">
-                    <TrackingMap events={selectedTimelineEvents} />
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-outline-variant/30 shadow-sm h-[150px] sm:h-[180px] bg-surface-container-lowest flex flex-col items-center justify-center p-4 text-center">
-                    <span className="material-symbols-outlined text-3xl text-on-surface-variant/30 mb-2">map_off</span>
-                    <p className="text-sm font-bold text-on-surface-variant">ยังไม่มีพิกัด GPS</p>
-                    <p className="text-xs text-on-surface-variant/60 mt-1">แผนที่จะแสดงเมื่อมีการบันทึกตำแหน่งจากการสร้างหรือยืนยันรับพัสดุ</p>
-                  </div>
-                )}
-                <div className="bg-white rounded-2xl p-3 sm:p-4 border border-outline-variant/30 shadow-sm">
+
+              <div className="bg-white rounded-2xl p-3 sm:p-4 border border-outline-variant/30 shadow-sm">
                   <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.16em] mb-3 flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm">info</span>
                     รายละเอียดพัสดุ
                   </p>
-                  <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-                    {[
-                      { label: 'ประเภท', value: selectedParcel['ประเภทเอกสาร'] },
-                      { label: 'สถานะ', value: selectedParcel['สถานะ'] },
-                      { label: 'ต้นทาง', value: selectedParcel['สาขาผู้ส่ง'] },
-                      { label: 'ปลายทาง', value: selectedParcel['สาขาผู้รับ'] },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="space-y-0.5">
-                        <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider">{label}</p>
-                        <p className="break-words font-bold text-primary text-sm leading-tight">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {selectedParcel['รายละเอียด'] && (
-                    <div className="mt-3 pt-3 border-t border-outline-variant/10">
-                      <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider mb-1.5">รายละเอียด</p>
-                      <p className="text-sm text-primary font-medium leading-snug bg-surface-container-low/50 rounded-xl p-2.5 border border-outline-variant/20">
-                        {selectedParcel['รายละเอียด']}
-                      </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest/80 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/45">ประเภท</p>
+                      <p className="mt-1 break-words text-sm font-black leading-tight text-primary">{selectedParcel['ประเภทเอกสาร'] || '-'}</p>
                     </div>
-                  )}
+                    <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest/80 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/45">รายละเอียด</p>
+                      <p className="mt-1 break-words text-sm font-bold leading-snug text-primary">{selectedParcel['รายละเอียด'] || '-'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest/80 p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/45">หมายเหตุ</p>
+                      <p className="mt-1 break-words text-sm font-bold leading-snug text-primary">{cleanCreationNote || '-'}</p>
+                    </div>
+                  </div>
                   {role === 'ADMIN' && (
                     <div className="mt-3 pt-3 border-t border-outline-variant/10 flex gap-3">
                       <button
@@ -140,12 +138,40 @@ export default function ParcelTimelineModal({
                       </button>
                     </div>
                   )}
-                </div>
               </div>
             </div>
           </div>
         </div>
       </DialogContent>
+
+      <Dialog open={isMapOpen} onOpenChange={setIsMapOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="w-[calc(100vw-1rem)] max-w-3xl overflow-hidden rounded-3xl border-none bg-transparent p-0 shadow-2xl"
+        >
+          <div className="bg-transparent p-2 sm:p-3">
+            <div className="relative">
+              <div className="pointer-events-none absolute bottom-12 left-3 z-[500] inline-flex items-center gap-2 rounded-2xl bg-primary/90 px-3 py-2 text-white shadow-lg backdrop-blur-sm sm:bottom-auto sm:left-4 sm:top-4">
+                <span className="material-symbols-outlined text-lg text-secondary">map</span>
+                <span className="text-sm font-black">แผนที่เส้นทางพัสดุ</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMapOpen(false)}
+                className="absolute right-3 top-3 z-[500] grid h-11 w-11 place-items-center rounded-2xl bg-white text-primary shadow-lg shadow-black/20 transition-all hover:bg-secondary active:scale-95"
+                aria-label="ปิดแผนที่"
+              >
+                <span className="material-symbols-outlined text-2xl font-black">close</span>
+              </button>
+              <TrackingMap
+                events={selectedTimelineEvents}
+                className="h-[62vh] max-h-[560px] min-h-[340px] rounded-2xl"
+                mapClassName="min-h-0"
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

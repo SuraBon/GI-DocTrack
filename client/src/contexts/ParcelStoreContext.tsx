@@ -31,6 +31,7 @@ interface ParcelStoreValue {
     note?: string,
     latitude?: number,
     longitude?: number,
+    photoUrl?: string,
     pin?: string,
   ) => Promise<{ trackingId: string | null; error?: string }>;
   confirmReceipt: (
@@ -107,11 +108,11 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
   }, [hasMore, loading, currentStatus, loadParcels]);
 
   const createParcel = useCallback<ParcelStoreValue['createParcel']>(
-    async (senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, pin) => {
+    async (senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, photoUrl, pin) => {
       setError(null);
       try {
         const res = await parcelService.createParcel(
-          senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, pin
+          senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, photoUrl, pin
         );
         if (!res.success) {
           const message = res.error ?? 'ไม่สามารถสร้างรายการได้';

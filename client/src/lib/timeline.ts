@@ -29,6 +29,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
           timestamp: evt.timestamp,
           location: evt.location,
           destLocation: evt.destLocation,
+          imageUrl: evt.photoUrl,
           latitude: evt.latitude,
           longitude: evt.longitude,
         });
@@ -105,6 +106,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     timestamp: parcel['วันที่สร้าง'],
     location: parcel['สาขาผู้ส่ง'],
     destLocation: parcel['สาขาผู้รับ'],
+    imageUrl: parcel['รูปยืนยัน'],
     latitude: creationLat,
     longitude: creationLng,
   });

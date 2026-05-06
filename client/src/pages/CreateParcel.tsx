@@ -4,7 +4,7 @@
  * Design: Premium Logistics
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParcelStore } from '@/hooks/useParcelStore';
 import { getBranches } from '@/lib/parcelService';
 import { toast } from 'sonner';
@@ -25,10 +25,11 @@ type CreatedParcelDetails = {
   createdAt: string;
 };
 
-export default function CreateParcel() {
+export default function CreateParcel({ embedded = false }: { embedded?: boolean }) {
   const { createParcel } = useParcelStore();
   const branches = getBranches();
   const { position, status: geoStatus, errorMessage: geoError, requestLocation } = useGeolocation();
+  const proofInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     senderName: '',
@@ -46,6 +47,8 @@ export default function CreateParcel() {
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [proofPhotoUrl, setProofPhotoUrl] = useState('');
+  const [proofPhotoPreview, setProofPhotoPreview] = useState<string | null>(null);
 
   // Generate QR code locally whenever a new tracking ID is created
   useEffect(() => {
@@ -74,6 +77,89 @@ export default function CreateParcel() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const processProofImage = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('กรุณาเลือกไฟล์รูปภาพ');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('ไฟล์รูปภาพใหญ่เกินไป (สูงสุด 20MB)');
+      return;
+    }
+
+    const MAX_DIM = 1200;
+    try {
+      if (typeof createImageBitmap !== 'undefined') {
+        const bitmap = await createImageBitmap(file);
+        let { width, height } = bitmap;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('canvas context unavailable');
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        bitmap.close();
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setProofPhotoPreview(dataUrl);
+        setProofPhotoUrl(dataUrl);
+        toast.success('แนบรูปหลักฐานแล้ว');
+        return;
+      }
+    } catch {
+      // Use FileReader fallback below.
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => toast.error('ไม่สามารถอ่านไฟล์ได้ กรุณาลองใหม่');
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onerror = () => toast.error('ไม่สามารถโหลดรูปภาพได้ กรุณาเลือกไฟล์อื่น');
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            toast.error('ไม่สามารถประมวลผลรูปภาพได้');
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          setProofPhotoPreview(dataUrl);
+          setProofPhotoUrl(dataUrl);
+          toast.success('แนบรูปหลักฐานแล้ว');
+        } catch {
+          toast.error('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ');
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleProofFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void processProofImage(file);
+  };
+
+  const clearProofPhoto = () => {
+    setProofPhotoPreview(null);
+    setProofPhotoUrl('');
+    if (proofInputRef.current) proofInputRef.current.value = '';
+  };
+
   /** Resolves the final submitted values, replacing OTHER_VALUE with custom inputs. */
   const getFinalValues = () => ({
     senderName:     sanitizeTextInput(formData.senderName, 200),
@@ -94,7 +180,7 @@ export default function CreateParcel() {
       validateRequiredText(v.senderName, 'ชื่อผู้ส่ง', 2, 200) ||
       validateRequiredText(v.senderBranch, 'สาขาผู้ส่ง', 1, 100) ||
       validateRequiredText(v.receiverName, 'ชื่อผู้รับ', 2, 200) ||
-      validateRequiredText(v.receiverBranch, 'สาขาผู้รับ', 1, 100) ||
+      validateRequiredText(v.receiverBranch, 'สถานที่รับ', 1, 100) ||
       validateRequiredText(v.docType, 'ประเภทพัสดุ', 1, 100) ||
       (v.description && validateRequiredText(v.description, 'รายละเอียด', 0, 200)) ||
       (v.note && validateRequiredText(v.note, 'หมายเหตุ', 0, 2000));
@@ -107,6 +193,10 @@ export default function CreateParcel() {
       if (geoStatus !== 'loading') requestLocation();
       return;
     }
+    if (!proofPhotoUrl) {
+      toast.error('กรุณาแนบรูปหลักฐานสิ่งที่ส่ง');
+      return;
+    }
     setIsConfirmOpen(true);
   };
 
@@ -115,6 +205,10 @@ export default function CreateParcel() {
     if (!position) {
       toast.error('กรุณาอนุญาต GPS เพื่อบันทึกจุดเริ่มต้นก่อนสร้างรายการ');
       if (geoStatus !== 'loading') requestLocation();
+      return;
+    }
+    if (!proofPhotoUrl) {
+      toast.error('กรุณาแนบรูปหลักฐานสิ่งที่ส่ง');
       return;
     }
     setIsConfirmOpen(false);
@@ -127,6 +221,7 @@ export default function CreateParcel() {
         v.docType, v.description, v.note,
         position.latitude,
         position.longitude,
+        proofPhotoUrl,
       );
       if (result.trackingId) {
         setCreatedTrackingId(result.trackingId);
@@ -139,6 +234,7 @@ export default function CreateParcel() {
         });
         setIsResultOpen(true);
         setFormData({ senderName: '', senderBranch: '', receiverName: '', receiverBranch: '', docType: '', description: '', note: '' });
+        clearProofPhoto();
       } else {
         toast.error(result.error || 'ไม่สามารถสร้างรายการได้');
       }
@@ -155,11 +251,11 @@ export default function CreateParcel() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className={`${embedded ? 'max-w-none space-y-5 pb-4' : 'max-w-5xl mx-auto space-y-8 pb-20'} animate-in fade-in slide-in-from-bottom-4 duration-700`}>
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
+      <div className={`${embedded ? 'hidden' : 'flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2'}`}>
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-black text-primary mb-0.5">สร้างรายการใหม่</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-black text-primary mb-0.5">สร้างพัสดุใหม่</h1>
           <p className="text-xs sm:text-sm text-on-surface-variant">กรอกข้อมูลรายละเอียดของพัสดุหรือเอกสารเพื่อเริ่มต้นการจัดส่ง</p>
         </div>
       </div>
@@ -255,7 +351,7 @@ export default function CreateParcel() {
                 </div>
                 <div>
                   <h2 className="font-display font-bold text-primary text-sm">ข้อมูลผู้รับ</h2>
-                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">รายละเอียดปลายทาง</p>
+                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ชื่อผู้รับและสถานที่รับ</p>
                 </div>
               </div>
             </div>
@@ -274,14 +370,13 @@ export default function CreateParcel() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">สาขาผู้รับ *</label>
+                <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">สถานที่รับ *</label>
                 <NativeSelect
                   value={formData.receiverBranch}
                   onChange={v => setFormData(p => ({ ...p, receiverBranch: v }))}
                   options={branches}
-                  placeholder="เลือกสาขา"
-                  icon="home_pin"
-                  otherPlaceholder="ระบุชื่อสาขาผู้รับ"
+                  placeholder="เลือกหรือระบุสถานที่รับ"
+                  otherPlaceholder="ระบุสถานที่รับ"
                 />
               </div>
             </div>
@@ -303,7 +398,7 @@ export default function CreateParcel() {
               </div>
             </div>
           </div>
-          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_1fr_1.15fr]">
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">ประเภท *</label>
@@ -339,6 +434,52 @@ export default function CreateParcel() {
                 placeholder="ห้ามเปิด, ของแตกหักง่าย, เร่งด่วน..."
                 className="w-full bg-white border border-outline-variant rounded-2xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display min-h-[110px] transition-all resize-none"
               />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">รูปหลักฐานสิ่งที่ส่ง *</label>
+              <input
+                ref={proofInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleProofFileSelect}
+                className="hidden"
+              />
+              {!proofPhotoPreview ? (
+                <button
+                  type="button"
+                  onClick={() => proofInputRef.current?.click()}
+                  className="flex min-h-[150px] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-outline-variant/55 bg-surface-container-lowest px-4 py-5 text-center transition-all hover:border-primary/45 hover:bg-primary/5 active:scale-[0.99]"
+                >
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                    <span className="material-symbols-outlined text-2xl">add_a_photo</span>
+                  </span>
+                  <span className="font-display text-sm font-black text-primary">ถ่ายหรือแนบรูปสิ่งที่ส่ง</span>
+                  <span className="text-xs font-semibold text-on-surface-variant/55">ใช้เป็นหลักฐานตอนสร้างพัสดุ</span>
+                </button>
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-outline-variant/25 bg-white shadow-sm">
+                  <div className="relative aspect-[4/3] bg-surface-container-low">
+                    <img src={proofPhotoPreview} alt="รูปหลักฐานสิ่งที่ส่ง" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={clearProofPhoto}
+                      className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-xl bg-white text-primary shadow-lg transition-all hover:bg-error hover:text-white active:scale-95"
+                      aria-label="ลบรูปหลักฐาน"
+                    >
+                      <span className="material-symbols-outlined text-xl">close</span>
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => proofInputRef.current?.click()}
+                    className="flex h-11 w-full items-center justify-center gap-2 bg-surface-container-lowest font-display text-sm font-black text-primary transition-colors hover:bg-surface-container-low"
+                  >
+                    <span className="material-symbols-outlined text-lg">photo_camera</span>
+                    เปลี่ยนรูป
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -443,6 +584,16 @@ export default function CreateParcel() {
                       <p className="text-[10px] font-black uppercase tracking-widest">หมายเหตุเพิ่มเติม</p>
                     </div>
                     <p className="break-words text-sm font-medium leading-relaxed text-on-surface">{formData.note}</p>
+                  </div>
+                )}
+
+                {proofPhotoPreview && (
+                  <div className="overflow-hidden rounded-2xl border border-outline-variant/25 bg-white shadow-sm">
+                    <div className="flex items-center gap-2 border-b border-outline-variant/10 px-4 py-3 text-primary">
+                      <span className="material-symbols-outlined text-lg">photo_camera</span>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/55">รูปหลักฐานสิ่งที่ส่ง</p>
+                    </div>
+                    <img src={proofPhotoPreview} alt="รูปหลักฐานสิ่งที่ส่ง" className="max-h-56 w-full object-contain bg-surface-container-low" />
                   </div>
                 )}
               </div>

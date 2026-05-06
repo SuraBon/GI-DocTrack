@@ -505,6 +505,57 @@ function validateImagePayload(value) {
   return { ok: false, error: "รูปภาพหลักฐานไม่ถูกต้อง" };
 }
 
+function saveImagePayloadToDrive(imageValue, trackingId) {
+  let finalPhotoUrl = String(imageValue || "").trim();
+  if (!finalPhotoUrl || !finalPhotoUrl.startsWith('data:image')) return finalPhotoUrl;
+
+  // ค้นหาหรือสร้างโฟลเดอร์หลักชื่อ DocTrack_Images
+  const systemFolder = getDocTrackFolder();
+  let rootFolder;
+  const rootFolderIterator = systemFolder
+    ? systemFolder.getFoldersByName("DocTrack_Images")
+    : DriveApp.getFoldersByName("DocTrack_Images");
+  if (rootFolderIterator.hasNext()) {
+    rootFolder = rootFolderIterator.next();
+  } else {
+    rootFolder = systemFolder
+      ? systemFolder.createFolder("DocTrack_Images")
+      : DriveApp.createFolder("DocTrack_Images");
+    try {
+      rootFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {}
+  }
+
+  // สร้างโฟลเดอร์ย่อยตามเดือน (เช่น 2026-04)
+  const dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM");
+  let folders = rootFolder.getFoldersByName(dateStr);
+  let folder;
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = rootFolder.createFolder(dateStr);
+    try {
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {}
+  }
+
+  const splitData = finalPhotoUrl.split(',');
+  const base64Data = splitData[1];
+  const mimeTypeMatch = splitData[0].match(/:(.*?);/);
+  const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+  const extension = mimeType === 'image/jpeg' ? 'jpg' : (mimeType.split('/')[1] || 'jpg');
+
+  const filename = trackingId + "_" + new Date().getTime() + "." + extension;
+  const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, filename);
+
+  const file = folder.createFile(blob);
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (e) {}
+
+  return "https://drive.google.com/uc?export=view&id=" + file.getId();
+}
+
 function authorizeDrive() {
   var dummy = DriveApp.createFolder("DocTrack_Auth_Check");
   dummy.setTrashed(true);
@@ -795,6 +846,10 @@ function handleCreateParcel(payload) {
   if (receiverBranch.length > 100) return createJsonResponse({ success: false, error: "ชื่อสาขาผู้รับยาวเกินไป" });
   if (docType.length > 100)      return createJsonResponse({ success: false, error: "ประเภทพัสดุยาวเกินไป" });
   if (note.length > MAX_NOTE_LENGTH) return createJsonResponse({ success: false, error: "หมายเหตุยาวเกินไป" });
+  const imageValidation = validateImagePayload(payload.photoUrl);
+  if (!imageValidation.ok) {
+    return createJsonResponse({ success: false, error: imageValidation.error });
+  }
 
   // NOTE: Tracking ID is generated INSIDE the lock (called from writeActions block)
   // to prevent race conditions with concurrent requests.
@@ -808,6 +863,12 @@ function handleCreateParcel(payload) {
 
   const createdDate = formatThaiDateForSheet(date);
   const createdEventDate = formatThaiDateForSheet(date);
+  let finalPhotoUrl = imageValidation.value;
+  try {
+    finalPhotoUrl = saveImagePayloadToDrive(finalPhotoUrl, trackingId);
+  } catch (e) {
+    return createJsonResponse({ success: false, error: "ไม่สามารถบันทึกรูปภาพได้ กรุณาลองใหม่" });
+  }
 
   sheet.appendRow([
     trackingId,
@@ -820,7 +881,7 @@ function handleCreateParcel(payload) {
     description,
     note,
     "รอจัดส่ง",
-    "",
+    finalPhotoUrl || "",
     "",
     "",
     payload.employeeId || "",
@@ -839,10 +900,10 @@ function handleCreateParcel(payload) {
       normalizeBranchName(senderBranch),
       normalizeBranchName(receiverBranch),
       senderName,
-      "",
+      finalPhotoUrl || "",
       originLatitude,
       originLongitude,
-      escapeSheetValue("รับเข้าระบบ")
+      note || escapeSheetValue("รับเข้าระบบ")
     ]);
   }
 

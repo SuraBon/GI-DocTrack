@@ -61,6 +61,7 @@ export interface CreateParcelPayload {
   docType: string;
   description?: string;
   note?: string;
+  photoUrl?: string;
   latitude?: number;
   longitude?: number;
   pin?: string;

@@ -6,7 +6,7 @@
 
 import type { TimelineEvent } from '@/types/timeline';
 import ImagePopup from '@/components/ImagePopup';
-import { formatThaiDateTime } from '@/lib/dateUtils';
+import { formatThaiDateTime, parseDateInput } from '@/lib/dateUtils';
 
 interface TimelineProps {
   events: TimelineEvent[];
@@ -72,6 +72,74 @@ export default function Timeline({ events, className = '', compact = false }: Ti
         return 'bg-white border-outline-variant/30';
     }
   };
+
+  const formatTimelineDateParts = (timestamp: string) => {
+    const parsed = parseDateInput(timestamp);
+    if (!timestamp || !parsed) return { day: '-', time: '-' };
+
+    const now = new Date();
+    const isToday =
+      parsed.getFullYear() === now.getFullYear() &&
+      parsed.getMonth() === now.getMonth() &&
+      parsed.getDate() === now.getDate();
+    const day = isToday ? 'วันนี้' : `${parsed.getDate()} ${parsed.toLocaleDateString('th-TH', { month: 'short' })}`;
+    const time = `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
+    return { day, time };
+  };
+
+  if (compact) {
+    const displayEvents = [...events].reverse();
+
+    return (
+      <div className={`relative ${className}`}>
+        <div className="space-y-0">
+          {displayEvents.map((event, index) => {
+            const { day, time } = formatTimelineDateParts(event.timestamp);
+            const isLatest = index === 0;
+            const isDim = !isLatest;
+            const textColor = isLatest ? 'text-primary' : 'text-on-surface-variant/45';
+            const dotColor = isLatest ? 'bg-teal-600 ring-teal-100' : 'bg-outline-variant ring-surface-container-low';
+            return (
+              <div key={event.id} className="grid grid-cols-[54px_26px_1fr] gap-2">
+                <div className={`pt-0.5 text-right leading-tight ${isLatest ? 'text-primary' : 'text-on-surface-variant/45'}`}>
+                  <p className="text-[11px] font-bold">{day}</p>
+                  <p className="mt-1 text-[11px] font-medium">{time}</p>
+                </div>
+                <div className="relative flex justify-center">
+                  {index < displayEvents.length - 1 && (
+                    <span className="absolute top-3 bottom-0 w-px bg-outline-variant/55" />
+                  )}
+                  <span className={`relative z-10 mt-1 h-3.5 w-3.5 rounded-full ring-4 ${dotColor}`} />
+                </div>
+                <div className={`min-w-0 pb-7 ${isDim ? 'opacity-80' : ''}`}>
+                  <div className="flex min-w-0 items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-base font-black leading-snug sm:text-lg ${textColor}`}>
+                        {event.title}
+                      </p>
+                      {event.description && (
+                        <p className={`mt-1 break-words text-sm font-semibold leading-snug ${isLatest ? 'text-blue-700' : 'text-on-surface-variant/45'}`}>
+                          {event.description}
+                        </p>
+                      )}
+                      {event.location && (
+                        <p className="mt-1 text-[11px] font-bold text-on-surface-variant/45">
+                          <span className="truncate">{event.location}</span>
+                        </p>
+                      )}
+                    </div>
+                    {event.imageUrl && (
+                      <ImagePopup url={event.imageUrl} title="รูปหลักฐาน" triggerVariant="icon" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative px-1 ${className}`}>
@@ -154,8 +222,7 @@ export default function Timeline({ events, className = '', compact = false }: Ti
                       <time className="tracking-tight uppercase">{event.timestamp ? formatThaiDateTime(event.timestamp) : '-'}</time>
                     </div>
                     {event.location && (
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant/40">
-                        <span className="material-symbols-outlined text-base text-secondary">location_on</span>
+                      <div className="text-xs font-bold text-on-surface-variant/40">
                         <span className="tracking-tight text-on-surface-variant/60">{event.location}</span>
                       </div>
                     )}

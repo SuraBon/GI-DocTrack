@@ -182,11 +182,12 @@ export async function createParcel(
   note?: string,
   latitude?: number,
   longitude?: number,
+  photoUrl?: string,
   pin?: string,
 ): Promise<CreateParcelResponse> {
   const payload: CreateParcelPayload = {
     action: 'createParcel',
-    senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, pin
+    senderName, senderBranch, receiverName, receiverBranch, docType, description, note, latitude, longitude, photoUrl, pin
   };
   try {
     const res = await callAPI<Record<string, unknown>>(payload, {}, NO_RETRY);

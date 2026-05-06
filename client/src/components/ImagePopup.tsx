@@ -2,8 +2,6 @@ import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 
@@ -11,9 +9,10 @@ interface ImagePopupProps {
   url: string;
   title?: string;
   className?: string;
+  triggerVariant?: 'button' | 'icon';
 }
 
-export default function ImagePopup({ url, title = 'รูปภาพหลักฐาน', className = '' }: ImagePopupProps) {
+export default function ImagePopup({ url, title = 'รูปภาพหลักฐาน', className = '', triggerVariant = 'button' }: ImagePopupProps) {
   const [open, setOpen] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   
@@ -35,44 +34,52 @@ export default function ImagePopup({ url, title = 'รูปภาพหลั�
   return (
     <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setIframeLoaded(false); }}>
       <DialogTrigger asChild>
-        <button className={`flex items-center gap-2.5 px-5 py-3 bg-surface-container-low text-primary hover:bg-surface-container rounded-2xl border border-outline-variant/30 font-display font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${className}`}>
-          <span className="material-symbols-outlined text-xl">image</span>
-          ดู{title}
-        </button>
+        {triggerVariant === 'icon' ? (
+          <button
+            className={`inline-grid h-7 w-7 shrink-0 place-items-center rounded-full border border-primary/15 bg-primary/6 text-primary transition-all hover:bg-primary hover:text-white active:scale-95 ${className}`}
+            aria-label={`ดู${title}`}
+            title={`ดู${title}`}
+          >
+            <span className="material-symbols-outlined text-[16px]">image</span>
+          </button>
+        ) : (
+          <button className={`flex items-center gap-2.5 px-5 py-3 bg-surface-container-low text-primary hover:bg-surface-container rounded-2xl border border-outline-variant/30 font-display font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${className}`}>
+            <span className="material-symbols-outlined text-xl">image</span>
+            ดู{title}
+          </button>
+        )}
       </DialogTrigger>
-      <DialogContent className="w-full sm:max-w-5xl h-[70vh] sm:h-[85vh] flex flex-col p-0 rounded-3xl overflow-hidden border-none shadow-2xl" showCloseButton={false}>
-        <DialogHeader className="px-6 py-4 border-b border-outline-variant/10 flex-none bg-primary text-white">
-          <DialogTitle className="flex items-center justify-between text-lg font-display font-black uppercase tracking-tight">
-            <span className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-2xl text-secondary">photo_camera</span>
-              {title}
-            </span>
+      <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-5xl max-h-[88vh] flex flex-col p-0 rounded-3xl overflow-hidden border-none bg-transparent shadow-2xl" showCloseButton={false}>
+        <div className="bg-transparent p-2 sm:p-3">
+          <div className="relative flex h-[62vh] max-h-[680px] min-h-[320px] w-full items-center justify-center overflow-hidden rounded-2xl border border-outline-variant/25 bg-surface-container shadow-sm">
+            <div className="pointer-events-none absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-2xl bg-primary/90 px-3 py-2 text-white shadow-lg backdrop-blur-sm">
+              <span className="material-symbols-outlined text-lg text-secondary">photo_camera</span>
+              <span className="text-sm font-black">{title}</span>
+            </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-primary shadow-lg shadow-black/20 transition-all hover:bg-secondary active:scale-95"
+              className="absolute right-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-2xl bg-white text-primary shadow-lg shadow-black/20 transition-all hover:bg-secondary active:scale-95"
               aria-label="ปิดรูปภาพหลักฐาน"
             >
               <span className="material-symbols-outlined text-2xl font-black">close</span>
             </button>
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex-1 w-full relative bg-surface-container flex items-center justify-center">
-          {!iframeLoaded && (
-            <div className="absolute flex flex-col items-center justify-center text-on-surface-variant/30 z-0 p-8 text-center max-w-xs">
-              <span className="material-symbols-outlined text-6xl mb-4 animate-pulse">cloud_download</span>
-              <p className="font-display font-bold text-lg text-primary/40">กำลังโหลดหลักฐาน...</p>
-              <p className="text-xs mt-3 leading-relaxed">กำลังเตรียมพรีวิวรูปภาพจากแหล่งเก็บไฟล์</p>
+            {!iframeLoaded && (
+              <div className="absolute z-0 flex max-w-xs flex-col items-center justify-center p-8 text-center text-on-surface-variant/30">
+                <span className="material-symbols-outlined mb-4 text-6xl animate-pulse">cloud_download</span>
+                <p className="font-display text-lg font-bold text-primary/40">กำลังโหลดหลักฐาน...</p>
+                <p className="mt-3 text-xs leading-relaxed">กำลังเตรียมพรีวิวรูปภาพจากแหล่งเก็บไฟล์</p>
+              </div>
+            )}
+            {/* We use an iframe to safely preview the Google Drive file inside the dialog */}
+            <iframe
+              src={iframeUrl}
+              className="absolute inset-0 z-10 h-full w-full border-0"
+              allow="autoplay"
+              title={title}
+              onLoad={() => setIframeLoaded(true)}
+            />
             </div>
-          )}
-          {/* We use an iframe to safely preview the Google Drive file inside the dialog */}
-          <iframe 
-            src={iframeUrl} 
-            className="w-full h-full border-0 absolute inset-0 z-10" 
-            allow="autoplay"
-            title={title}
-            onLoad={() => setIframeLoaded(true)}
-          />
         </div>
       </DialogContent>
     </Dialog>

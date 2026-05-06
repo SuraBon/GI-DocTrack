@@ -6,7 +6,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import CreateParcel from "./pages/CreateParcel";
-import ConfirmReceipt from "./pages/ConfirmReceipt";
 import Track from "./pages/Track";
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
@@ -14,12 +13,11 @@ import { isConfigured, onConfigUpdated } from "./lib/parcelService";
 import { useAuth } from "./contexts/AuthContext";
 import { normalizeRole, type AppRole } from "./lib/roles";
 
-type PageId = "dashboard" | "create" | "confirm" | "track" | "users";
+type PageId = "dashboard" | "create" | "track" | "users";
 
 const pagePaths: Record<PageId, string> = {
   dashboard: "/dashboard",
   create: "/create",
-  confirm: "/confirm",
   track: "/track",
   users: "/users",
 };
@@ -28,7 +26,6 @@ const pathPages: Record<string, PageId> = {
   "/": "dashboard",
   "/dashboard": "dashboard",
   "/create": "create",
-  "/confirm": "confirm",
   "/track": "track",
   "/users": "users",
 };
@@ -41,9 +38,8 @@ const getRouteFromLocation = (): { page: PageId; isKnownPath: boolean } => {
 
 const pageRoles: Record<PageId, AppRole[]> = {
   dashboard: ["ADMIN", "MESSENGER", "USER"],
-  create: ["ADMIN", "MESSENGER", "USER"],
-  confirm: ["ADMIN", "MESSENGER"],
-  track: ["ADMIN", "MESSENGER", "USER"],
+  create: ["ADMIN"],
+  track: ["ADMIN"],
   users: ["ADMIN"],
 };
 
@@ -59,7 +55,6 @@ function App() {
     return route.page;
   });
   const [isConfiguredState, setIsConfiguredState] = useState(isConfigured());
-  const [confirmTrackingId, setConfirmTrackingId] = useState<string | null>(null);
 
   useEffect(() => {
     const updateConfig = () => setIsConfiguredState(isConfigured());
@@ -87,11 +82,6 @@ function App() {
       window.history.pushState({}, "", nextPath);
     }
   }, []);
-
-  const navigateToConfirm = (trackingId: string) => {
-    setConfirmTrackingId(trackingId);
-    navigateToPage("confirm");
-  };
 
   useEffect(() => {
     if (loading || !user) return;
@@ -126,18 +116,9 @@ function App() {
   const renderCurrentPage = () => {
     switch (visiblePage) {
       case "dashboard":
-        return <ErrorBoundary><Dashboard isConfigured={isConfiguredState} onConfirmParcel={navigateToConfirm} /></ErrorBoundary>;
+        return <ErrorBoundary><Dashboard isConfigured={isConfiguredState} /></ErrorBoundary>;
       case "create":
         return <ErrorBoundary><CreateParcel /></ErrorBoundary>;
-      case "confirm":
-        return (
-          <ErrorBoundary>
-            <ConfirmReceipt
-              initialTrackingId={confirmTrackingId}
-              onInitialTrackingIdConsumed={() => setConfirmTrackingId(null)}
-            />
-          </ErrorBoundary>
-        );
       case "users":
         return <ErrorBoundary><UserManagement /></ErrorBoundary>;
       case "track":

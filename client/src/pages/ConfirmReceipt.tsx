@@ -49,9 +49,19 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
 export default function ConfirmReceipt({
   initialTrackingId,
   onInitialTrackingIdConsumed,
+  autoCheckInitial = false,
+  autoOpenCamera = false,
+  embedded = false,
+  onComplete,
+  onPreparingCameraChange,
 }: {
   initialTrackingId?: string | null;
   onInitialTrackingIdConsumed?: () => void;
+  autoCheckInitial?: boolean;
+  autoOpenCamera?: boolean;
+  embedded?: boolean;
+  onComplete?: () => void;
+  onPreparingCameraChange?: (isPreparing: boolean) => void;
 }) {
   const { confirmReceipt, updateParcelLocally, loadParcels } = useParcelStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,35 +85,14 @@ export default function ConfirmReceipt({
 
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [isAutoPreparingCamera, setIsAutoPreparingCamera] = useState(false);
   const [checkedParcel, setCheckedParcel] = useState<Parcel | null>(null);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isDelivered, setIsDelivered] = useState(false);
 
-  // Auto-fill tracking ID เมื่อถูก navigate มาจาก Dashboard
-  // Reset state ทั้งหมดก่อนเพื่อไม่ให้ค้างจากรายการก่อนหน้า
   useEffect(() => {
-    if (!initialTrackingId) return;
-
-    // Reset ทุก state กลับ default
-    setCurrentStep(1);
-    setTrackingId(sanitizeTextInput(initialTrackingId, 100).toUpperCase());
-    setPhotoUrl('');
-    setPhotoPreview(null);
-    setNote('');
-    setIsForwarding(false);
-    setForwardSender('');
-    setForwardFromBranch('');
-    setForwardToBranch('');
-    setIsProxy(false);
-    setProxyName('');
-    setCheckedParcel(null);
-    setIsDelivered(false);
-    setIsConfirmDialogOpen(false);
-    resetGeo();
-    if (fileInputRef.current) fileInputRef.current.value = '';
-
-    onInitialTrackingIdConsumed?.();
-  }, [initialTrackingId]); // eslint-disable-line react-hooks/exhaustive-deps
+    onPreparingCameraChange?.(isAutoPreparingCamera);
+  }, [isAutoPreparingCamera, onPreparingCameraChange]);
 
   // Re-request GPS whenever entering step 2 (handles back-navigation from step 3)
   useEffect(() => {
@@ -122,8 +111,8 @@ export default function ConfirmReceipt({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isLoading]);
 
-  const handleCheckParcel = async () => {
-    const safeTrackingId = sanitizeTextInput(trackingId, 100).toUpperCase();
+  const checkParcelByTrackingId = async (rawTrackingId: string, shouldOpenCamera = false) => {
+    const safeTrackingId = sanitizeTextInput(rawTrackingId, 100).toUpperCase();
     if (!safeTrackingId) {
       toast.error('กรุณากรอกหมายเลขติดตามก่อนตรวจสอบ');
       return;
@@ -185,6 +174,9 @@ export default function ConfirmReceipt({
           toast.success(`พบข้อมูลพัสดุ ปลายทาง: ${p['สาขาผู้รับ']}`);
           setCurrentStep(2); // Auto move to photo step
           requestLocation(); // Request GPS automatically on step 2
+          if (shouldOpenCamera) {
+            setTimeout(() => fileInputRef.current?.click(), 250);
+          }
         }
       } else {
         toast.error('ไม่พบข้อมูลพัสดุ หรือหมายเลขติดตามไม่ถูกต้อง');
@@ -195,6 +187,42 @@ export default function ConfirmReceipt({
       setIsChecking(false);
     }
   };
+
+  const handleCheckParcel = async () => {
+    await checkParcelByTrackingId(trackingId);
+  };
+
+  // Auto-fill tracking ID เมื่อถูกเปิดจาก Dashboard และตรวจสอบทันที
+  useEffect(() => {
+    if (!initialTrackingId) return;
+
+    const safeTrackingId = sanitizeTextInput(initialTrackingId, 100).toUpperCase();
+    setCurrentStep(1);
+    setTrackingId(safeTrackingId);
+    setPhotoUrl('');
+    setPhotoPreview(null);
+    setNote('');
+    setIsForwarding(false);
+    setForwardSender('');
+    setForwardFromBranch('');
+    setForwardToBranch('');
+    setIsProxy(false);
+    setProxyName('');
+    setCheckedParcel(null);
+    setIsDelivered(false);
+    setIsConfirmDialogOpen(false);
+    resetGeo();
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    onInitialTrackingIdConsumed?.();
+    if (autoCheckInitial) {
+      setIsAutoPreparingCamera(true);
+      setTimeout(() => {
+        void checkParcelByTrackingId(safeTrackingId, autoOpenCamera)
+          .finally(() => setIsAutoPreparingCamera(false));
+      }, 0);
+    }
+  }, [initialTrackingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePasteTrackingID = async () => {
     try {
@@ -379,6 +407,7 @@ export default function ConfirmReceipt({
         setCheckedParcel(null);
         setIsDelivered(false);
         resetGeo();
+        onComplete?.();
       } else {
         toast.error(response?.error ? `เกิดข้อผิดพลาด: ${response.error}` : 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่');
         // Revert local update
@@ -390,14 +419,14 @@ export default function ConfirmReceipt({
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className={`${embedded ? 'max-w-none pb-4' : 'max-w-2xl mx-auto pb-20'} space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700`}>
       {/* Header Section */}
-      <div className="text-center space-y-2 mb-8 sm:mb-10">
+      <div className={`${embedded ? 'hidden' : 'text-center space-y-2 mb-8 sm:mb-10'}`}>
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary tracking-tight">ยืนยันรับพัสดุ</h1>
         <p className="text-xs sm:text-sm text-on-surface-variant">ทำตามขั้นตอนเพื่อยืนยันการรับหรือส่งต่อพัสดุผ่านระบบ LogiTrack</p>
       </div>
 
-      <StepIndicator currentStep={currentStep} />
+      {!embedded && <StepIndicator currentStep={currentStep} />}
 
       {isLoading && createPortal(
         <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[100] flex flex-col items-center justify-center animate-in fade-in duration-300">
@@ -410,8 +439,18 @@ export default function ConfirmReceipt({
         document.body
       )}
 
+      {isAutoPreparingCamera && currentStep === 1 && (
+        <div className="rounded-3xl border border-outline-variant bg-white p-8 text-center shadow-xl animate-in fade-in zoom-in-95 duration-300">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 text-primary">
+            <span className="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
+          </div>
+          <h2 className="font-display text-xl font-black text-primary">กำลังเปิดกล้อง...</h2>
+          <p className="mt-1 text-sm font-semibold text-on-surface-variant/60">ระบบกำลังตรวจสอบพัสดุและเตรียมหน้าถ่ายรูปหลักฐาน</p>
+        </div>
+      )}
+
       {/* Step 1: Check Tracking ID */}
-      {currentStep === 1 && (
+      {currentStep === 1 && !isAutoPreparingCamera && (
         <div className="bg-white border border-outline-variant rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-right-4 duration-500">
           <div className="bg-surface-container-low/30 p-5 sm:p-8 border-b border-outline-variant/10 text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary">
@@ -474,19 +513,19 @@ export default function ConfirmReceipt({
 
       {/* Step 2: Photo Evidence */}
       {currentStep === 2 && (
-        <div className="bg-white border border-outline-variant rounded-3xl overflow-hidden shadow-xl animate-in slide-in-from-right-4 duration-500">
-          <div className="bg-surface-container-low/30 p-5 sm:p-8 border-b border-outline-variant/10 text-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 text-primary">
-              <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
+        <div className="overflow-hidden rounded-3xl border border-outline-variant bg-white shadow-xl animate-in slide-in-from-right-4 duration-500">
+          <div className="border-b border-outline-variant/10 bg-surface-container-low/30 p-4 text-center sm:p-5">
+            <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
             </div>
-            <h2 className="font-display text-xl font-bold text-primary">ถ่ายรูปหลักฐาน</h2>
-            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">อัปโหลดรูปภาพพัสดุหรือหลักฐานการรับ</p>
+            <h2 className="font-display text-lg font-black text-primary">ถ่ายรูปหลักฐาน</h2>
+            <p className="mt-0.5 text-xs font-semibold text-on-surface-variant/60">ถ่ายรูปพัสดุหรือหลักฐานการรับ</p>
           </div>
-          <div className="p-5 sm:p-8 space-y-6">
+          <div className="space-y-4 p-4 sm:p-5">
             {!photoPreview ? (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-outline-variant rounded-3xl p-8 sm:p-12 text-center cursor-pointer hover:border-primary hover:bg-surface-container-lowest transition-all group relative overflow-hidden"
+                className="group relative cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed border-outline-variant p-5 text-center transition-all hover:border-primary hover:bg-surface-container-lowest sm:p-6"
               >
                 {/* hidden file input — capture="environment" เปิดกล้องหลังโดยตรงบน mobile */}
                 <input
@@ -497,11 +536,11 @@ export default function ConfirmReceipt({
                   onChange={handleFileSelect}
                   className="hidden"
                 />
-                <div className="w-20 h-20 bg-surface-container rounded-3xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:bg-primary/5 transition-all">
-                  <span className="material-symbols-outlined text-4xl text-on-surface-variant group-hover:text-primary transition-colors">photo_camera</span>
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 transition-all group-hover:scale-105 group-hover:bg-primary/15">
+                  <span className="material-symbols-outlined text-3xl text-primary transition-colors">photo_camera</span>
                 </div>
-                <p className="text-lg font-bold text-primary font-display">แตะเพื่อถ่ายรูป</p>
-                <p className="text-on-surface-variant mt-2 text-sm">ระบบจะบีบอัดรูปภาพให้อัตโนมัติเพื่อประหยัดพื้นที่</p>
+                <p className="font-display text-base font-black text-primary">แตะเพื่อถ่ายรูป</p>
+                <p className="mt-1 text-xs font-semibold text-on-surface-variant/60">ระบบจะบีบอัดรูปให้อัตโนมัติ</p>
               </div>
             ) : (
               <div className="relative rounded-3xl overflow-hidden border border-outline-variant shadow-inner group aspect-video bg-surface-container-lowest">
@@ -527,12 +566,12 @@ export default function ConfirmReceipt({
             )}
 
             {/* GPS Status Indicator */}
-            <div className={`p-4 rounded-2xl flex items-start gap-3 border ${
+            <div className={`flex items-start gap-3 rounded-2xl border p-3 ${
               geoStatus === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
               geoStatus === 'error' || geoStatus === 'denied' ? 'bg-error-container/30 border-error/20 text-error' :
               'bg-surface-container-low border-outline-variant text-on-surface-variant'
             }`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                 geoStatus === 'success' ? 'bg-green-100 text-green-700' :
                 geoStatus === 'error' || geoStatus === 'denied' ? 'bg-error-container text-error' :
                 'bg-surface-container text-on-surface-variant'
@@ -544,13 +583,13 @@ export default function ConfirmReceipt({
                 </span>
               </div>
               <div className="flex-1">
-                <p className="font-bold text-sm">
+                <p className="text-sm font-black leading-tight">
                   {geoStatus === 'success' ? 'พร้อมบันทึกพิกัด GPS' :
                    geoStatus === 'loading' ? 'กำลังตรวจจับพิกัด GPS...' :
                    geoStatus === 'denied' ? 'ยังไม่ได้อนุญาตให้ใช้ตำแหน่ง' :
                    geoStatus === 'error' ? 'ยังดึงพิกัด GPS ไม่สำเร็จ' : 'รอเริ่มตรวจจับพิกัด'}
                 </p>
-                <p className="text-xs mt-0.5 opacity-80">
+                <p className="mt-0.5 text-xs leading-snug opacity-75">
                   {geoStatus === 'success' && position
                     ? `${position.latitude.toFixed(6)}, ${position.longitude.toFixed(6)} (ความแม่นยำ ~${Math.round(position.accuracy)}m${position.accuracy > 100 ? ' — ต่ำ' : ''})`
                     : geoError ? geoError
@@ -559,7 +598,7 @@ export default function ConfirmReceipt({
                 {(geoStatus === 'error' || geoStatus === 'denied') && (
                   <button
                     onClick={requestLocation}
-                    className="mt-2 text-xs font-bold underline underline-offset-2 hover:opacity-80"
+                    className="mt-1 text-xs font-black underline underline-offset-2 hover:opacity-80"
                   >
                     ลองใหม่อีกครั้ง
                   </button>
@@ -567,21 +606,7 @@ export default function ConfirmReceipt({
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-              <button
-                onClick={() => {
-                  setCurrentStep(1);
-                  // reset photo state เมื่อย้อนกลับ
-                  setPhotoPreview(null);
-                  setPhotoUrl('');
-                  resetGeo();
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                className="flex items-center justify-center gap-2 h-14 flex-1 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
-              >
-                <span className="material-symbols-outlined">arrow_back</span>
-                ย้อนกลับ
-              </button>
+            <div>
               <button
                 onClick={() => {
                   if (geoStatus !== 'success') {
@@ -592,10 +617,10 @@ export default function ConfirmReceipt({
                   setCurrentStep(3);
                 }}
                 disabled={!photoPreview || geoStatus === 'loading'}
-                className="flex items-center justify-center gap-2 h-14 flex-[2] bg-primary text-white rounded-2xl font-display font-bold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+                className="group flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 font-display text-base font-black text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] hover:bg-primary/95 active:scale-[0.98] disabled:scale-100 disabled:bg-on-surface-variant/30 disabled:shadow-none"
               >
-                ขั้นตอนถัดไป
-                <span className="material-symbols-outlined">arrow_forward</span>
+                ไปขั้นตอนยืนยัน
+                <span className="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
               </button>
             </div>
           </div>

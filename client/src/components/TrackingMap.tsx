@@ -18,9 +18,11 @@ function escapeHtml(str: string): string {
 
 interface TrackingMapProps {
   events: TimelineEvent[];
+  className?: string;
+  mapClassName?: string;
 }
 
-function TrackingMap({ events }: TrackingMapProps) {
+function TrackingMap({ events, className = '', mapClassName = 'h-[250px] sm:h-[300px] md:h-[400px] max-h-[50vh]' }: TrackingMapProps) {
   const mapRef      = useRef<L.Map | null>(null);
   const markersRef  = useRef<L.Marker[]>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
@@ -222,7 +224,7 @@ function TrackingMap({ events }: TrackingMapProps) {
   const hasGpsMarkers = pathEntries.some(e => e.isGps);
 
   return (
-    <div className="w-full rounded-3xl overflow-hidden border border-outline-variant/30 shadow-md bg-white">
+    <div className={`flex w-full flex-col overflow-hidden rounded-3xl border border-outline-variant/30 bg-white shadow-md ${className}`}>
       {!hasRouteData && (
         <div className="px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-secondary bg-secondary-container/10 border-b border-outline-variant/10 flex items-center gap-2">
           <span className="material-symbols-outlined text-base">info</span>
@@ -236,7 +238,7 @@ function TrackingMap({ events }: TrackingMapProps) {
         </div>
       )}
       <MapView
-        className="h-[250px] sm:h-[300px] md:h-[400px] max-h-[50vh] w-full"
+        className={`${mapClassName} w-full flex-1`}
         initialCenter={DEFAULT_CENTER}
         initialZoom={7}
         onMapReady={handleMapReady}

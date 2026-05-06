@@ -14,19 +14,23 @@ import { parseParcelTimeline } from '@/lib/timeline';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatThaiDateTime } from '@/lib/dateUtils';
 import ParcelTimelineModal from '@/components/ParcelTimelineModal';
+import ConfirmReceipt from '@/pages/ConfirmReceipt';
+import CreateParcel from '@/pages/CreateParcel';
+import Track from '@/pages/Track';
 import { normalizeRole } from '@/lib/roles';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-interface DashboardProps { isConfigured: boolean; onConfirmParcel: (trackingId: string) => void; }
+interface DashboardProps { isConfigured: boolean; }
 
 const STATS = [
-  { key: 'total',     filter: 'ทั้งหมด',     label: 'ทั้งหมด',  icon: 'groups',         iconBg: 'bg-slate-100',    iconText: 'text-primary' },
-  { key: 'pending',   filter: 'รอจัดส่ง',    label: 'รอส่ง',     icon: 'shield',         iconBg: 'bg-rose-50',     iconText: 'text-rose-600' },
+  { key: 'total',     filter: 'ทั้งหมด',     label: 'ทั้งหมด',  icon: 'inventory_2',     iconBg: 'bg-slate-100',    iconText: 'text-primary' },
+  { key: 'pending',   filter: 'รอจัดส่ง',    label: 'รอส่ง',     icon: 'pending_actions', iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
   { key: 'transit',   filter: 'กำลังจัดส่ง', label: 'กำลังส่ง',  icon: 'local_shipping', iconBg: 'bg-blue-50',     iconText: 'text-blue-600' },
-  { key: 'delivered', filter: 'ส่งถึงแล้ว',   label: 'ส่งถึง',    icon: 'person',         iconBg: 'bg-emerald-50',  iconText: 'text-emerald-600' },
+  { key: 'delivered', filter: 'ส่งถึงแล้ว',   label: 'ส่งถึง',    icon: 'task_alt',       iconBg: 'bg-emerald-50',  iconText: 'text-emerald-600' },
 ] as const;
 
 const StatsCard = ({
@@ -84,47 +88,117 @@ const TableSkeleton = () => (
   </div>
 );
 
+const PARCEL_MILESTONES = [
+  { status: 'รอจัดส่ง', label: 'รอส่ง', icon: 'inventory_2' },
+  { status: 'กำลังจัดส่ง', label: 'ระหว่างส่ง', icon: 'local_shipping' },
+  { status: 'ส่งถึงแล้ว', label: 'ส่งถึง', icon: 'task_alt' },
+] as const;
+
+const getMilestoneIndex = (status: Parcel['สถานะ']) => {
+  if (status === 'ส่งถึงแล้ว') return 2;
+  if (status === 'กำลังจัดส่ง') return 1;
+  return 0;
+};
+
+const ParcelMilestone = ({ status }: { status: Parcel['สถานะ'] }) => {
+  const currentIndex = getMilestoneIndex(status);
+
+  return (
+    <div className="mt-2.5 rounded-xl border border-outline-variant/20 bg-surface-container-lowest/65 px-3 py-2">
+      <div className="flex items-center">
+        {PARCEL_MILESTONES.map((step, index) => {
+          const done = index <= currentIndex;
+          const active = index === currentIndex;
+          return (
+            <div key={step.status} className="flex flex-1 items-center last:flex-none">
+              <div className="flex min-w-0 flex-col items-center gap-1">
+                <span
+                  className={`grid h-6 w-6 place-items-center rounded-full border text-[13px] transition-colors ${
+                    done
+                      ? 'border-primary bg-primary text-white'
+                      : 'border-outline-variant/40 bg-white text-on-surface-variant/35'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: done ? "'FILL' 1" : "'FILL' 0" }}>
+                    {step.icon}
+                  </span>
+                </span>
+                <span className={`max-w-[64px] truncate text-[10px] font-black leading-none ${active ? 'text-primary' : done ? 'text-on-surface-variant/65' : 'text-on-surface-variant/35'}`}>
+                  {step.label}
+                </span>
+              </div>
+              {index < PARCEL_MILESTONES.length - 1 && (
+                <div className={`mx-2 h-0.5 flex-1 rounded-full ${index < currentIndex ? 'bg-primary' : 'bg-outline-variant/25'}`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const MobileParcelCard = ({
   parcel,
   onOpen,
+  canConfirm,
+  onConfirm,
 }: {
   parcel: Parcel;
   onOpen: () => void;
+  canConfirm: boolean;
+  onConfirm: () => void;
 }) => (
-  <button
-    type="button"
-    onClick={onOpen}
-    className="w-full rounded-2xl border border-outline-variant/25 bg-white p-4 text-left shadow-sm transition-all active:scale-[0.99]"
-  >
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <code className="inline-block max-w-full break-all rounded-lg bg-primary/6 px-2.5 py-1 font-mono text-xs font-black leading-tight text-primary">
-          {parcel.TrackingID}
-        </code>
-        <div className="mt-3 flex min-w-0 items-center gap-2">
-          <span className="truncate text-base font-black text-primary">{parcel['ผู้ส่ง']}</span>
-          <span className="material-symbols-outlined shrink-0 text-lg text-outline-variant">arrow_forward</span>
-          <span className="truncate text-base font-black text-primary">{parcel['ผู้รับ']}</span>
+  <div className="w-full rounded-xl border border-outline-variant/20 bg-white p-3 text-left shadow-sm transition-all">
+    <div className="w-full text-left">
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="min-w-0 flex-1">
+          <code className="inline-block max-w-full break-all rounded-md bg-primary/6 px-2 py-0.5 font-mono text-[11px] font-black leading-tight text-primary">
+            {parcel.TrackingID}
+          </code>
+          <div className="mt-2 flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-black text-primary">{parcel['ผู้ส่ง']}</span>
+            <span className="material-symbols-outlined shrink-0 text-base text-outline-variant">arrow_forward</span>
+            <span className="truncate text-sm font-black text-primary">{parcel['ผู้รับ']}</span>
+          </div>
+          <div className="mt-1 flex min-w-0 items-center gap-1 text-xs text-on-surface-variant/55">
+            <span className="truncate">{parcel['สาขาผู้ส่ง']}</span>
+            <span className="shrink-0">→</span>
+            <span className="truncate">{parcel['สาขาผู้รับ']}</span>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant/55">
+            <span className="material-symbols-outlined text-[13px]">event</span>
+            <span>{formatThaiDateTime(parcel['วันที่สร้าง'])}</span>
+          </div>
         </div>
-        <div className="mt-1 flex min-w-0 items-center gap-1 text-xs text-on-surface-variant/55">
-          <span className="truncate">{parcel['สาขาผู้ส่ง']}</span>
-          <span className="shrink-0">→</span>
-          <span className="truncate">{parcel['สาขาผู้รับ']}</span>
-        </div>
-        <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant/60">
-          <span className="material-symbols-outlined text-sm">event</span>
-          <span>{formatThaiDateTime(parcel['วันที่สร้าง'])}</span>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <StatusBadge status={parcel['สถานะ']} className="h-6 w-[92px] text-[10px]" />
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex items-center gap-0.5 rounded-full bg-primary/8 px-2 py-1 text-[10px] font-black text-primary transition-colors hover:bg-primary hover:text-white active:scale-95"
+          >
+            ดูรายละเอียด
+            <span className="material-symbols-outlined text-[13px]">chevron_right</span>
+          </button>
         </div>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-3">
-        <StatusBadge status={parcel['สถานะ']} />
-        <span className="material-symbols-outlined text-xl text-on-surface-variant/35">chevron_right</span>
-      </div>
+      <ParcelMilestone status={parcel['สถานะ']} />
     </div>
-  </button>
+    {canConfirm && (
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white shadow-sm active:scale-[0.99]"
+      >
+        <span className="material-symbols-outlined text-base">add_a_photo</span>
+        บันทึกหลักฐาน
+      </button>
+    )}
+  </div>
 );
 
-export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardProps) {
+export default function Dashboard({ isConfigured }: DashboardProps) {
   const { user } = useAuth();
   const { parcels, summary, loading, loadParcels, hasMore, loadMoreParcels, removeParcelLocally } = useParcelStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -133,16 +207,18 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [confirmTrackingId, setConfirmTrackingId] = useState<string | null>(null);
+  const [isConfirmFlowOpen, setIsConfirmFlowOpen] = useState(false);
+  const [isConfirmPreparingCamera, setIsConfirmPreparingCamera] = useState(false);
+  const [isCreateFlowOpen, setIsCreateFlowOpen] = useState(false);
+  const [isTrackFlowOpen, setIsTrackFlowOpen] = useState(false);
   const [refreshCountdown, setRefreshCountdown] = useState(120);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const isFetchingRef = useRef(false);
   const role = normalizeRole(user?.role);
   const isUserDashboard = role === 'USER';
-  const dashboardTitle = isUserDashboard ? 'พัสดุของฉัน' : 'ภาพรวมระบบ';
-  const dashboardSubtitle = isUserDashboard
-    ? 'ติดตามสถานะพัสดุและเอกสารที่คุณสร้างไว้ทั้งหมด'
-    : 'ภาพรวมการจัดส่งเอกสารและพัสดุแบบเรียลไทม์';
+  const canConfirmParcel = role === 'ADMIN' || role === 'MESSENGER';
   const stats = useMemo(() => STATS.map((stat) => (
     isUserDashboard && stat.key === 'total'
       ? { ...stat, label: 'พัสดุของฉันทั้งหมด' }
@@ -250,6 +326,12 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
     setIsDeleteConfirmOpen(true);
   };
 
+  const openConfirmFlow = (trackingId: string) => {
+    setIsTimelineOpen(false);
+    setConfirmTrackingId(trackingId);
+    setIsConfirmFlowOpen(true);
+  };
+
   const executeDelete = async () => {
     if (!selectedParcel) return;
     const trackingID = selectedParcel.TrackingID;
@@ -281,37 +363,37 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-      {/* ── Header ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/70 p-5 sm:p-6 shadow-sm backdrop-blur-xl">
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-primary-fixed/55 to-transparent" />
-        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-black text-primary">{dashboardTitle}</h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-1">{dashboardSubtitle}</p>
-          {isUserDashboard && (
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-[11px] font-bold text-primary">
-              <span className="material-symbols-outlined text-sm">person_pin</span>
-              แสดงเฉพาะรายการที่คุณสร้าง
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Countdown pill */}
-          <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-xs font-medium text-on-surface-variant border border-outline-variant/40 bg-white/70 backdrop-blur-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-mono font-bold text-primary text-[11px] sm:text-xs">{refreshCountdown}s</span>
-          </div>
-          <button onClick={handleRefresh}
-            disabled={loading}
-            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-outline-variant/40 bg-white/70 backdrop-blur-sm hover:bg-white transition-all text-on-surface-variant hover:text-primary shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            title="รีเฟรช">
-            <span className={`material-symbols-outlined text-base sm:text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
+    <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {isUserDashboard && (
+        <div className="grid grid-cols-2 gap-2 sm:max-w-md">
+          <button
+            type="button"
+            onClick={() => setIsCreateFlowOpen(true)}
+            className="flex items-center gap-2.5 rounded-xl border border-outline-variant/25 bg-white p-3 text-left shadow-sm active:scale-[0.99]"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600">
+              <span className="material-symbols-outlined text-xl">add_box</span>
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-black text-primary">สร้างพัสดุ</span>
+              <span className="block truncate text-[11px] font-semibold text-on-surface-variant/55">เปิดฟอร์ม</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsTrackFlowOpen(true)}
+            className="flex items-center gap-2.5 rounded-xl border border-outline-variant/25 bg-white p-3 text-left shadow-sm active:scale-[0.99]"
+          >
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600">
+              <span className="material-symbols-outlined text-xl">qr_code_scanner</span>
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-black text-primary">ค้นหาพัสดุ</span>
+              <span className="block truncate text-[11px] font-semibold text-on-surface-variant/55">ติดตามสถานะ</span>
+            </span>
           </button>
         </div>
-        </div>
-      </div>
+      )}
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 gap-2 sm:hidden">
@@ -321,18 +403,18 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
             type="button"
             onClick={() => setStatusFilter(s.filter)}
             aria-pressed={statusFilter === s.filter}
-            className={`rounded-2xl border bg-white/90 p-3 text-left shadow-sm transition-all active:scale-[0.99] ${
+            className={`rounded-xl border bg-white/90 p-2.5 text-left shadow-sm transition-all active:scale-[0.99] ${
               statusFilter === s.filter
                 ? 'border-primary/45 ring-2 ring-primary/10'
                 : 'border-outline-variant/25'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${s.iconBg}`}>
-                <span className={`material-symbols-outlined text-xl ${s.iconText}`}>{s.icon}</span>
+            <div className="flex items-center gap-2.5">
+              <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${s.iconBg}`}>
+                <span className={`material-symbols-outlined text-lg ${s.iconText}`}>{s.icon}</span>
               </div>
               <div className="min-w-0">
-                <p className="text-2xl font-black leading-none text-primary">{summary?.[s.key] ?? 0}</p>
+                <p className="text-xl font-black leading-none text-primary">{summary?.[s.key] ?? 0}</p>
                 <p className="mt-0.5 truncate text-xs font-medium text-primary">{s.label}</p>
               </div>
             </div>
@@ -350,8 +432,8 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
       </div>
 
       {/* ── Filters ── */}
-      <div className="bg-white/85 backdrop-blur-sm border border-outline-variant/35 rounded-2xl p-3 sm:p-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="bg-white/85 backdrop-blur-sm border border-outline-variant/30 rounded-xl p-2.5 sm:rounded-2xl sm:p-4 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-0">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-base">search</span>
@@ -359,18 +441,32 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="ค้นหาหมายเลขติดตาม, ผู้ส่ง หรือ ผู้รับ..."
-              className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl pl-9 pr-4 py-2.5 sm:py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-display transition-all"
+              className="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-xl pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-display transition-all"
             />
+          </div>
+          <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+            <div className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/35 bg-white px-2 text-[11px] font-medium text-on-surface-variant">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-mono font-bold text-primary">{refreshCountdown}s</span>
+            </div>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-outline-variant/35 bg-white text-on-surface-variant shadow-sm transition-all hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              title="รีเฟรช"
+            >
+              <span className={`material-symbols-outlined text-lg ${loading ? 'animate-spin' : ''}`}>refresh</span>
+            </button>
           </div>
         </div>
       </div>
 
       {/* ── Table ── */}
-      <div className="bg-white/90 backdrop-blur-sm border border-outline-variant/40 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white/90 backdrop-blur-sm border border-outline-variant/35 rounded-xl sm:rounded-2xl overflow-hidden shadow-sm">
         {/* Table header bar */}
-        <div className="px-5 py-3 border-b border-outline-variant/10 flex justify-between items-center">
+        <div className="px-3 py-2.5 sm:px-5 sm:py-3 border-b border-outline-variant/10 flex justify-between items-center">
           <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>table_rows</span>
+            <span className="material-symbols-outlined text-primary text-base sm:text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>table_rows</span>
             <h2 className="font-display font-bold text-primary text-sm">รายการพัสดุ</h2>
             <span className="px-2 py-0.5 bg-primary/8 text-primary text-[11px] font-bold rounded-full">
               {filteredParcels.length}
@@ -379,7 +475,7 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
           </div>
           {hasFilters && (
             <button onClick={clearFilters}
-              className="flex items-center gap-1 text-xs text-error/80 hover:text-error font-semibold transition-colors">
+              className="flex items-center gap-1 text-[11px] sm:text-xs text-error/80 hover:text-error font-semibold transition-colors">
               <span className="material-symbols-outlined text-sm">filter_alt_off</span>
               ล้างตัวกรอง
             </button>
@@ -404,12 +500,14 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
             </div>
           ) : (
             <>
-            <div className="space-y-3 p-3 sm:hidden">
+            <div className="space-y-2 p-2 sm:hidden">
               {paginatedParcels.map((parcel) => (
                 <MobileParcelCard
                   key={parcel.TrackingID}
                   parcel={parcel}
                   onOpen={() => { setSelectedParcel(parcel); setIsTimelineOpen(true); }}
+                  canConfirm={canConfirmParcel && parcel['สถานะ'] !== 'ส่งถึงแล้ว'}
+                  onConfirm={() => openConfirmFlow(parcel.TrackingID)}
                 />
               ))}
             </div>
@@ -463,10 +561,23 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
                       <StatusBadge status={parcel['สถานะ']} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button className="inline-flex items-center gap-1 text-xs font-bold text-primary/60 group-hover:text-primary transition-colors">
-                        ดูรายละเอียด
-                        <span className="material-symbols-outlined text-sm group-hover:translate-x-0.5 transition-transform">chevron_right</span>
-                      </button>
+                      {canConfirmParcel && parcel['สถานะ'] !== 'ส่งถึงแล้ว' ? (
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openConfirmFlow(parcel.TrackingID);
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-sm">add_a_photo</span>
+                          บันทึกหลักฐาน
+                        </button>
+                      ) : (
+                        <button className="inline-flex items-center gap-1 text-xs font-bold text-primary/60 group-hover:text-primary transition-colors">
+                          ดูรายละเอียด
+                          <span className="material-symbols-outlined text-sm group-hover:translate-x-0.5 transition-transform">chevron_right</span>
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -586,9 +697,113 @@ export default function Dashboard({ isConfigured, onConfirmParcel }: DashboardPr
         selectedParcel={selectedParcel}
         selectedTimelineEvents={selectedTimelineEvents}
         hasKnownBranches={selectedParcelHasKnownBranches}
-        onConfirmParcel={onConfirmParcel}
+        onConfirmParcel={openConfirmFlow}
         onDeleteParcel={handleDelete}
       />
+
+      {/* ── Confirm / Photo Capture Dialog ── */}
+      <Dialog
+        open={isConfirmFlowOpen}
+        onOpenChange={(open) => {
+          setIsConfirmFlowOpen(open);
+          if (!open) {
+            setConfirmTrackingId(null);
+            setIsConfirmPreparingCamera(false);
+          }
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[92vh] w-[calc(100vw-1rem)] max-w-2xl overflow-hidden rounded-3xl border-none bg-transparent p-0 shadow-none"
+        >
+          <div className="relative max-h-[92vh] overflow-y-auto p-3 sm:p-5">
+            {!isConfirmPreparingCamera && (
+              <button
+                type="button"
+                onClick={() => setIsConfirmFlowOpen(false)}
+                className="absolute right-6 top-6 z-20 grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95"
+                aria-label="ปิดหน้าบันทึกการจัดส่ง"
+              >
+                <span className="material-symbols-outlined text-2xl">close</span>
+              </button>
+            )}
+            <ConfirmReceipt
+              key={confirmTrackingId ?? 'confirm-flow'}
+              initialTrackingId={confirmTrackingId}
+              onInitialTrackingIdConsumed={() => undefined}
+              autoCheckInitial
+              autoOpenCamera
+              embedded
+              onPreparingCameraChange={setIsConfirmPreparingCamera}
+              onComplete={() => {
+                setIsConfirmFlowOpen(false);
+                setConfirmTrackingId(null);
+                setIsConfirmPreparingCamera(false);
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── User Quick Create Dialog ── */}
+      <Dialog open={isCreateFlowOpen} onOpenChange={setIsCreateFlowOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[92vh] w-[calc(100vw-1rem)] max-w-3xl overflow-hidden rounded-3xl border-none bg-background p-0 shadow-2xl"
+        >
+          <DialogHeader className="shrink-0 border-b border-outline-variant/20 bg-primary px-5 py-4 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-secondary-container">
+                  <span className="material-symbols-outlined text-xl">add_box</span>
+                </span>
+                <DialogTitle className="font-display text-lg font-black text-white">สร้างพัสดุ</DialogTitle>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreateFlowOpen(false)}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-white transition-colors hover:bg-white/20"
+                aria-label="ปิดหน้าสร้างพัสดุ"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+          </DialogHeader>
+          <div className="max-h-[calc(92vh-76px)] overflow-y-auto p-3 sm:p-5">
+            <CreateParcel embedded />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── User Quick Track Dialog ── */}
+      <Dialog open={isTrackFlowOpen} onOpenChange={setIsTrackFlowOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[92vh] w-[calc(100vw-1rem)] max-w-3xl overflow-hidden rounded-3xl border-none bg-background p-0 shadow-2xl"
+        >
+          <DialogHeader className="shrink-0 border-b border-outline-variant/20 bg-primary px-5 py-4 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-secondary-container">
+                  <span className="material-symbols-outlined text-xl">qr_code_scanner</span>
+                </span>
+                <DialogTitle className="font-display text-lg font-black text-white">ค้นหาพัสดุ</DialogTitle>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTrackFlowOpen(false)}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-white transition-colors hover:bg-white/20"
+                aria-label="ปิดหน้าค้นหาพัสดุ"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+          </DialogHeader>
+          <div className="max-h-[calc(92vh-76px)] overflow-y-auto p-3 sm:p-5">
+            <Track embedded />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Delete Confirm Dialog ── */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>

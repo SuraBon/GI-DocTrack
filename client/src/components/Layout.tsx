@@ -3,13 +3,13 @@ import { useParcelStore } from '@/hooks/useParcelStore';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Parcel } from '@/types/parcel';
 import { formatThaiDateTime, getDateTime } from '@/lib/dateUtils';
-import { normalizeRole, ROLE_LABELS, type AppRole } from '@/lib/roles';
+import { normalizeRole, type AppRole } from '@/lib/roles';
 import { getBranches } from '@/lib/parcelService';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import NativeSelect, { resolveSelectValue } from '@/components/NativeSelect';
 
-type PageId = "dashboard" | "create" | "confirm" | "track" | "users";
+type PageId = "dashboard" | "create" | "track" | "users";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,7 +20,6 @@ interface LayoutProps {
 const pagePaths: Record<PageId, string> = {
   dashboard: "/dashboard",
   create: "/create",
-  confirm: "/confirm",
   track: "/track",
   users: "/users",
 };
@@ -37,7 +36,6 @@ type NavItem = {
 const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }) => {
   const { parcels } = useParcelStore();
   const { user, logout, updateUserProfile } = useAuth();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', branch: '', currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -109,11 +107,22 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   };
 
   const currentRole = normalizeRole(user?.role ?? 'GUEST');
+  const dashboardLabel =
+    currentRole === 'USER'
+      ? 'พัสดุของฉัน'
+      : currentRole === 'MESSENGER'
+        ? 'งานจัดส่ง'
+        : 'ภาพรวมพัสดุ';
+  const dashboardIcon =
+    currentRole === 'MESSENGER'
+      ? 'local_shipping'
+      : currentRole === 'USER'
+        ? 'inventory_2'
+        : 'analytics';
   const allNavItems: NavItem[] = [
-    { id: "dashboard", label: currentRole === 'USER' ? "พัสดุของฉัน" : "ภาพรวมระบบ", icon: "dashboard", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER'], accent: "from-sky-400 to-blue-500" },
-    { id: "create",    label: "สร้างรายการใหม่", icon: "add_box", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER'], accent: "from-amber-300 to-orange-500" },
-    { id: "confirm",   label: "ยืนยันรับพัสดุ", icon: "photo_camera", badge: null, roles: ['ADMIN', 'MESSENGER'], accent: "from-emerald-300 to-teal-500" },
-    { id: "track",     label: "ติดตามสถานะ", icon: "location_searching", badge: null, roles: ['ADMIN', 'MESSENGER', 'USER', 'GUEST'], accent: "from-violet-300 to-indigo-500" },
+    { id: "dashboard", label: dashboardLabel, icon: dashboardIcon, badge: null, roles: ['ADMIN', 'MESSENGER', 'USER'], accent: "from-sky-400 to-blue-500" },
+    { id: "create",    label: "สร้างพัสดุ", icon: "add_box", badge: null, roles: ['ADMIN'], accent: "from-amber-300 to-orange-500" },
+    { id: "track",     label: "ค้นหาพัสดุ", icon: "qr_code_scanner", badge: null, roles: ['ADMIN', 'GUEST'], accent: "from-violet-300 to-indigo-500" },
     { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['ADMIN'], accent: "from-rose-300 to-red-500" },
   ];
   const navItems = allNavItems.filter(item => item.roles.includes(currentRole));
@@ -121,7 +130,6 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   const handleNav = (event: React.MouseEvent<HTMLAnchorElement>, id: PageId) => {
     event.preventDefault();
     setCurrentPage(id);
-    if (window.innerWidth < 1024) setIsSidebarOpen(false);
   };
 
   const openProfile = () => {
@@ -157,148 +165,11 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
 
   return (
     <div className="min-h-screen font-body text-on-background">
-      {/* ── Sidebar ── */}
-      <aside
-        className={`
-          h-screen fixed left-0 top-0 z-50
-          flex flex-col
-          transition-all duration-300 ease-in-out
-          ${isSidebarOpen ? 'w-72 px-4 translate-x-0' : 'w-[76px] px-3 -translate-x-full lg:translate-x-0'}
-        `}
-        style={{
-          background: 'linear-gradient(180deg, #10213c 0%, #091426 58%, #071120 100%)',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '6px 0 22px rgba(5,12,24,0.22)',
-        }}
-      >
-        {/* Logo — only when expanded */}
-        {isSidebarOpen && (
-          <div className="flex items-center gap-3 px-0 pt-3 pb-4 mb-1">
-            <div className="flex flex-col min-w-0">
-              <span className="text-white font-black text-lg font-display leading-none">DocTrack</span>
-              <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider mt-0.5">ระบบจัดการพัสดุ</span>
-            </div>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="hidden lg:flex ml-auto p-1.5 text-white/30 hover:text-white hover:bg-white/10 rounded-lg transition-all shrink-0"
-            >
-              <span className="material-symbols-outlined text-lg">chevron_left</span>
-            </button>
-          </div>
-        )}
-
-        {/* Divider — only when expanded */}
-        {isSidebarOpen && <div className="h-px bg-white/8 mx-2 mb-4" />}
-
-        {/* Nav */}
-        <nav className="relative flex-1 space-y-2 pt-2">
-          {/* Expand button — top of nav when collapsed */}
-          {!isSidebarOpen && (
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="hidden lg:flex justify-center items-center mx-auto h-11 w-11 rounded-xl text-white/30 hover:text-white hover:bg-white/10 transition-all mb-2"
-              title="ขยาย sidebar"
-            >
-              <span className="material-symbols-outlined text-lg">chevron_right</span>
-            </button>
-          )}
-
-          {navItems.map((item) => {
-            const active = currentPage === item.id;
-            return (
-              <a
-                key={item.id}
-                href={pagePaths[item.id]}
-                onClick={(event) => handleNav(event, item.id)}
-                title={isSidebarOpen ? undefined : item.label}
-                aria-current={active ? "page" : undefined}
-                className={`
-                  flex items-center
-                  ${isSidebarOpen ? 'gap-3 px-3 rounded-xl' : 'justify-center rounded-xl mx-auto h-11 w-11'}
-                  ${isSidebarOpen ? 'py-3' : 'py-0'} font-display text-sm font-semibold cursor-pointer
-                  transition-all duration-200 relative group
-                  ${active
-                    ? 'text-white'
-                    : 'text-white/48 hover:text-white/80 hover:bg-white/5'
-                  }
-                `}
-                style={active ? {
-                  background: isSidebarOpen ? 'rgba(255,255,255,0.11)' : 'rgba(254,166,25,0.13)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
-                } : {}}
-              >
-                {active && (
-                  <span className={`absolute ${isSidebarOpen ? 'left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full' : '-left-3 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full'} bg-secondary-container`} />
-                )}
-                <span
-                  className={`material-symbols-outlined shrink-0 text-[23px] transition-all ${active ? 'text-secondary-container' : 'text-white/48 group-hover:text-white/80'}`}
-                  style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}
-                >
-                  {item.icon}
-                </span>
-                {isSidebarOpen && <span className="truncate pl-1">{item.label}</span>}
-              </a>
-            );
-          })}
-        </nav>
-
-        {/* Footer */}
-        <div className="relative mt-auto pt-4 border-t border-white/8 space-y-2 pb-3">
-          {user ? (
-            <>
-              <button
-                onClick={openProfile}
-                title={isSidebarOpen ? 'แก้ไขโปรไฟล์' : user.name}
-                className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 rounded-xl bg-white/[0.07] ring-1 ring-white/8 hover:bg-white/[0.12] transition-colors text-left`}
-              >
-                <div className="w-9 h-9 rounded-xl bg-white/10 ring-1 ring-white/10 flex items-center justify-center shrink-0 text-white font-black text-xs uppercase">
-                  {user.name.charAt(0)}
-                </div>
-                {isSidebarOpen && (
-                  <div className="flex flex-col min-w-0 overflow-hidden flex-1">
-                    <span className="text-white text-xs font-bold truncate">{user.name}</span>
-                    <span className="text-white/40 text-[10px] truncate">{ROLE_LABELS[currentRole]} • {user.branch}</span>
-                  </div>
-                )}
-                {isSidebarOpen && (
-                  <span className="material-symbols-outlined text-white/30 text-base shrink-0">edit</span>
-                )}
-              </button>
-              <button
-                onClick={logout}
-                className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 text-red-300 hover:text-white hover:bg-red-500/15 font-display text-sm font-semibold cursor-pointer rounded-xl transition-all`}
-                title={isSidebarOpen ? undefined : "ออกจากระบบ"}
-              >
-                <span className="material-symbols-outlined text-xl">logout</span>
-                {isSidebarOpen && "ออกจากระบบ"}
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => window.location.reload()}
-              className={`w-full flex items-center ${isSidebarOpen ? 'gap-3 px-3' : 'justify-center'} py-2.5 text-primary hover:text-primary hover:bg-primary/10 font-display text-sm font-semibold cursor-pointer rounded-xl transition-all`}
-              title={isSidebarOpen ? undefined : "เข้าสู่ระบบพนักงาน"}
-            >
-              <span className="material-symbols-outlined text-xl">login</span>
-              {isSidebarOpen && "เข้าสู่ระบบพนักงาน"}
-            </button>
-          )}
-        </div>
-      </aside>
-
-      {/* Mobile overlay */}
-      {isSidebarOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
       {/* ── Main content ── */}
-      <div className={`flex flex-col min-h-screen transition-all duration-300 ${isSidebarOpen ? 'lg:ml-72' : 'lg:ml-[76px]'}`}>
+      <div className="flex min-h-screen flex-col">
         {/* Top bar */}
         <header
-          className="sticky top-0 z-40 flex justify-between items-center px-4 lg:px-6 h-14"
+          className="sticky top-0 z-40"
           style={{
             background: 'rgba(248,249,255,0.85)',
             backdropFilter: 'blur(16px)',
@@ -307,80 +178,131 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
             boxShadow: '0 1px 12px rgba(9,20,38,0.06)',
           }}
         >
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2 min-w-[40px] min-h-[40px] text-on-surface-variant hover:bg-surface-container transition-colors rounded-xl"
-            >
-              <span className="material-symbols-outlined text-xl">
-                {isSidebarOpen ? 'close' : 'menu'}
-              </span>
-            </button>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-on-surface-variant/40 font-medium hidden sm:block">DocTrack</span>
-              <span className="text-on-surface-variant/30 hidden sm:block">/</span>
-              <span className="font-semibold text-primary capitalize">
+          <div className="flex h-14 items-center justify-between gap-3 px-4 lg:px-8">
+            <div className="min-w-0">
+              <p className="hidden text-[10px] font-black uppercase tracking-[0.18em] text-on-surface-variant/35 sm:block">DocTrack</p>
+              <h1 className="truncate font-display text-base font-black leading-tight text-primary">
                 {navItems.find(n => n.id === currentPage)?.label ?? currentPage}
-              </span>
+              </h1>
             </div>
-          </div>
 
-          <div className="flex items-center gap-1.5">
-            <div className="relative" ref={notifRef}>
-              <button
-                onClick={handleBellClick}
-                className="relative p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-xl"
-              >
-                <span className="material-symbols-outlined text-xl">notifications</span>
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-0.5 bg-error rounded-full border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={handleBellClick}
+                  className="relative p-2 text-on-surface-variant hover:bg-surface-container transition-colors rounded-xl"
+                >
+                  <span className="material-symbols-outlined text-xl">notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-0.5 bg-error rounded-full border-2 border-white flex items-center justify-center text-[9px] font-black text-white leading-none">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
 
-              {isNotifOpen && (
-                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 bg-white rounded-2xl shadow-2xl border border-outline-variant/20 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-base text-primary">notifications_active</span>
-                      <span className="font-display font-bold text-sm text-primary">อัพเดทล่าสุด</span>
-                    </div>
-                    <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">{recentParcels.length} รายการ</span>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-outline-variant/8">
-                    {recentParcels.length === 0 ? (
-                      <div className="py-8 text-center text-sm text-on-surface-variant/50">
-                        <span className="material-symbols-outlined text-3xl block mb-2 opacity-30">inbox</span>
-                        ยังไม่มีรายการ
+                {isNotifOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-80 bg-white rounded-2xl shadow-2xl border border-outline-variant/20 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="px-4 py-3 border-b border-outline-variant/10 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base text-primary">notifications_active</span>
+                        <span className="font-display font-bold text-sm text-primary">อัพเดทล่าสุด</span>
                       </div>
-                    ) : recentParcels.map(p => (
-                      <div key={p.TrackingID} className="px-4 py-3 hover:bg-surface-container-lowest transition-colors cursor-default">
-                        <div className="flex items-start gap-3">
-                          <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${getStatusColor(p['สถานะ'])}`} />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <code className="min-w-0 break-all text-xs font-mono font-black text-primary">{p.TrackingID}</code>
-                              <span className="text-[10px] text-on-surface-variant/40 shrink-0">{p['สถานะ']}</span>
+                      <span className="text-[10px] text-on-surface-variant/50 font-bold uppercase tracking-wider">{recentParcels.length} รายการ</span>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto divide-y divide-outline-variant/8">
+                      {recentParcels.length === 0 ? (
+                        <div className="py-8 text-center text-sm text-on-surface-variant/50">
+                          <span className="material-symbols-outlined text-3xl block mb-2 opacity-30">inbox</span>
+                          ยังไม่มีรายการ
+                        </div>
+                      ) : recentParcels.map(p => (
+                        <div key={p.TrackingID} className="px-4 py-3 hover:bg-surface-container-lowest transition-colors cursor-default">
+                          <div className="flex items-start gap-3">
+                            <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${getStatusColor(p['สถานะ'])}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <code className="min-w-0 break-all text-xs font-mono font-black text-primary">{p.TrackingID}</code>
+                                <span className="text-[10px] text-on-surface-variant/40 shrink-0">{p['สถานะ']}</span>
+                              </div>
+                              <p className="text-xs text-on-surface-variant mt-0.5 truncate">
+                                {p['ผู้ส่ง']} → {p['ผู้รับ']}
+                              </p>
+                              <p className="text-[10px] text-on-surface-variant/40 mt-0.5">
+                                {formatThaiDateTime(p['วันที่รับ'] || p['วันที่สร้าง'])}
+                              </p>
                             </div>
-                            <p className="text-xs text-on-surface-variant mt-0.5 truncate">
-                              {p['ผู้ส่ง']} → {p['ผู้รับ']}
-                            </p>
-                            <p className="text-[10px] text-on-surface-variant/40 mt-0.5">
-                              {formatThaiDateTime(p['วันที่รับ'] || p['วันที่สร้าง'])}
-                            </p>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+              </div>
+              {user ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={openProfile}
+                    className="grid h-10 w-10 place-items-center rounded-2xl bg-primary text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
+                    title="โปรไฟล์"
+                    aria-label="โปรไฟล์"
+                  >
+                    <span className="text-sm font-black uppercase">{user.name.charAt(0)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="grid h-10 w-10 place-items-center rounded-2xl border border-red-200 bg-red-50 text-red-500 transition-all hover:bg-red-500 hover:text-white active:scale-95"
+                    title="ออกจากระบบ"
+                    aria-label="ออกจากระบบ"
+                  >
+                    <span className="material-symbols-outlined text-xl">logout</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary transition-all hover:bg-primary hover:text-white active:scale-95"
+                  title="เข้าสู่ระบบพนักงาน"
+                  aria-label="เข้าสู่ระบบพนักงาน"
+                >
+                  <span className="material-symbols-outlined text-xl">login</span>
+                </button>
               )}
             </div>
           </div>
+          {navItems.length > 1 && (
+            <nav className="flex gap-2 overflow-x-auto px-4 pb-3 lg:px-8">
+              {navItems.map((item) => {
+                const active = currentPage === item.id;
+                return (
+                  <a
+                    key={item.id}
+                    href={pagePaths[item.id]}
+                    onClick={(event) => handleNav(event, item.id)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border px-3 font-display text-xs font-black transition-all ${
+                      active
+                        ? 'border-primary bg-primary text-white shadow-sm'
+                        : 'border-outline-variant/30 bg-white/80 text-on-surface-variant hover:border-primary/30 hover:text-primary'
+                    }`}
+                  >
+                    <span
+                      className="material-symbols-outlined text-lg"
+                      style={{ fontVariationSettings: active ? "'FILL' 1" : "'FILL' 0" }}
+                    >
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </a>
+                );
+              })}
+            </nav>
+          )}
         </header>
 
-        <main className="px-4 sm:px-6 lg:px-8 pt-6 pb-10 flex-1 max-w-7xl mx-auto w-full">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-10 pt-5 sm:px-6 lg:px-8">
           {children}
         </main>
       </div>
@@ -388,7 +310,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
       {/* ── Edit Profile Dialog ── */}
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-3xl border-none bg-white p-0 shadow-2xl">
-          <DialogHeader className="border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5 rounded-t-3xl">
+          <DialogHeader className="relative border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5 rounded-t-3xl">
             <div className="flex items-center gap-3 pr-8">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>manage_accounts</span>

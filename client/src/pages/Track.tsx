@@ -14,7 +14,7 @@ import TrackingMap from '@/components/TrackingMap';
 import { formatThaiDateTime } from '@/lib/dateUtils';
 import { isValidTrackingId, sanitizeTextInput } from '@/lib/validation';
 
-export default function Track() {
+export default function Track({ embedded = false }: { embedded?: boolean }) {
   const [trackingId, setTrackingId] = useState('');
   const [parcel, setParcel] = useState<Parcel | null>(null);
   const [searchResults, setSearchResults] = useState<Parcel[]>([]);
@@ -104,10 +104,10 @@ export default function Track() {
   }, [parcel, timelineEvents]);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className={`${embedded ? 'max-w-none pb-4' : 'max-w-6xl mx-auto pb-20'} space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500`}>
 
       {/* Header */}
-      <section className="rounded-2xl border border-outline-variant/25 bg-white/90 px-5 py-5 shadow-sm backdrop-blur-xl sm:px-6">
+      <section className={`${embedded ? 'hidden' : 'rounded-2xl border border-outline-variant/25 bg-white/90 px-5 py-5 shadow-sm backdrop-blur-xl sm:px-6'}`}>
         <div className="flex items-start gap-4">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-sm">
             <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_searching</span>
