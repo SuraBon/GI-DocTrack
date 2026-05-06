@@ -329,7 +329,6 @@ export default function ConfirmReceipt({
       let eventDestLocation: string | undefined;
       let eventPerson: string | undefined;
 
-      const finalForwardFromBranch = resolveSelectValue(forwardFromBranch);
       const finalForwardToBranch = resolveSelectValue(forwardToBranch);
       const safeNote = sanitizeTextInput(note, 2000);
       const safeForwardSender = sanitizeTextInput(forwardSender, 200);
@@ -337,7 +336,8 @@ export default function ConfirmReceipt({
 
       if (isForwarding && finalForwardToBranch) {
         eventType = 'FORWARD';
-        eventLocation = sanitizeTextInput(finalForwardFromBranch, 100);
+        // Use the last known branch from the parcel (auto-detected, not user-selected)
+        eventLocation = sanitizeTextInput(resolveSelectValue(forwardFromBranch), 100);
         eventDestLocation = sanitizeTextInput(finalForwardToBranch, 100);
         eventPerson = safeForwardSender;
       } else if (isProxy && safeProxyName) {
@@ -355,7 +355,6 @@ export default function ConfirmReceipt({
         !eventType ? 'กรุณาเลือกวิธีบันทึกการจัดส่ง' :
         isForwarding ? (
           validateRequiredText(eventPerson, 'ชื่อผู้ส่งต่อ', 1, 200) ||
-          validateRequiredText(eventLocation, 'สาขาต้นทาง', 1, 100) ||
           validateRequiredText(eventDestLocation, 'สาขาปลายทาง', 1, 100)
         ) :
         isProxy ? validateRequiredText(eventPerson, 'ชื่อผู้รับแทน', 1, 200) :
@@ -634,7 +633,7 @@ export default function ConfirmReceipt({
             <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
             </div>
-            <h2 className="font-display text-lg font-black text-primary">ข้อมูลเพิ่มเติม</h2>
+            <h2 className="font-display text-lg font-black text-primary">ตรวจสอบและยืนยันก่อนส่งพัสดุ</h2>
             <p className="mt-0.5 text-xs font-semibold text-on-surface-variant/60">ระบุรายละเอียดก่อนบันทึกการจัดส่ง</p>
           </div>
           <div className="space-y-4 p-4 sm:p-5">
@@ -665,7 +664,7 @@ export default function ConfirmReceipt({
                       </div>
                       <div className="min-w-0">
                         <p className="font-display text-sm font-black text-primary">ส่งต่อพัสดุ</p>
-                        <p className="text-[11px] leading-tight text-on-surface-variant/60">ส่งต่อให้พนักงานคนอื่นหรือรถเที่ยวถัดไป</p>
+                        <p className="text-[11px] leading-tight text-on-surface-variant/60">ส่งต่อให้พนักงานหรือสาขาอื่น</p>
                       </div>
                     </div>
                     <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${isForwarding ? 'border-secondary bg-secondary' : 'border-outline-variant group-hover:border-primary'}`}>
@@ -683,29 +682,16 @@ export default function ConfirmReceipt({
                           className="w-full rounded-2xl border border-outline-variant bg-white py-2.5 pl-10 pr-4 font-display text-sm outline-none focus:ring-1 focus:ring-secondary"
                         />
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <NativeSelect
-                            value={forwardFromBranch}
-                            onChange={setForwardFromBranch}
-                            options={branches}
-                            placeholder="จากสาขา"
-                            icon="flight_takeoff"
-                            otherLabel="อื่นๆ"
-                            otherPlaceholder="ระบุชื่อสาขาต้นทาง"
-                          />
-                        </div>
-                        <div>
-                          <NativeSelect
-                            value={forwardToBranch}
-                            onChange={setForwardToBranch}
-                            options={branches}
-                            placeholder="ไปสาขา"
-                            icon="flight_land"
-                            otherLabel="อื่นๆ"
-                            otherPlaceholder="ระบุชื่อสาขาปลายทาง"
-                          />
-                        </div>
+                      <div>
+                        <NativeSelect
+                          value={forwardToBranch}
+                          onChange={setForwardToBranch}
+                          options={branches}
+                          placeholder="ไปที่"
+                          icon="flight_land"
+                          otherLabel="อื่นๆ"
+                          otherPlaceholder="ระบุชื่อสาขาปลายทาง"
+                        />
                       </div>
                     </div>
                   )}
@@ -767,7 +753,6 @@ export default function ConfirmReceipt({
                   || (isForwarding && (
                     !forwardSender.trim()
                     || !resolveSelectValue(forwardToBranch)
-                    || !resolveSelectValue(forwardFromBranch)
                   ))
                   || (isProxy && !proxyName.trim())}
                 className="group flex h-13 min-w-0 items-center justify-center gap-2 rounded-2xl bg-primary px-3 font-display text-sm font-black text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] hover:bg-primary/95 active:scale-[0.98] disabled:scale-100 disabled:bg-on-surface-variant/30 disabled:shadow-none sm:text-base"

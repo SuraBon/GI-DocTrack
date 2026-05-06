@@ -17,6 +17,22 @@ import type {
 import { applyDerivedStatus, applyDerivedStatuses } from './parcelStatus';
 import { normalizeRole, type AppRole } from './roles';
 
+// ── Status normalizer ────────────────────────────────────────────────────────
+// Backend still stores old Thai status strings. Map them to the new display values.
+const STATUS_MAP: Record<string, string> = {
+  'ส่งถึงแล้ว': 'ส่งสำเร็จ',
+};
+
+function normalizeParcelStatus(parcel: Parcel): Parcel {
+  const raw = parcel['สถานะ'] as string;
+  const mapped = STATUS_MAP[raw];
+  return mapped ? { ...parcel, 'สถานะ': mapped as Parcel['สถานะ'] } : parcel;
+}
+
+function normalizeParcels(parcels: Parcel[]): Parcel[] {
+  return parcels.map(normalizeParcelStatus);
+}
+
 const GAS_URL     = import.meta.env.VITE_GAS_URL     as string | undefined ?? '';
 const GAS_API_KEY = import.meta.env.VITE_GAS_API_KEY as string | undefined ?? '';
 const API_TIMEOUT_MS = 25_000;
@@ -203,12 +219,19 @@ export async function createParcel(
 }
 
 export async function getParcels(status: string = 'ทั้งหมด', limit: number = 50, offset: number = 0): Promise<GetParcelsResponse> {
-  const payload = { action: 'getParcels', status, limit, offset };
+  // Map frontend display status back to backend storage values for filtering
+  const REVERSE_STATUS_MAP: Record<string, string> = {
+    'ส่งสำเร็จ': 'ส่งถึงแล้ว',
+  };
+  const backendStatus = REVERSE_STATUS_MAP[status] ?? status;
+  const payload = { action: 'getParcels', status: backendStatus, limit, offset };
   try {
     const res = await callAPI<GetParcelsResponse>(payload);
     if (res.success && Array.isArray(res.parcels)) {
-      // Apply derived statuses (forward → in-transit) — backend doesn't know about this
-      const parcels = applyDerivedStatuses(res.parcels);
+      // 1. Normalize backend status strings to new display values
+      let parcels = normalizeParcels(res.parcels);
+      // 2. Apply derived statuses (forward → in-transit) — backend doesn't know about this
+      parcels = applyDerivedStatuses(parcels);
       return { ...res, parcels };
     }
     return { success: false, parcels: [], error: res.error };
@@ -223,7 +246,7 @@ export async function getParcel(trackingID: string): Promise<GetParcelResponse> 
   try {
     const res = await callAPI<GetParcelResponse>(payload, { includeAuth: true, dispatchAuthError: true });
     if (res.success && res.parcel) {
-      return { success: true, parcel: applyDerivedStatus(res.parcel) };
+      return { success: true, parcel: applyDerivedStatus(normalizeParcelStatus(res.parcel)) };
     }
     return { success: false, error: res.error };
   } catch (err) {
@@ -263,7 +286,7 @@ export async function searchParcels(query: string): Promise<Parcel[]> {
       query: trimmed,
     }, { includeAuth: true, dispatchAuthError: true });
     if (res.success && Array.isArray(res.parcels)) {
-      return applyDerivedStatuses(res.parcels);
+      return applyDerivedStatuses(normalizeParcels(res.parcels));
     }
     return [];
   } catch {

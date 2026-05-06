@@ -23,7 +23,7 @@ export default function Timeline({ events, className = '', compact = false }: Ti
     ? { icon: 'task_alt', color: 'bg-emerald-600', shadow: 'shadow-emerald-200', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', text: 'ส่งสำเร็จ', sub: 'พัสดุถูกจัดส่งถึงสถานที่รับเรียบร้อยแล้ว', badgeText: 'ส่งสำเร็จ' }
     : isTransit
       ? { icon: 'local_shipping', color: 'bg-blue-600', shadow: 'shadow-blue-200', badge: 'bg-blue-100 text-blue-800 border-blue-200', text: 'กำลังจัดส่ง', sub: 'พัสดุอยู่ระหว่างการจัดส่งไปยังสถานที่รับ', badgeText: 'กำลังจัดส่ง' }
-      : { icon: 'pending_actions', color: 'bg-amber-500', shadow: 'shadow-amber-200', badge: 'bg-amber-100 text-amber-800 border-amber-200', text: 'รอสถานะจัดส่ง', sub: 'พัสดุถูกบันทึกเข้าระบบและรอดำเนินการจัดส่ง', badgeText: 'รอสถานะจัดส่ง' };
+      : { icon: 'pending_actions', color: 'bg-amber-500', shadow: 'shadow-amber-200', badge: 'bg-amber-100 text-amber-800 border-amber-200', text: 'รอจัดส่ง', sub: 'พัสดุถูกบันทึกเข้าระบบและรอดำเนินการจัดส่ง', badgeText: 'รอจัดส่ง' };
 
   const getStatusIcon = (status: TimelineEvent['status'], title: string) => {
     const iconSize = compact ? 'w-7 h-7' : 'w-8 h-8';
@@ -210,7 +210,7 @@ export default function Timeline({ events, className = '', compact = false }: Ti
                         <span className="material-symbols-outlined text-sm">
                           {event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') ? 'local_shipping' : 'auto_awesome'}
                         </span>
-                        {event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') ? 'กำลังจัดส่ง' : 'รอสถานะจัดส่ง'}
+                        {event.title.includes('จัดส่ง') || event.title.includes('เดินทาง') ? 'กำลังจัดส่ง' : 'รอจัดส่ง'}
                       </span>
                     </div>
                   )}

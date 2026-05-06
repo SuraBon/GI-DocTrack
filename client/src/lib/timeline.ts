@@ -25,7 +25,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
           id: String(idCounter++),
           status: 'completed',
           title: 'รับพัสดุเข้าระบบ',
-          description: `ผู้ส่ง: ${evt.person || '-'} → ผู้รับ: ${evt.destLocation || '-'}`,
+          description: `ผู้ส่ง: ${evt.person || parcel['ผู้ส่ง'] || '-'} → ผู้รับ: ${parcel['ผู้รับ'] || evt.destLocation || '-'}`,
           timestamp: evt.timestamp,
           location: evt.location,
           destLocation: evt.destLocation,
@@ -86,7 +86,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     }
 
     // Also support adding a pending state if just created
-    if (parcel['สถานะ'] === 'รอสถานะจัดส่ง' && events.length === 1) {
+    if (parcel['สถานะ'] === 'รอจัดส่ง' && events.length === 1) {
        events[0].status = 'current';
     }
 
@@ -97,7 +97,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
   const note = parcel['หมายเหตุ'] ?? '';
 
   // ── 1. Creation event
-  const isCreationCurrent = parcel['สถานะ'] === 'รอสถานะจัดส่ง';
+  const isCreationCurrent = parcel['สถานะ'] === 'รอจัดส่ง';
   events.push({
     id: String(idCounter++),
     status: isCreationCurrent ? 'current' : 'completed',

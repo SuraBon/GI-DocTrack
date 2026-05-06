@@ -28,7 +28,7 @@ interface DashboardProps { isConfigured: boolean; }
 
 const STATS = [
   { key: 'total',     filter: 'ทั้งหมด',     label: 'ทั้งหมด',  icon: 'inventory_2',     iconBg: 'bg-slate-100',    iconText: 'text-primary' },
-  { key: 'pending',   filter: 'รอสถานะจัดส่ง',    label: 'รอสถานะจัดส่ง', icon: 'pending_actions', iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
+  { key: 'pending',   filter: 'รอจัดส่ง',    label: 'รอจัดส่ง', icon: 'pending_actions', iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
   { key: 'transit',   filter: 'กำลังจัดส่ง', label: 'กำลังจัดส่ง', icon: 'local_shipping', iconBg: 'bg-blue-50',     iconText: 'text-blue-600' },
   { key: 'delivered', filter: 'ส่งสำเร็จ',   label: 'ส่งสำเร็จ', icon: 'task_alt',       iconBg: 'bg-emerald-50',  iconText: 'text-emerald-600' },
 ] as const;
@@ -89,7 +89,7 @@ const TableSkeleton = () => (
 );
 
 const PARCEL_MILESTONES = [
-  { status: 'รอสถานะจัดส่ง', label: 'รอสถานะจัดส่ง', icon: 'pending_actions' },
+  { status: 'รอจัดส่ง', label: 'รอจัดส่ง', icon: 'pending_actions' },
   { status: 'กำลังจัดส่ง', label: 'กำลังจัดส่ง', icon: 'local_shipping' },
   { status: 'ส่งสำเร็จ', label: 'ส่งสำเร็จ', icon: 'task_alt' },
 ] as const;
@@ -113,10 +113,8 @@ const ParcelMilestone = ({ status }: { status: Parcel['สถานะ'] }) => {
             <div key={step.status} className="flex flex-1 items-center last:flex-none">
               <div className="flex min-w-0 flex-col items-center gap-1">
                 <span
-                  className={`grid h-6 w-6 place-items-center rounded-full border text-[13px] transition-colors ${
-                    done
-                      ? 'border-primary bg-primary text-white'
-                      : 'border-outline-variant/40 bg-white text-on-surface-variant/35'
+                  className={`grid h-6 w-6 place-items-center text-[13px] transition-colors ${
+                    done ? 'text-primary' : 'text-on-surface-variant/30'
                   }`}
                 >
                   <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: done ? "'FILL' 1" : "'FILL' 0" }}>
@@ -143,11 +141,13 @@ const MobileParcelCard = ({
   onOpen,
   canConfirm,
   onConfirm,
+  isMessenger = false,
 }: {
   parcel: Parcel;
   onOpen: () => void;
   canConfirm: boolean;
   onConfirm: () => void;
+  isMessenger?: boolean;
 }) => (
   <div className="w-full rounded-xl border border-outline-variant/20 bg-white p-3 text-left shadow-sm transition-all">
     <div className="w-full text-left">
@@ -156,18 +156,24 @@ const MobileParcelCard = ({
           <code className="inline-block max-w-full break-all rounded-md bg-primary/6 px-2 py-0.5 font-mono text-[11px] font-black leading-tight text-primary">
             {parcel.TrackingID}
           </code>
-          <div className="mt-2 flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-sm font-black text-primary">{parcel['ผู้ส่ง']}</span>
-            <span className="material-symbols-outlined shrink-0 text-base text-outline-variant">arrow_forward</span>
-            <span className="truncate text-sm font-black text-primary">{parcel['ผู้รับ']}</span>
-          </div>
-          <div className="mt-1 flex min-w-0 items-center gap-1 text-xs text-on-surface-variant/55">
+          {isMessenger ? (
+            <div className="mt-2 flex min-w-0 items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-on-surface-variant shrink-0">ส่งถึง</span>
+              <span className="truncate text-xs font-black text-primary">{parcel['ผู้รับ']}</span>
+            </div>
+          ) : (
+            <div className="mt-2 flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-xs font-black text-primary">{parcel['ผู้ส่ง']}</span>
+              <span className="material-symbols-outlined shrink-0 text-sm text-outline-variant">arrow_forward</span>
+              <span className="truncate text-xs font-black text-primary">{parcel['ผู้รับ']}</span>
+            </div>
+          )}
+          <div className="mt-1 flex min-w-0 items-center gap-1 text-[11px] font-semibold text-on-surface-variant">
             <span className="truncate">{parcel['สาขาผู้ส่ง']}</span>
             <span className="shrink-0">→</span>
             <span className="truncate">{parcel['สาขาผู้รับ']}</span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant/55">
-            <span className="material-symbols-outlined text-[13px]">event</span>
+          <div className="mt-1 text-[11px] font-semibold text-on-surface-variant">
             <span>{formatThaiDateTime(parcel['วันที่สร้าง'])}</span>
           </div>
         </div>
@@ -192,7 +198,7 @@ const MobileParcelCard = ({
         className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white shadow-sm active:scale-[0.99]"
       >
         <span className="material-symbols-outlined text-base">add_a_photo</span>
-        บันทึกหลักฐาน
+        ยืนยันการรับ
       </button>
     )}
   </div>
@@ -200,7 +206,7 @@ const MobileParcelCard = ({
 
 export default function Dashboard({ isConfigured }: DashboardProps) {
   const { user } = useAuth();
-  const { parcels, summary, loading, loadParcels, hasMore, loadMoreParcels, removeParcelLocally } = useParcelStore();
+  const { parcels, summary, loading, loadParcels, hasMore, loadMoreParcels, totalCount, removeParcelLocally } = useParcelStore();
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState('ทั้งหมด');
@@ -214,7 +220,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   const [isTrackFlowOpen, setIsTrackFlowOpen] = useState(false);
   const [refreshCountdown, setRefreshCountdown] = useState(120);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize] = useState(10);
   const isFetchingRef = useRef(false);
   const role = normalizeRole(user?.role);
   const isUserDashboard = role === 'USER';
@@ -284,14 +290,15 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     return f;
   }, [parcels, statusFilter, debouncedSearch]);
 
-  // Pagination calculations
+  // Pagination calculations — use totalCount from backend for accurate total pages
+  const backendTotalPages = Math.max(1, Math.ceil((totalCount || filteredParcels.length) / pageSize));
   const { totalPages, paginatedParcels, startIndex, endIndex } = useMemo(() => {
-    const total = Math.max(1, Math.ceil(filteredParcels.length / pageSize));
+    const total = backendTotalPages;
     const paginated = filteredParcels.slice((currentPage - 1) * pageSize, currentPage * pageSize);
     const start = filteredParcels.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const end = Math.min(currentPage * pageSize, filteredParcels.length);
     return { totalPages: total, paginatedParcels: paginated, startIndex: start, endIndex: end };
-  }, [filteredParcels, currentPage, pageSize]);
+  }, [filteredParcels, currentPage, pageSize, backendTotalPages]);
 
   // Reset page when filter changes
   useEffect(() => { setCurrentPage(1); }, [statusFilter, debouncedSearch]);
@@ -300,6 +307,14 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [totalPages, currentPage]);
+
+  // Load more from backend when navigating to a page that needs more data
+  useEffect(() => {
+    const neededCount = currentPage * pageSize;
+    if (neededCount > filteredParcels.length && hasMore && !loading) {
+      loadMoreParcels();
+    }
+  }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = async () => {
     if (loading) return; // ป้องกันกดซ้ำระหว่าง loading
@@ -508,6 +523,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                   onOpen={() => { setSelectedParcel(parcel); setIsTimelineOpen(true); }}
                   canConfirm={canConfirmParcel && parcel['สถานะ'] !== 'ส่งสำเร็จ'}
                   onConfirm={() => openConfirmFlow(parcel.TrackingID)}
+                  isMessenger={role === 'MESSENGER'}
                 />
               ))}
             </div>
@@ -515,11 +531,11 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
             <table className="w-full text-left border-collapse min-w-[580px]">
               <thead>
                 <tr className="text-[10px] uppercase tracking-widest font-black text-on-surface-variant/50 border-b border-outline-variant/10">
-                  <th className="px-5 py-2.5 bg-surface-container-lowest/60">หมายเลขติดตาม</th>
-                  <th className="px-4 py-2.5 bg-surface-container-lowest/60">ผู้ส่ง → ผู้รับ</th>
-                  <th className="px-4 py-2.5 bg-surface-container-lowest/60">วันที่</th>
-                  <th className="px-4 py-2.5 bg-surface-container-lowest/60">สถานะ</th>
-                  <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-right">การดำเนินการ</th>
+                  <th className="px-5 py-2.5 bg-surface-container-lowest/60 text-center">หมายเลขติดตาม</th>
+                  <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">ผู้ส่ง → ผู้รับ</th>
+                  <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">วันที่</th>
+                  <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">สถานะ</th>
+                  <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/8">
@@ -529,38 +545,40 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                     onClick={() => { setSelectedParcel(parcel); setIsTimelineOpen(true); }}
                     className="hover:bg-primary/[0.025] transition-colors group cursor-pointer"
                   >
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
+                    <td className="px-5 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
                         <code className="font-mono text-primary bg-primary/6 px-2 py-1 rounded-lg text-xs font-bold tracking-wide">
                           {parcel.TrackingID}
                         </code>
                         <button
                           onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(parcel.TrackingID); toast.success(`คัดลอก ${parcel.TrackingID}`); }}
-                          className="opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 opacity-100 transition-opacity text-on-surface-variant/40 hover:text-primary p-0.5 rounded"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-on-surface-variant/40 hover:text-primary p-0.5 rounded shrink-0"
                         >
                           <span className="material-symbols-outlined text-sm">content_copy</span>
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <span className="font-semibold text-primary truncate max-w-[100px]">{parcel['ผู้ส่ง']}</span>
-                        <span className="material-symbols-outlined text-outline-variant text-sm shrink-0">arrow_forward</span>
-                        <span className="text-on-surface-variant font-medium truncate max-w-[100px]">{parcel['ผู้รับ']}</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[10px] text-on-surface-variant/40">{parcel['สาขาผู้ส่ง']}</span>
-                        <span className="text-[10px] text-on-surface-variant/30">→</span>
-                        <span className="text-[10px] text-on-surface-variant/40">{parcel['สาขาผู้รับ']}</span>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <span className="font-semibold text-primary truncate max-w-[100px]">{parcel['ผู้ส่ง']}</span>
+                          <span className="material-symbols-outlined text-outline-variant text-sm shrink-0">arrow_forward</span>
+                          <span className="text-on-surface-variant font-medium truncate max-w-[100px]">{parcel['ผู้รับ']}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-on-surface-variant/40">{parcel['สาขาผู้ส่ง']}</span>
+                          <span className="text-[10px] text-on-surface-variant/30">→</span>
+                          <span className="text-[10px] text-on-surface-variant/40">{parcel['สาขาผู้รับ']}</span>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-on-surface-variant">
+                    <td className="px-4 py-3 text-on-surface-variant text-center">
                       <span className="text-sm font-medium">{formatThaiDateTime(parcel['วันที่สร้าง'])}</span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center">
                       <StatusBadge status={parcel['สถานะ']} />
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-center">
                       {canConfirmParcel && parcel['สถานะ'] !== 'ส่งสำเร็จ' ? (
                         <button
                           onClick={(event) => {
@@ -570,7 +588,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                           className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
                         >
                           <span className="material-symbols-outlined text-sm">add_a_photo</span>
-                          บันทึกหลักฐาน
+                          ยืนยันการรับ
                         </button>
                       ) : (
                         <button className="inline-flex items-center gap-1 text-xs font-bold text-primary/60 group-hover:text-primary transition-colors">
@@ -591,23 +609,12 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
         {/* Footer + Pagination */}
         {filteredParcels.length > 0 && (
           <div className="px-5 py-3 border-t border-outline-variant/10 bg-surface-container-lowest/40 flex flex-col sm:flex-row items-center justify-between gap-3">
-            {/* Info + page size */}
+            {/* Info */}
             <div className="flex items-center gap-3">
               <span className="text-xs text-on-surface-variant/60">
-                แสดง <span className="font-bold text-primary">{startIndex}–{endIndex}</span> จาก <span className="font-bold text-primary">{filteredParcels.length}</span> รายการ
+                แสดง <span className="font-bold text-primary">{startIndex}–{endIndex}</span> จาก <span className="font-bold text-primary">{totalCount || filteredParcels.length}</span> รายการ
                 {filteredParcels.length !== parcels.length && <span className="text-on-surface-variant/40"> (กรองจาก {parcels.length})</span>}
               </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-on-surface-variant/50">แสดง</span>
-                <select
-                  value={pageSize}
-                  onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                  className="text-xs font-bold text-primary bg-white border border-outline-variant/40 rounded-lg px-2 py-1 outline-none cursor-pointer"
-                >
-                  {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <span className="text-xs text-on-surface-variant/50">ต่อหน้า</span>
-              </div>
             </div>
 
             {/* Page controls */}

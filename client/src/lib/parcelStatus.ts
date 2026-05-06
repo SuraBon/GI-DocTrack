@@ -53,7 +53,7 @@ export function summarizeParcels(parcels: Parcel[]): ParcelSummary {
   const summary: ParcelSummary = { total: 0, pending: 0, transit: 0, delivered: 0 };
   for (const parcel of derived) {
     summary.total++;
-    if (parcel['สถานะ'] === 'รอสถานะจัดส่ง')    summary.pending++;
+    if (parcel['สถานะ'] === 'รอจัดส่ง')    summary.pending++;
     else if (parcel['สถานะ'] === 'กำลังจัดส่ง') summary.transit++;
     else if (parcel['สถานะ'] === 'ส่งสำเร็จ')   summary.delivered++;
   }

@@ -64,7 +64,7 @@ export default function ParcelTimelineModal({
                     className="hidden items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:flex"
                   >
                     <span className="material-symbols-outlined text-base">add_a_photo</span>
-                    บันทึกหลักฐาน
+                    ยืนยันการรับ
                   </button>
                 )}
                 <button onClick={() => setIsOpen(false)}
@@ -80,7 +80,7 @@ export default function ParcelTimelineModal({
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:hidden"
                 >
                   <span className="material-symbols-outlined text-base">add_a_photo</span>
-                  บันทึกหลักฐาน
+                  ยืนยันการรับ
                 </button>
               </div>
             )}

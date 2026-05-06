@@ -75,10 +75,9 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const [res, summaryRes] = await Promise.all([
-        parcelService.getParcels(status, 50, offsetRef.current),
-        // Only fetch summary on reset — use ref to avoid stale closure without adding summary to deps
-        reset ? parcelService.exportSummary() : Promise.resolve(summaryRef.current)
+      const [res, rawSummary] = await Promise.all([
+        parcelService.getParcels(status, 10, offsetRef.current),
+        reset ? parcelService.getParcels('ทั้งหมด', 500, 0) : Promise.resolve(null),
       ]);
 
       if (res.success) {
@@ -89,7 +88,9 @@ export function ParcelStoreProvider({ children }: { children: ReactNode }) {
         offsetRef.current += incomingParcels.length;
         
         if (reset) {
-          setSummary(summaryRes || summarizeParcels(incomingParcels));
+          // Use all parcels (up to 500) for accurate summary counts
+          const allParcels = rawSummary?.success ? (rawSummary.parcels || []) : incomingParcels;
+          setSummary(summarizeParcels(allParcels));
         }
         setError(null);
       } else {

@@ -32,7 +32,7 @@ describe('parcelStatus', () => {
 
   it('summarizes statuses correctly', () => {
     const summary = summarizeParcels([
-      { ...baseParcel, TrackingID: '1', 'สถานะ': 'รอสถานะจัดส่ง' },
+      { ...baseParcel, TrackingID: '1', 'สถานะ': 'รอจัดส่ง' },
       { ...baseParcel, TrackingID: '2', 'สถานะ': 'กำลังจัดส่ง' },
       { ...baseParcel, TrackingID: '3', 'สถานะ': 'ส่งสำเร็จ' },
     ]);
