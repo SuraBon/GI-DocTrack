@@ -767,7 +767,7 @@ export default function ConfirmReceipt({
 
       {/* Confirmation Modal */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent showCloseButton={false} className="w-[calc(100vw-1rem)] max-w-[92vw] sm:max-w-2xl rounded-3xl p-0 border-none shadow-2xl bg-white overflow-hidden">
+        <DialogContent showCloseButton={false} className="w-[calc(100vw-1rem)] max-w-[92vw] sm:max-w-2xl max-h-[90vh] rounded-3xl p-0 border-none shadow-2xl bg-white overflow-hidden flex flex-col">
           {/* Header */}
           <div className={`px-6 pt-6 pb-5 flex items-center gap-4 ${
             isForwarding ? 'bg-gradient-to-br from-secondary/15 to-secondary/5' :
@@ -797,8 +797,8 @@ export default function ConfirmReceipt({
             </button>
           </div>
 
-          {/* Body */}
-          <div className="px-6 py-5 space-y-4">
+          {/* Body — scrollable */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
             {/* Tracking ID row */}
             <div className="flex flex-col gap-2 bg-surface-container-lowest rounded-2xl px-4 py-3 border border-outline-variant/20 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-on-surface-variant">
@@ -928,8 +928,8 @@ export default function ConfirmReceipt({
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-6 pb-6 flex gap-3">
+          {/* Footer — sticky */}
+          <div className="shrink-0 px-6 pb-6 pt-3 border-t border-outline-variant/10 flex gap-3">
             <button
               onClick={() => setIsConfirmDialogOpen(false)}
               className="flex-1 h-12 rounded-2xl font-display font-bold border-2 border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
