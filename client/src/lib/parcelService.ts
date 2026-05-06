@@ -220,7 +220,7 @@ export async function getParcels(status: string = 'ทั้งหมด', limit
 export async function getParcel(trackingID: string): Promise<GetParcelResponse> {
   const payload: GetParcelPayload = { action: 'getParcel', trackingID };
   try {
-    const res = await callAPI<GetParcelResponse>(payload, { includeAuth: true, dispatchAuthError: false });
+    const res = await callAPI<GetParcelResponse>(payload, { includeAuth: true, dispatchAuthError: true });
     if (res.success && res.parcel) {
       return { success: true, parcel: applyDerivedStatus(res.parcel) };
     }
@@ -260,7 +260,7 @@ export async function searchParcels(query: string): Promise<Parcel[]> {
     const res = await callAPI<{ success: boolean; parcels?: Parcel[] }>({
       action: 'searchParcels',
       query: trimmed,
-    }, { includeAuth: true, dispatchAuthError: false });
+    }, { includeAuth: true, dispatchAuthError: true });
     if (res.success && Array.isArray(res.parcels)) {
       return applyDerivedStatuses(res.parcels);
     }

@@ -484,6 +484,15 @@ function redactParcelForGuest(parcel) {
   return redacted;
 }
 
+function canReadParcelRow(payload, row) {
+  const role = normalizeRole(payload.role);
+  if (role === "ADMIN" || role === "MESSENGER") return true;
+  if (role === "USER") {
+    return String(row[13] || "").trim() === String(payload.employeeId || "").trim();
+  }
+  return false;
+}
+
 function validateImagePayload(value) {
   const text = String(value || "").trim();
   if (!text) return { ok: false, error: "กรุณาแนบรูปภาพหลักฐาน" };
@@ -665,7 +674,7 @@ function doPost(e) {
       const parts = String(payload.token).split('|');
       if (parts.length === 4) {
         const issuedAt = Number(parts[2]);
-        // Check token expiry (6 hours)
+        // Check token expiry (3 hours)
         if (isNaN(issuedAt) || Date.now() - issuedAt > TOKEN_EXPIRY_MS) {
           return createJsonResponse({ success: false, error: "Token expired" });
         }
@@ -965,6 +974,10 @@ function handleGetParcel(payload) {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (row[0] === payload.trackingID) {
+      if (!isGuest && !canReadParcelRow(payload, row)) {
+        return createJsonResponse({ success: false, error: "ไม่มีสิทธิ์เข้าถึงรายการนี้" });
+      }
+
       const parcel = {};
       for (let j = 0; j < headers.length; j++) {
         parcel[headers[j]] = row[j];
@@ -1228,9 +1241,16 @@ function handleSearchParcels(payload) {
     return createJsonResponse({ success: false, error: "คำค้นหายาวเกินไป" });
   }
 
-  // Rate limit: max 30 searches per minute per IP (using cache)
+  const role = normalizeRole(payload.role);
+  const isGuest = role === "GUEST";
+  if (!isGuest && !hasAnyRole(payload, ['ADMIN', 'MESSENGER', 'USER'])) {
+    return createJsonResponse({ success: false, error: "ไม่มีสิทธิ์เข้าถึง" });
+  }
+
+  // Rate limit: max 30 searches per minute per authenticated user.
   const cache = CacheService.getScriptCache();
-  const rateLimitKey = "search_rate_global";
+  const searchActor = isGuest ? "guest" : normalizeEmployeeId(payload.employeeId);
+  const rateLimitKey = "search_rate_" + searchActor;
   const rateRaw = cache.get(rateLimitKey);
   const rateCount = rateRaw ? Number(rateRaw) : 0;
   if (rateCount >= 30) {
@@ -1238,8 +1258,6 @@ function handleSearchParcels(payload) {
   }
   cache.put(rateLimitKey, String(rateCount + 1), 60);
 
-  const role = normalizeRole(payload.role);
-  const isGuest = role === "GUEST";
   if (isGuest && !validateTrackingID(query) && query.length < 2) {
     return createJsonResponse({ success: true, parcels: [] });
   }
@@ -1262,8 +1280,11 @@ function handleSearchParcels(payload) {
 
       if (isGuest) {
         if (tracking !== queryLower && receiver.indexOf(queryLower) === -1) continue;
-      } else if (tracking.indexOf(queryLower) === -1 && sender.indexOf(queryLower) === -1 && receiver.indexOf(queryLower) === -1) {
-        continue;
+      } else {
+        if (!canReadParcelRow(payload, row)) continue;
+        if (tracking.indexOf(queryLower) === -1 && sender.indexOf(queryLower) === -1 && receiver.indexOf(queryLower) === -1) {
+          continue;
+        }
       }
 
       const parcel = {};
@@ -1306,8 +1327,8 @@ function createJsonResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ── Token expiry: 6 hours in milliseconds ────────────────────────────────────
-const TOKEN_EXPIRY_MS = 6 * 60 * 60 * 1000;
+// ── Token expiry: 3 hours in milliseconds ────────────────────────────────────
+const TOKEN_EXPIRY_MS = 3 * 60 * 60 * 1000;
 
 function generateToken(employeeId, role, secret) {
   const issuedAt = Date.now();

@@ -14,8 +14,8 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Session timeout: 6 hours of inactivity
-const SESSION_TIMEOUT_MS = 6 * 60 * 60 * 1000;
+// Session timeout: 3 hours of inactivity
+const SESSION_TIMEOUT_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'doc_track_user';
 const LAST_ACTIVE_KEY = 'doc_track_last_active';
 
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     inactivityTimer.current = setTimeout(() => {
       clearSession();
-      toast.warning('เซสชันหมดอายุเนื่องจากไม่มีการใช้งาน 6 ชั่วโมง');
+      toast.warning('เซสชันหมดอายุเนื่องจากไม่มีการใช้งาน 3 ชั่วโมง');
     }, SESSION_TIMEOUT_MS);
   };
 
