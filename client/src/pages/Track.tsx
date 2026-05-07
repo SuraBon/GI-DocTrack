@@ -53,7 +53,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
   const handleSearch = async (e?: React.FormEvent, searchId?: string) => {
     if (e) e.preventDefault();
     const id = sanitizeTextInput(searchId ?? trackingId, 100).toUpperCase();
-    if (!id) { toast.error('กรุณากรอกหมายเลขติดตามหรือชื่อผู้รับ'); return; }
+    if (!id) { toast.error('กรุณากรอกหมายเลขติดตาม ชื่อผู้รับ หรือสถานที่ปลายทาง'); return; }
     // ✅ FIX: sync input display with what we're actually searching
     if (searchId && searchId !== trackingId) setTrackingId(searchId);
     setIsLoading(true);
@@ -113,8 +113,8 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
             <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_searching</span>
           </div>
           <div>
-            <h1 className="font-display text-3xl font-black leading-tight text-primary sm:text-[34px]">ค้นหาพัสดุ</h1>
-            <p className="mt-1 text-sm text-on-surface-variant/75">ค้นหาพัสดุด้วยหมายเลขติดตามหรือชื่อผู้รับ</p>
+            <h1 className="font-display text-3xl font-black leading-tight text-primary sm:text-[34px]">ดูสถานะพัสดุ</h1>
+            <p className="mt-1 text-sm text-on-surface-variant/75">ค้นหาด้วยหมายเลขติดตาม ชื่อผู้รับ หรือสถานที่ปลายทาง</p>
           </div>
         </div>
       </section>
@@ -125,7 +125,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
           <div className="relative flex-1 group">
             <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-xl text-on-surface-variant/45 transition-colors group-focus-within:text-primary">search</span>
             <input
-              placeholder="กรอกหมายเลขติดตาม หรือชื่อผู้รับ..."
+              placeholder="กรอกหมายเลขติดตาม ชื่อผู้รับ หรือสถานที่ปลายทาง..."
               value={trackingId}
               onChange={e => setTrackingId(sanitizeTextInput(e.target.value, 100).toUpperCase())}
               autoFocus
@@ -141,7 +141,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
             className="h-13 rounded-xl bg-primary px-6 text-sm font-bold text-white shadow-sm transition-all hover:bg-primary/95 active:scale-[0.98] disabled:opacity-50 sm:h-14 sm:px-8">
             {isLoading
               ? <span className="material-symbols-outlined animate-spin text-xl">progress_activity</span>
-              : 'ค้นหาพัสดุ'}
+              : 'ดูสถานะ'}
           </button>
         </form>
 
@@ -247,11 +247,11 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
                 <div className="space-y-5">
                   {/* Sender / Receiver */}
                   <div className="bg-surface-container-lowest rounded-2xl p-4 border border-outline-variant/30 space-y-4">
-                    <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em]">รายละเอียดพัสดุ</p>
+                    <p className="text-[10px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em]">จากไหน ไปให้ใคร</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {[
                         { label: 'ผู้ส่ง', name: parcel['ผู้ส่ง'], branch: parcel['สาขาผู้ส่ง'], icon: 'person', color: 'text-primary' },
-                        { label: 'ผู้รับ / สถานที่รับ', name: parcel['ผู้รับ'], branch: parcel['สาขาผู้รับ'], icon: 'person_pin_circle', color: 'text-secondary' },
+                        { label: 'ส่งให้ / ส่งไปที่', name: parcel['ผู้รับ'], branch: parcel['สาขาผู้รับ'], icon: 'person_pin_circle', color: 'text-secondary' },
                       ].map(({ label, name, branch, icon, color }) => (
                         <div key={label} className="flex items-start gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-surface-container flex items-center justify-center shrink-0 mt-0.5">
@@ -294,7 +294,7 @@ export default function Track({ embedded = false }: { embedded?: boolean }) {
                       {parcel['หมายเหตุ'] && parcel['หมายเหตุ'].replace(/\[.*?\]/g, '').trim() && (
                         <div>
                           <p className="text-[10px] font-bold text-on-surface-variant/50 uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <span className="material-symbols-outlined text-sm">notes</span>หมายเหตุ
+                            <span className="material-symbols-outlined text-sm">notes</span>หมายเหตุปลายทาง
                           </p>
                           <p className="text-sm text-on-surface-variant italic">"{parcel['หมายเหตุ'].replace(/\[.*?\]/g, '').trim()}"</p>
                         </div>

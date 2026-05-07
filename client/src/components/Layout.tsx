@@ -39,6 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', branch: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => {
     try {
@@ -109,9 +110,9 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
   const currentRole = normalizeRole(user?.role ?? 'GUEST');
   const dashboardLabel =
     currentRole === 'USER'
-      ? 'พัสดุของฉัน'
+      ? 'รายการที่ฉันส่ง'
       : currentRole === 'MESSENGER'
-        ? 'งานจัดส่ง'
+        ? 'งานที่ต้องไปส่ง'
         : 'ภาพรวมพัสดุ';
   const dashboardIcon =
     currentRole === 'MESSENGER'
@@ -121,8 +122,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
         : 'analytics';
   const allNavItems: NavItem[] = [
     { id: "dashboard", label: dashboardLabel, icon: dashboardIcon, badge: null, roles: ['ADMIN', 'MESSENGER', 'USER'], accent: "from-sky-400 to-blue-500" },
-    { id: "create",    label: "สร้างพัสดุ", icon: "add_box", badge: null, roles: ['ADMIN'], accent: "from-amber-300 to-orange-500" },
-    { id: "track",     label: "ค้นหาพัสดุ", icon: "qr_code_scanner", badge: null, roles: ['ADMIN', 'GUEST'], accent: "from-violet-300 to-indigo-500" },
+    { id: "create",    label: "ส่งพัสดุใหม่", icon: "add_box", badge: null, roles: ['ADMIN'], accent: "from-amber-300 to-orange-500" },
+    { id: "track",     label: "ดูสถานะพัสดุ", icon: "qr_code_scanner", badge: null, roles: ['ADMIN', 'GUEST'], accent: "from-violet-300 to-indigo-500" },
     { id: "users",     label: "จัดการผู้ใช้", icon: "manage_accounts", badge: null, roles: ['ADMIN'], accent: "from-rose-300 to-red-500" },
   ];
   const navItems = allNavItems.filter(item => item.roles.includes(currentRole));
@@ -134,6 +135,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
 
   const openProfile = () => {
     setProfileForm({ name: user?.name ?? '', branch: user?.branch ?? '', currentPassword: '', newPassword: '', confirmPassword: '' });
+    setShowPasswordFields(false);
     setIsProfileOpen(true);
   };
 
@@ -142,16 +144,17 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
     const { name, branch, currentPassword, newPassword, confirmPassword } = profileForm;
     if (!name.trim()) { toast.error('กรุณากรอกชื่อ-นามสกุล'); return; }
     if (!branch.trim() || !resolveSelectValue(branch)) { toast.error('กรุณาเลือกสาขา'); return; }
-    if (newPassword && newPassword.length < 4) { toast.error('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
-    if (newPassword && newPassword !== confirmPassword) { toast.error('รหัสผ่านใหม่ไม่ตรงกัน'); return; }
-    if (newPassword && !currentPassword) { toast.error('กรุณากรอกรหัสผ่านปัจจุบัน'); return; }
+    if (showPasswordFields && !currentPassword) { toast.error('กรุณากรอกรหัสผ่านปัจจุบัน'); return; }
+    if (showPasswordFields && !newPassword) { toast.error('กรุณากรอกรหัสผ่านใหม่'); return; }
+    if (showPasswordFields && newPassword.length < 4) { toast.error('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
+    if (showPasswordFields && newPassword !== confirmPassword) { toast.error('รหัสผ่านใหม่ไม่ตรงกัน'); return; }
 
     setProfileLoading(true);
     const res = await updateUserProfile(
       name.trim() !== user?.name ? name.trim() : undefined,
       resolveSelectValue(branch) !== user?.branch ? resolveSelectValue(branch) : undefined,
-      newPassword || undefined,
-      newPassword ? currentPassword : undefined,
+      showPasswordFields ? newPassword : undefined,
+      showPasswordFields ? currentPassword : undefined,
     );
     setProfileLoading(false);
 
@@ -309,7 +312,7 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
 
       {/* ── Edit Profile Dialog ── */}
       <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-3xl border-none bg-white p-0 shadow-2xl">
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-3xl border-none bg-white p-0 shadow-2xl">
           <DialogHeader className="relative border-b border-outline-variant/20 bg-surface-container-lowest px-6 py-5 rounded-t-3xl">
             <div className="flex items-center gap-3 pr-8">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -324,7 +327,8 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
             </div>
           </DialogHeader>
 
-          <form onSubmit={handleProfileSave} className="p-6 space-y-4">
+          <form onSubmit={handleProfileSave} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
             {/* Name */}
             <div>
               <label className="block text-sm font-bold text-on-surface-variant mb-1.5">ชื่อ-นามสกุล</label>
@@ -352,11 +356,34 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
               />
             </div>
 
-            {/* Divider */}
-            <div className="pt-2 border-t border-outline-variant/20">
-              <p className="text-xs font-bold text-on-surface-variant/50 uppercase tracking-wider mb-3">เปลี่ยนรหัสผ่าน (ไม่บังคับ)</p>
-
-              <div className="space-y-3">
+            <div className="border-t border-outline-variant/20 pt-3">
+              {!showPasswordFields ? (
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordFields(true)}
+                  disabled={profileLoading}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-outline-variant/40 bg-surface-container-lowest font-display text-sm font-bold text-primary transition-all hover:border-primary/30 hover:bg-surface-container disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-lg">lock_reset</span>
+                  เปลี่ยนรหัสผ่าน
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-on-surface-variant/50 uppercase tracking-wider">เปลี่ยนรหัสผ่าน</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPasswordFields(false);
+                        setProfileForm(f => ({ ...f, currentPassword: '', newPassword: '', confirmPassword: '' }));
+                      }}
+                      disabled={profileLoading}
+                      className="inline-flex h-8 items-center gap-1 rounded-xl px-2 text-xs font-bold text-on-surface-variant/65 transition-colors hover:bg-surface-container hover:text-primary disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-base">close</span>
+                      ไม่เปลี่ยน
+                    </button>
+                  </div>
                 <div>
                   <label className="block text-sm font-bold text-on-surface-variant mb-1.5">รหัสผ่านปัจจุบัน</label>
                   <input
@@ -390,10 +417,13 @@ const Layout: React.FC<LayoutProps> = ({ children, currentPage, setCurrentPage }
                     placeholder="••••••••"
                   />
                 </div>
-              </div>
+                </div>
+              )}
             </div>
 
-            <div className="flex gap-3 pt-2">
+            </div>
+
+            <div className="flex shrink-0 gap-3 border-t border-outline-variant/15 bg-white px-6 py-4">
               <button
                 type="button"
                 onClick={() => setIsProfileOpen(false)}

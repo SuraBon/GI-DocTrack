@@ -64,7 +64,7 @@ export default function ParcelTimelineModal({
                     className="hidden items-center gap-1.5 px-3 py-2 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:flex"
                   >
                     <span className="material-symbols-outlined text-base">add_a_photo</span>
-                    ยืนยันการรับ
+                    บันทึกผลการส่ง
                   </button>
                 )}
                 <button onClick={() => setIsOpen(false)}
@@ -80,7 +80,7 @@ export default function ParcelTimelineModal({
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-primary rounded-xl font-display font-bold text-xs hover:opacity-90 active:scale-95 transition-all sm:hidden"
                 >
                   <span className="material-symbols-outlined text-base">add_a_photo</span>
-                  ยืนยันการรับ
+                  บันทึกผลการส่ง
                 </button>
               </div>
             )}
@@ -98,11 +98,11 @@ export default function ParcelTimelineModal({
                     type="button"
                     onClick={() => hasKnownBranches && setIsMapOpen(true)}
                     disabled={!hasKnownBranches}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-outline-variant/25 bg-surface-container-lowest px-3 text-xs font-black text-primary transition-all hover:border-primary/35 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="inline-grid h-8 w-8 place-items-center bg-transparent text-primary transition-all hover:text-secondary active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
                     title={hasKnownBranches ? 'เปิดแผนที่' : 'ยังไม่มีพิกัด GPS'}
+                    aria-label={hasKnownBranches ? 'เปิดแผนที่' : 'ยังไม่มีพิกัด GPS'}
                   >
-                    <span className="material-symbols-outlined text-base">{hasKnownBranches ? 'map' : 'map_off'}</span>
-                    แผนที่
+                    <span className="material-symbols-outlined text-[22px]">{hasKnownBranches ? 'map' : 'map_off'}</span>
                   </button>
                 </div>
                 <Timeline events={selectedTimelineEvents} compact />
@@ -123,7 +123,7 @@ export default function ParcelTimelineModal({
                       <p className="mt-1 break-words text-sm font-bold leading-snug text-primary">{selectedParcel['รายละเอียด'] || '-'}</p>
                     </div>
                     <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest/80 p-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/45">หมายเหตุ</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/45">หมายเหตุปลายทาง</p>
                       <p className="mt-1 break-words text-sm font-bold leading-snug text-primary">{cleanCreationNote || '-'}</p>
                     </div>
                   </div>

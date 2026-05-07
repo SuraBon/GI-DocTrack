@@ -22,7 +22,7 @@ describe('parseParcelTimeline', () => {
       'หมายเหตุ': '[ส่งต่อโดย: พนักงาน1 จากสาขา: ศูนย์ใหญ่บางนา ไปสาขา: มหาชัย เมื่อ: 1 มกราคม 2569]',
     });
     const events = parseParcelTimeline(parcel);
-    expect(events.map((e) => e.title)).toEqual(['รับพัสดุเข้าระบบ', 'ส่งต่อพัสดุ', 'กำลังจัดส่ง']);
+    expect(events.map((e) => e.title)).toEqual(['สร้างรายการส่ง', 'ส่งต่อพัสดุ', 'กำลังจัดส่ง']);
     expect(events[0].destLocation).toBe('มีนบุรี');
     expect(events[1].destLocation).toBe('มหาชัย');
   });
@@ -43,7 +43,7 @@ describe('parseParcelTimeline', () => {
     });
     const events = parseParcelTimeline(parcel);
     expect(events[0]).toMatchObject({
-      title: 'รับพัสดุเข้าระบบ',
+      title: 'สร้างรายการส่ง',
       location: 'MS',
       destLocation: 'มีนบุรี',
       latitude: 13.7,

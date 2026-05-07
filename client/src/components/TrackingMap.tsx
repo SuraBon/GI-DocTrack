@@ -66,7 +66,7 @@ function TrackingMap({ events, className = '', mapClassName = 'h-[250px] sm:h-[3
 
     // hasUnresolved = มี event ที่ไม่มี GPS (แสดงเพื่อ inform user)
     const hasUnresolved = events.some(e =>
-      e.title !== 'รับพัสดุเข้าระบบ' &&
+      e.title !== 'สร้างรายการส่ง' &&
       e.status === 'completed' &&
       (typeof e.latitude !== 'number' || typeof e.longitude !== 'number')
     );
@@ -75,6 +75,7 @@ function TrackingMap({ events, className = '', mapClassName = 'h-[250px] sm:h-[3
   }, [events]);
 
   const hasRouteData = pathEntries.length > 0;
+  const hasCreatedPoint = pathEntries.some(entry => entry.event.title === 'สร้างรายการส่ง');
 
   const handleMapReady = useCallback((map: L.Map) => {
     mapRef.current = map;
@@ -96,46 +97,72 @@ function TrackingMap({ events, className = '', mapClassName = 'h-[250px] sm:h-[3
       return;
     }
 
-    pathEntries.forEach((entry) => {
+    pathEntries.forEach((entry, index) => {
       const { lat, lng, label, isGps, isLast, event } = entry;
       const eventDate = event.timestamp ? formatThaiDateTime(event.timestamp) : '';
       const safeLabel     = escapeHtml(label || 'GPS');
-      const iconName      = isLast ? 'local_shipping' : isGps ? 'my_location' : 'location_on';
-      const bgClass       = isLast
-        ? 'bg-primary ring-4 ring-primary/20'
-        : isGps
-          ? 'bg-green-600'
-          : 'bg-blue-600';
+      const isDeliveredPoint = event.title === 'ส่งสำเร็จ';
+      const isStartPoint = !isDeliveredPoint && (
+        event.title === 'สร้างรายการส่ง' ||
+        (!hasCreatedPoint && index === 0)
+      );
+      const iconName = isStartPoint ? 'inventory_2' : isDeliveredPoint ? 'task_alt' : 'local_shipping';
+      const markerColor = isStartPoint ? '#855300' : isDeliveredPoint ? '#008060' : '#091426';
+      const markerRing  = isStartPoint
+        ? 'rgba(133,83,0,0.2)'
+        : isDeliveredPoint
+          ? 'rgba(0,128,96,0.2)'
+          : 'rgba(9,20,38,0.22)';
 
-      const html = `<div class="min-w-[80px] h-auto px-2 py-1.5 rounded-xl border-2 border-white shadow-xl flex flex-col items-center justify-center uppercase tracking-tighter ${bgClass}">
-        <div class="flex items-center gap-1 text-white font-black text-[10px]">
-          <span class="material-symbols-outlined text-xs">${iconName}</span>
-          <span class="truncate max-w-[80px]">${safeLabel}</span>
+      const html = `<div title="${safeLabel}" style="position:relative;width:44px;height:54px;filter:drop-shadow(0 8px 14px rgba(9,20,38,.28));">
+        <svg viewBox="0 0 44 54" width="44" height="54" aria-hidden="true" style="position:absolute;left:0;top:0;overflow:visible;">
+          <path d="M22 2C11.5 2 4 9.7 4 19.6C4 32.8 22 52 22 52C22 52 40 32.8 40 19.6C40 9.7 32.5 2 22 2Z" fill="${markerRing}" opacity="0.95"/>
+          <path d="M22 6C13.8 6 8 12 8 19.8C8 29.8 22 45.5 22 45.5C22 45.5 36 29.8 36 19.8C36 12 30.2 6 22 6Z" fill="${markerColor}" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
+        </svg>
+        <div style="position:absolute;left:50%;top:12px;width:24px;height:24px;transform:translateX(-50%);display:grid;place-items:center;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;">
+          <span class="material-symbols-outlined" style="font-size:17px;line-height:1;">${iconName}</span>
         </div>
-        ${eventDate ? `<div class="text-[8px] text-white/90 font-bold mt-0.5 whitespace-nowrap">${escapeHtml(eventDate)}</div>` : ''}
+        ${isLast ? '<div style="position:absolute;left:50%;top:2px;width:44px;height:44px;transform:translateX(-50%);border-radius:999px;border:2px solid rgba(9,20,38,.35);animation:logitrack-pin-pulse 1.6s infinite;"></div>' : ''}
       </div>`;
 
       const marker = L.marker([lat, lng], {
-        icon: L.divIcon({ html, className: 'branch-marker bg-transparent', iconSize: [100, 46], iconAnchor: [50, 23] }),
+        icon: L.divIcon({
+          html,
+          className: 'branch-marker bg-transparent',
+          iconSize: [44, 54],
+          iconAnchor: [22, 52],
+          popupAnchor: [0, -50],
+        }),
       });
 
       // Safe popup — use textContent via DOM, not innerHTML
       const popupEl = document.createElement('div');
-      popupEl.style.cssText = 'padding:12px;font-family:Manrope,sans-serif;min-width:220px';
+      popupEl.style.cssText = 'padding:4px 2px 2px;font-family:Manrope,sans-serif;min-width:230px;max-width:280px';
+
+      const badge = document.createElement('div');
+      badge.style.cssText = `display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;background:${isStartPoint ? '#fff4df' : isDeliveredPoint ? '#eef8f3' : '#091426'};color:${isStartPoint ? '#855300' : isDeliveredPoint ? '#006b50' : '#ffffff'};font-size:11px;font-weight:900;margin-bottom:8px`;
+      badge.textContent = isStartPoint ? 'จุดเริ่มต้น' : isDeliveredPoint ? 'ปลายทาง' : 'กำลังจัดส่ง';
 
       const title = document.createElement('div');
-      title.style.cssText = 'font-weight:800;color:#091426;font-size:14px;text-transform:uppercase';
-      title.textContent = label || 'GPS Location';
+      title.style.cssText = 'font-weight:900;color:#091426;font-size:15px;line-height:1.25';
+      title.textContent = event.title || label || 'ตำแหน่งบนแผนที่';
+
+      if (event.description) {
+        const desc = document.createElement('div');
+        desc.style.cssText = 'color:#45474c;margin-top:4px;font-size:12px;font-weight:700;line-height:1.4';
+        desc.textContent = event.description;
+        title.appendChild(desc);
+      }
 
       const sub = document.createElement('div');
-      sub.style.cssText = 'color:#61646b;margin-top:6px;font-size:12px;font-weight:500';
+      sub.style.cssText = 'color:#61646b;margin-top:8px;font-size:12px;font-weight:700;line-height:1.45';
       if (isGps) {
-        sub.textContent = `📍 ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        sub.textContent = `พิกัด GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
       } else {
         sub.textContent = isLast ? 'จุดล่าสุดของพัสดุ' : 'จุดแวะพักระหว่างทาง';
       }
 
-      popupEl.append(title, sub);
+      popupEl.append(badge, title, sub);
 
       // Show image if available
       if (event.imageUrl) {
@@ -143,23 +170,31 @@ function TrackingMap({ events, className = '', mapClassName = 'h-[250px] sm:h-[3
         img.src = event.imageUrl;
         img.style.cssText = 'width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-top:8px';
         img.alt = 'หลักฐาน';
+        img.onerror = () => {
+          img.remove();
+        };
         popupEl.appendChild(img);
       }
 
       // Show timestamp if available
       if (eventDate) {
         const time = document.createElement('div');
-        time.style.cssText = 'margin-top:6px;font-size:11px;color:#61646b;font-weight:500';
+        time.style.cssText = 'margin-top:8px;font-size:11px;color:#61646b;font-weight:800';
         time.textContent = eventDate;
         popupEl.appendChild(time);
       }
 
       const footer = document.createElement('div');
-      footer.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:11px;color:#fea619;font-weight:700';
-      footer.textContent = isGps ? 'GPS REAL-TIME LOCATION' : 'LOGITRACK NETWORK';
+      footer.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid #eef1f6;font-size:11px;color:#855300;font-weight:900';
+      footer.textContent = 'คลิกหมุดอื่นเพื่อดูรายละเอียดจุดนั้น';
 
       popupEl.appendChild(footer);
-      marker.bindPopup(popupEl, { autoPanPadding: [20, 20], className: 'logitrack-popup' });
+      marker.bindPopup(popupEl, {
+        autoPanPadding: [20, 20],
+        className: 'logitrack-popup',
+        closeButton: true,
+        maxWidth: 300,
+      });
       marker.addTo(map);
       markersRef.current.push(marker);
     });
@@ -169,33 +204,6 @@ function TrackingMap({ events, className = '', mapClassName = 'h-[250px] sm:h-[3
       coords,
       { color: '#ff6b00', opacity: 0.85, weight: 6, lineCap: 'round', lineJoin: 'round', dashArray: '10, 12' },
     ).addTo(map);
-
-    // Draw directional arrows along the path
-    for (let i = 0; i < pathEntries.length - 1; i++) {
-      const p1 = pathEntries[i];
-      const p2 = pathEntries[i + 1];
-
-      // Calculate midpoint
-      const midLat = (p1.lat + p2.lat) / 2;
-      const midLng = (p1.lng + p2.lng) / 2;
-
-      // Calculate bearing (angle)
-      const dLng = p2.lng - p1.lng;
-      const dLat = p2.lat - p1.lat;
-      const angle = (Math.atan2(dLng, dLat) * 180) / Math.PI;
-
-      const arrowHtml = `<div style="transform: rotate(${angle}deg); display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
-        <span class="material-symbols-outlined" style="color: #ff6b00; font-size: 20px; font-weight: 900; text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 0px 2px 4px rgba(0,0,0,0.3);">navigation</span>
-      </div>`;
-
-      const arrowMarker = L.marker([midLat, midLng], {
-        icon: L.divIcon({ html: arrowHtml, className: 'bg-transparent border-none', iconSize: [24, 24], iconAnchor: [12, 12] }),
-        interactive: false,
-        keyboard: false
-      });
-      arrowMarker.addTo(map);
-      markersRef.current.push(arrowMarker);
-    }
 
     if (coords.length > 1) {
       const bounds = L.latLngBounds(coords);
@@ -244,12 +252,15 @@ function TrackingMap({ events, className = '', mapClassName = 'h-[250px] sm:h-[3
         onMapReady={handleMapReady}
       />
       <div className="px-5 py-3 bg-surface-container-low border-t border-outline-variant/10 text-[10px] font-black text-on-surface-variant/40 uppercase tracking-widest flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-600" /> GPS จริง
+            <span className="w-2 h-2 rounded-full bg-secondary" /> จุดเริ่มต้น
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" /> จุดล่าสุด
+            <span className="w-2 h-2 rounded-full bg-primary" /> กำลังส่ง
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-green-600" /> ปลายทาง
           </span>
         </div>
         <span className="text-secondary">LogiTrack Maps</span>

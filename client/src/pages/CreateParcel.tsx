@@ -179,11 +179,11 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
     const validationError =
       validateRequiredText(v.senderName, 'ชื่อผู้ส่ง', 2, 200) ||
       validateRequiredText(v.senderBranch, 'สาขาผู้ส่ง', 1, 100) ||
-      validateRequiredText(v.receiverName, 'ชื่อผู้รับ', 2, 200) ||
-      validateRequiredText(v.receiverBranch, 'สถานที่รับ', 1, 100) ||
+      validateRequiredText(v.receiverName, 'ชื่อผู้รับหรือชื่อสถานที่ปลายทาง', 2, 200) ||
+      validateRequiredText(v.receiverBranch, 'จุดหมายปลายทาง', 1, 100) ||
       validateRequiredText(v.docType, 'ประเภทพัสดุ', 1, 100) ||
       (v.description && validateRequiredText(v.description, 'รายละเอียด', 0, 200)) ||
-      (v.note && validateRequiredText(v.note, 'หมายเหตุ', 0, 2000));
+      (v.note && validateRequiredText(v.note, 'หมายเหตุปลายทาง', 0, 2000));
     if (validationError) {
       toast.error(validationError);
       return;
@@ -194,7 +194,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
       return;
     }
     if (!proofPhotoUrl) {
-      toast.error('กรุณาแนบรูปหลักฐานสิ่งที่ส่ง');
+      toast.error('กรุณาแนบรูปพัสดุหรือเอกสารที่จะส่ง');
       return;
     }
     setIsConfirmOpen(true);
@@ -208,7 +208,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
       return;
     }
     if (!proofPhotoUrl) {
-      toast.error('กรุณาแนบรูปหลักฐานสิ่งที่ส่ง');
+      toast.error('กรุณาแนบรูปพัสดุหรือเอกสารที่จะส่ง');
       return;
     }
     setIsConfirmOpen(false);
@@ -255,8 +255,8 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
       {/* Header Section */}
       <div className={`${embedded ? 'hidden' : 'flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2'}`}>
         <div>
-          <h1 className="font-display text-2xl sm:text-3xl font-black text-primary mb-0.5">สร้างพัสดุใหม่</h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant">กรอกข้อมูลพัสดุ สถานที่รับ และแนบรูปหลักฐานก่อนสร้างรายการจัดส่ง</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-black text-primary mb-0.5">ส่งพัสดุใหม่</h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant">กรอกว่าต้องการส่งอะไร จากใคร ไปให้ใครหรือไปที่ไหน แล้วแนบรูปพัสดุไว้เป็นหลักฐาน</p>
         </div>
       </div>
 
@@ -272,8 +272,8 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
                 </div>
                 <div>
-                  <h2 className="font-display font-bold text-primary text-sm">ข้อมูลผู้ส่ง</h2>
-                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ผู้ส่งและสาขาต้นทาง</p>
+                  <h2 className="font-display font-bold text-primary text-sm">ส่งจากใคร</h2>
+                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ชื่อผู้ส่งและสาขาต้นทาง</p>
                 </div>
               </div>
             </div>
@@ -350,33 +350,43 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
                 </div>
                 <div>
-                  <h2 className="font-display font-bold text-primary text-sm">ข้อมูลผู้รับ</h2>
-                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ผู้รับและสถานที่รับ</p>
+                  <h2 className="font-display font-bold text-primary text-sm">ปลายทางจัดส่ง</h2>
+                  <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ผู้รับ สถานที่ และรายละเอียดปลายทาง</p>
                 </div>
               </div>
             </div>
             <div className="p-6 space-y-5">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">ชื่อผู้รับ *</label>
+                <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">ผู้รับหรือสถานที่ปลายทาง *</label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">person</span>
                   <input
                     name="receiverName"
                     value={formData.receiverName}
                     onChange={handleInputChange}
-                    placeholder="ระบุชื่อผู้รับ"
+                    placeholder="เช่น คุณสมชาย, แผนกบัญชี, ห้องธุรการ"
                     className="w-full bg-white border border-outline-variant rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display transition-all"
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">สถานที่รับ *</label>
+                <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">ส่งไปที่ *</label>
                 <NativeSelect
                   value={formData.receiverBranch}
                   onChange={v => setFormData(p => ({ ...p, receiverBranch: v }))}
                   options={branches}
-                  placeholder="เลือกหรือระบุสถานที่รับ"
-                  otherPlaceholder="ระบุสถานที่รับ"
+                  placeholder="เลือกสาขา หรือระบุสถานที่ปลายทาง"
+                  otherPlaceholder="ระบุสถานที่ปลายทาง"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">หมายเหตุปลายทาง (ถ้ามี)</label>
+                <textarea
+                  name="note"
+                  value={formData.note}
+                  onChange={handleInputChange}
+                  placeholder="เช่น อาคาร A ชั้น 3 แผนกบัญชี, ฝากไว้ที่เคาน์เตอร์, โทรหาผู้รับก่อนถึง"
+                  className="w-full bg-white border border-outline-variant rounded-2xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display min-h-[96px] transition-all resize-none"
                 />
               </div>
             </div>
@@ -393,12 +403,12 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                 <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>inventory_2</span>
               </div>
               <div>
-                <h2 className="font-display font-bold text-primary text-sm">ข้อมูลพัสดุ</h2>
-                <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ประเภท รายละเอียด และรูปหลักฐาน</p>
+                <h2 className="font-display font-bold text-primary text-sm">สิ่งที่ต้องการส่ง</h2>
+                <p className="text-[10px] text-on-surface-variant/50 uppercase font-bold tracking-wider">ประเภท รายละเอียด และรูปพัสดุ</p>
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_1fr_1.15fr]">
+          <div className="grid grid-cols-1 gap-5 p-5 sm:p-6 lg:grid-cols-[1fr_1.15fr]">
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">ประเภท *</label>
@@ -426,17 +436,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">หมายเหตุ (ถ้ามี)</label>
-              <textarea
-                name="note"
-                value={formData.note}
-                onChange={handleInputChange}
-                placeholder="ห้ามเปิด, ของแตกหักง่าย, เร่งด่วน..."
-                className="w-full bg-white border border-outline-variant rounded-2xl px-4 py-3 text-sm focus:ring-1 focus:ring-primary focus:border-primary outline-none font-display min-h-[110px] transition-all resize-none"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">รูปหลักฐานสิ่งที่ส่ง *</label>
+              <label className="text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-widest px-1">รูปพัสดุหรือเอกสารที่จะส่ง *</label>
               <input
                 ref={proofInputRef}
                 type="file"
@@ -454,8 +454,8 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary">
                     <span className="material-symbols-outlined text-2xl">add_a_photo</span>
                   </span>
-                  <span className="font-display text-sm font-black text-primary">ถ่ายหรือแนบรูปสิ่งที่ส่ง</span>
-                  <span className="text-xs font-semibold text-on-surface-variant/55">ใช้เป็นหลักฐานตอนสร้างพัสดุ</span>
+                  <span className="font-display text-sm font-black text-primary">ถ่ายหรือแนบรูปพัสดุ</span>
+                  <span className="text-xs font-semibold text-on-surface-variant/55">เพื่อให้ messenger เห็นของที่ต้องรับไปส่ง</span>
                 </button>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-outline-variant/25 bg-white shadow-sm">
@@ -494,7 +494,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
             <span className={`material-symbols-outlined ${isLoading ? 'animate-spin' : ''}`}>
               {isLoading ? 'progress_activity' : 'add_circle'}
             </span>
-            {isLoading ? 'กำลังสร้างพัสดุ...' : 'สร้างพัสดุ'}
+            {isLoading ? 'กำลังบันทึกรายการส่ง...' : 'บันทึกรายการส่งพัสดุ'}
           </button>
         </div>
       </form>
@@ -510,8 +510,8 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
                 </div>
                 <div className="min-w-0 text-left">
-                  <DialogTitle className="font-display text-xl font-black leading-tight sm:text-2xl">ตรวจสอบก่อนสร้างพัสดุ</DialogTitle>
-                  <p className="mt-0.5 text-xs font-semibold text-white/65">ตรวจสอบข้อมูลและรูปหลักฐานก่อนบันทึกเข้าระบบ</p>
+                  <DialogTitle className="font-display text-xl font-black leading-tight sm:text-2xl">ตรวจสอบก่อนส่งรายการ</DialogTitle>
+                  <p className="mt-0.5 text-xs font-semibold text-white/65">เช็กให้ชัดว่าพัสดุนี้ต้องส่งจากใคร ไปให้ใครหรือไปที่ไหน</p>
                 </div>
               </div>
             </div>
@@ -538,7 +538,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                         <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
                       </div>
                       <div className="min-w-0 flex-1 pt-0.5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/50">ผู้รับ / สถานที่รับ</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/50">ปลายทางจัดส่ง</p>
                         <p className="truncate font-display text-lg font-black leading-tight text-primary">{formData.receiverName}</p>
                         <p className="truncate text-xs font-semibold text-on-surface-variant/70">{resolveSelectValue(formData.receiverBranch)}</p>
                       </div>
@@ -581,7 +581,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                   <div className="rounded-2xl border border-tertiary/10 bg-tertiary-container/25 p-4">
                     <div className="mb-1 flex items-center gap-2 text-tertiary">
                       <span className="material-symbols-outlined text-lg">edit_note</span>
-                      <p className="text-[10px] font-black uppercase tracking-widest">หมายเหตุเพิ่มเติม</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest">หมายเหตุปลายทาง</p>
                     </div>
                     <p className="break-words text-sm font-medium leading-relaxed text-on-surface">{formData.note}</p>
                   </div>
@@ -617,7 +617,7 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
                     <span className="material-symbols-outlined animate-spin">progress_activity</span>
                   ) : (
                     <>
-                      ยืนยันสร้างพัสดุ
+                      ยืนยันส่งรายการ
                       <span className="material-symbols-outlined text-xl">verified</span>
                     </>
                   )}
@@ -638,8 +638,8 @@ export default function CreateParcel({ embedded = false }: { embedded?: boolean 
             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/20">
               <span className="material-symbols-outlined text-3xl sm:text-4xl text-secondary-container">check_circle</span>
             </div>
-            <DialogTitle className="text-xl sm:text-2xl font-bold font-display">สร้างพัสดุสำเร็จ</DialogTitle>
-            <p className="text-primary-fixed-dim text-sm mt-1">บันทึกข้อมูลพัสดุเรียบร้อยแล้ว</p>
+            <DialogTitle className="text-xl sm:text-2xl font-bold font-display">บันทึกรายการส่งสำเร็จ</DialogTitle>
+            <p className="text-primary-fixed-dim text-sm mt-1">ระบบสร้างหมายเลขติดตามให้เรียบร้อยแล้ว</p>
           </div>
 
           <div className="w-full p-4 sm:p-6 space-y-5">

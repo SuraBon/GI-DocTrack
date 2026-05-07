@@ -28,10 +28,13 @@ interface DashboardProps { isConfigured: boolean; }
 
 const STATS = [
   { key: 'total',     filter: 'ทั้งหมด',     label: 'ทั้งหมด',  icon: 'inventory_2',     iconBg: 'bg-slate-100',    iconText: 'text-primary' },
-  { key: 'pending',   filter: 'รอจัดส่ง',    label: 'รอจัดส่ง', icon: 'pending_actions', iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
+  { key: 'pending',   filter: 'รอจัดส่ง',    label: 'รอจัดส่ง', icon: 'inventory_2', iconBg: 'bg-amber-50',    iconText: 'text-amber-600' },
   { key: 'transit',   filter: 'กำลังจัดส่ง', label: 'กำลังจัดส่ง', icon: 'local_shipping', iconBg: 'bg-blue-50',     iconText: 'text-blue-600' },
   { key: 'delivered', filter: 'ส่งสำเร็จ',   label: 'ส่งสำเร็จ', icon: 'task_alt',       iconBg: 'bg-emerald-50',  iconText: 'text-emerald-600' },
 ] as const;
+
+const MESSENGER_OPEN_FILTER = 'งานที่ต้องจัดส่ง';
+const MESSENGER_DONE_FILTER = 'งานที่จัดส่งสำเร็จ';
 
 const StatsCard = ({
   label,
@@ -89,7 +92,7 @@ const TableSkeleton = () => (
 );
 
 const PARCEL_MILESTONES = [
-  { status: 'รอจัดส่ง', label: 'รอจัดส่ง', icon: 'pending_actions' },
+  { status: 'รอจัดส่ง', label: 'รอจัดส่ง', icon: 'inventory_2' },
   { status: 'กำลังจัดส่ง', label: 'กำลังจัดส่ง', icon: 'local_shipping' },
   { status: 'ส่งสำเร็จ', label: 'ส่งสำเร็จ', icon: 'task_alt' },
 ] as const;
@@ -158,7 +161,7 @@ const MobileParcelCard = ({
           </code>
           {isMessenger ? (
             <div className="mt-2 flex min-w-0 items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-on-surface-variant shrink-0">ส่งถึง</span>
+              <span className="text-[11px] font-semibold text-on-surface-variant shrink-0">ต้องส่งให้</span>
               <span className="truncate text-xs font-black text-primary">{parcel['ผู้รับ']}</span>
             </div>
           ) : (
@@ -198,7 +201,7 @@ const MobileParcelCard = ({
         className="mt-2.5 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-primary text-xs font-black text-white shadow-sm active:scale-[0.99]"
       >
         <span className="material-symbols-outlined text-base">add_a_photo</span>
-        ยืนยันการรับ
+        บันทึกผลการส่ง
       </button>
     )}
   </div>
@@ -209,7 +212,10 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   const { parcels, summary, loading, loadParcels, hasMore, loadMoreParcels, totalCount, removeParcelLocally } = useParcelStore();
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 300);
-  const [statusFilter, setStatusFilter] = useState('ทั้งหมด');
+  const role = normalizeRole(user?.role);
+  const isMessengerDashboard = role === 'MESSENGER';
+  const defaultStatusFilter = isMessengerDashboard ? MESSENGER_OPEN_FILTER : 'ทั้งหมด';
+  const [statusFilter, setStatusFilter] = useState(() => defaultStatusFilter);
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -222,14 +228,38 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(10);
   const isFetchingRef = useRef(false);
-  const role = normalizeRole(user?.role);
   const isUserDashboard = role === 'USER';
   const canConfirmParcel = role === 'ADMIN' || role === 'MESSENGER';
-  const stats = useMemo(() => STATS.map((stat) => (
-    isUserDashboard && stat.key === 'total'
-      ? { ...stat, label: 'พัสดุของฉันทั้งหมด' }
-      : stat
-  )), [isUserDashboard]);
+  const stats = useMemo(() => {
+    if (isMessengerDashboard) {
+      return [
+        {
+          key: 'messengerOpen',
+          filter: MESSENGER_OPEN_FILTER,
+          label: MESSENGER_OPEN_FILTER,
+          icon: 'inventory_2',
+          iconBg: 'bg-amber-50',
+          iconText: 'text-amber-600',
+          count: (summary?.pending ?? 0) + (summary?.transit ?? 0),
+        },
+        {
+          key: 'messengerDone',
+          filter: MESSENGER_DONE_FILTER,
+          label: MESSENGER_DONE_FILTER,
+          icon: 'task_alt',
+          iconBg: 'bg-emerald-50',
+          iconText: 'text-emerald-600',
+          count: summary?.delivered ?? 0,
+        },
+      ];
+    }
+
+    return STATS.map((stat) => ({
+      ...stat,
+      label: isUserDashboard && stat.key === 'total' ? 'พัสดุของฉันทั้งหมด' : stat.label,
+      count: summary?.[stat.key] ?? 0,
+    }));
+  }, [isMessengerDashboard, isUserDashboard, summary]);
 
   // Single fetch function — loadParcels already recomputes summary internally
   // ✅ FIX: Use ref to avoid stale closure without adding loadParcels to deps
@@ -255,6 +285,21 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     fetchData();
   }, [isConfigured, fetchData]);
 
+  useEffect(() => {
+    if (isMessengerDashboard) {
+      setStatusFilter(prev => (
+        prev === 'ทั้งหมด' || prev === 'รอจัดส่ง' || prev === 'กำลังจัดส่ง'
+          ? MESSENGER_OPEN_FILTER
+          : prev
+      ));
+      return;
+    }
+
+    if (statusFilter === MESSENGER_OPEN_FILTER || statusFilter === MESSENGER_DONE_FILTER) {
+      setStatusFilter('ทั้งหมด');
+    }
+  }, [isMessengerDashboard, statusFilter]);
+
   // Countdown tick — pauses when tab is hidden to save GAS quota
   useEffect(() => {
     if (!isConfigured) return;
@@ -278,13 +323,20 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
   const filteredParcels = useMemo(() => {
     let f = parcels;
-    if (statusFilter !== 'ทั้งหมด') f = f.filter(p => p['สถานะ'] === statusFilter);
+    if (statusFilter === MESSENGER_OPEN_FILTER) {
+      f = f.filter(p => p['สถานะ'] !== 'ส่งสำเร็จ');
+    } else if (statusFilter === MESSENGER_DONE_FILTER) {
+      f = f.filter(p => p['สถานะ'] === 'ส่งสำเร็จ');
+    } else if (statusFilter !== 'ทั้งหมด') {
+      f = f.filter(p => p['สถานะ'] === statusFilter);
+    }
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       f = f.filter(p =>
         p.TrackingID.toLowerCase().includes(q) ||
         p['ผู้ส่ง'].toLowerCase().includes(q) ||
-        p['ผู้รับ'].toLowerCase().includes(q)
+        p['ผู้รับ'].toLowerCase().includes(q) ||
+        p['สาขาผู้รับ'].toLowerCase().includes(q)
       );
     }
     return f;
@@ -333,8 +385,8 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
     );
   }, [selectedParcel, selectedTimelineEvents]);
 
-  const clearFilters = () => { setSearchTerm(''); setStatusFilter('ทั้งหมด'); setCurrentPage(1); };
-  const hasFilters = !!(searchTerm || statusFilter !== 'ทั้งหมด');
+  const clearFilters = () => { setSearchTerm(''); setStatusFilter(defaultStatusFilter); setCurrentPage(1); };
+  const hasFilters = !!(searchTerm || statusFilter !== defaultStatusFilter);
 
   const handleDelete = async () => {
     if (!selectedParcel) return;
@@ -390,8 +442,8 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
               <span className="material-symbols-outlined text-xl">add_box</span>
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-black text-primary">สร้างพัสดุ</span>
-              <span className="block truncate text-[11px] font-semibold text-on-surface-variant/55">เปิดฟอร์ม</span>
+              <span className="block truncate text-sm font-black text-primary">ส่งพัสดุใหม่</span>
+              <span className="block truncate text-[11px] font-semibold text-on-surface-variant/55">กรอกผู้รับ/ปลายทาง</span>
             </span>
           </button>
           <button
@@ -403,8 +455,8 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
               <span className="material-symbols-outlined text-xl">qr_code_scanner</span>
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-sm font-black text-primary">ค้นหาพัสดุ</span>
-              <span className="block truncate text-[11px] font-semibold text-on-surface-variant/55">ติดตามสถานะ</span>
+              <span className="block truncate text-sm font-black text-primary">ดูสถานะพัสดุ</span>
+              <span className="block truncate text-[11px] font-semibold text-on-surface-variant/55">ดูว่าส่งถึงไหนแล้ว</span>
             </span>
           </button>
         </div>
@@ -429,17 +481,17 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                 <span className={`material-symbols-outlined text-lg ${s.iconText}`}>{s.icon}</span>
               </div>
               <div className="min-w-0">
-                <p className="text-xl font-black leading-none text-primary">{summary?.[s.key] ?? 0}</p>
+                <p className="text-xl font-black leading-none text-primary">{s.count}</p>
                 <p className="mt-0.5 truncate text-xs font-medium text-primary">{s.label}</p>
               </div>
             </div>
           </button>
         ))}
       </div>
-      <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`hidden gap-4 sm:grid sm:grid-cols-2 ${isMessengerDashboard ? 'lg:grid-cols-2' : 'lg:grid-cols-4'}`}>
         {stats.map(s => (
           <StatsCard key={s.key} label={s.label} icon={s.icon} iconBg={s.iconBg} iconText={s.iconText}
-            count={summary?.[s.key] ?? 0}
+            count={s.count}
             active={statusFilter === s.filter}
             onClick={() => setStatusFilter(s.filter)}
           />
@@ -448,18 +500,29 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
 
       {/* ── Filters ── */}
       <div className="bg-white/85 backdrop-blur-sm border border-outline-variant/30 rounded-xl p-2.5 sm:rounded-2xl sm:p-4 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Search */}
-          <div className="relative flex-1 min-w-0">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-base">search</span>
+          <div className="relative min-w-0 flex-1">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/50 text-xl">search</span>
             <input
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder="ค้นหาหมายเลขติดตาม, ผู้ส่ง หรือ ผู้รับ..."
-              className="w-full bg-surface-container-lowest border border-outline-variant/50 rounded-xl pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-display transition-all"
+              placeholder="ค้นหาหมายเลขติดตาม, ผู้ส่ง, ผู้รับ หรือปลายทาง..."
+              className="h-10 w-full bg-surface-container-lowest border border-outline-variant/50 rounded-xl pl-10 pr-10 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none font-display transition-all"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-on-surface-variant/50 transition-colors hover:bg-surface-container hover:text-primary"
+                title="ล้างคำค้นหา"
+                aria-label="ล้างคำค้นหา"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            )}
           </div>
-          <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <div className="flex h-8 items-center gap-1 rounded-lg border border-outline-variant/35 bg-white px-2 text-[11px] font-medium text-on-surface-variant">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="font-mono font-bold text-primary">{refreshCountdown}s</span>
@@ -482,13 +545,13 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
         <div className="px-3 py-2.5 sm:px-5 sm:py-3 border-b border-outline-variant/10 flex justify-between items-center">
           <div className="flex items-center gap-2.5">
             <span className="material-symbols-outlined text-primary text-base sm:text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>table_rows</span>
-            <h2 className="font-display font-bold text-primary text-sm">รายการพัสดุ</h2>
+            <h2 className="font-display font-bold text-primary text-sm">{isMessengerDashboard ? 'รายการงานส่ง' : 'รายการพัสดุ'}</h2>
             <span className="px-2 py-0.5 bg-primary/8 text-primary text-[11px] font-bold rounded-full">
               {filteredParcels.length}
             </span>
             {loading && <span className="material-symbols-outlined text-sm text-primary animate-spin">progress_activity</span>}
           </div>
-          {hasFilters && (
+          {hasFilters && !isMessengerDashboard && (
             <button onClick={clearFilters}
               className="flex items-center gap-1 text-[11px] sm:text-xs text-error/80 hover:text-error font-semibold transition-colors">
               <span className="material-symbols-outlined text-sm">filter_alt_off</span>
@@ -509,7 +572,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                 <p className="font-bold text-primary">ไม่พบข้อมูลพัสดุ</p>
                 <p className="text-sm text-on-surface-variant mt-0.5">ลองปรับตัวกรองหรือคำค้นหา</p>
               </div>
-              {hasFilters && (
+              {hasFilters && !isMessengerDashboard && (
                 <button onClick={clearFilters} className="text-sm text-primary font-bold hover:underline">ล้างตัวกรอง</button>
               )}
             </div>
@@ -532,7 +595,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
               <thead>
                 <tr className="text-[10px] uppercase tracking-widest font-black text-on-surface-variant/50 border-b border-outline-variant/10">
                   <th className="px-5 py-2.5 bg-surface-container-lowest/60 text-center">หมายเลขติดตาม</th>
-                  <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">ผู้ส่ง → ผู้รับ</th>
+                  <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">จาก → ส่งให้/ไปที่</th>
                   <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">วันที่</th>
                   <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">สถานะ</th>
                   <th className="px-4 py-2.5 bg-surface-container-lowest/60 text-center">การดำเนินการ</th>
@@ -588,7 +651,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                           className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-white shadow-sm transition-all hover:opacity-90 active:scale-95"
                         >
                           <span className="material-symbols-outlined text-sm">add_a_photo</span>
-                          ยืนยันการรับ
+                          บันทึกผลการส่ง
                         </button>
                       ) : (
                         <button className="inline-flex items-center gap-1 text-xs font-bold text-primary/60 group-hover:text-primary transition-colors">
@@ -756,7 +819,7 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
       <Dialog open={isCreateFlowOpen} onOpenChange={setIsCreateFlowOpen}>
         <DialogContent
           showCloseButton={false}
-          className="max-h-[92vh] w-[calc(100vw-1rem)] max-w-3xl overflow-hidden rounded-3xl border-none bg-background p-0 shadow-2xl"
+          className="!left-0 !top-0 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none !translate-x-0 !translate-y-0 flex-col overflow-hidden rounded-none border-none bg-background p-0 shadow-2xl"
         >
           <DialogHeader className="shrink-0 border-b border-outline-variant/20 bg-primary px-5 py-4 text-white">
             <div className="flex items-center justify-between gap-3">
@@ -764,19 +827,19 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-secondary-container">
                   <span className="material-symbols-outlined text-xl">add_box</span>
                 </span>
-                <DialogTitle className="font-display text-lg font-black text-white">สร้างพัสดุ</DialogTitle>
+                <DialogTitle className="font-display text-lg font-black text-white">ส่งพัสดุใหม่</DialogTitle>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateFlowOpen(false)}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-white transition-colors hover:bg-white/20"
-                aria-label="ปิดหน้าสร้างพัสดุ"
+                aria-label="ปิดหน้าส่งพัสดุใหม่"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>
             </div>
           </DialogHeader>
-          <div className="max-h-[calc(92vh-76px)] overflow-y-auto p-3 sm:p-5">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5">
             <CreateParcel embedded />
           </div>
         </DialogContent>
@@ -794,13 +857,13 @@ export default function Dashboard({ isConfigured }: DashboardProps) {
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-secondary-container">
                   <span className="material-symbols-outlined text-xl">qr_code_scanner</span>
                 </span>
-                <DialogTitle className="font-display text-lg font-black text-white">ค้นหาพัสดุ</DialogTitle>
+                <DialogTitle className="font-display text-lg font-black text-white">ดูสถานะพัสดุ</DialogTitle>
               </div>
               <button
                 type="button"
                 onClick={() => setIsTrackFlowOpen(false)}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-white transition-colors hover:bg-white/20"
-                aria-label="ปิดหน้าค้นหาพัสดุ"
+                aria-label="ปิดหน้าดูสถานะพัสดุ"
               >
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>

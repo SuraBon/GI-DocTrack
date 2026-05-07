@@ -14,14 +14,14 @@ const ROLE_CONFIG: Record<SystemRole, { label: string; color: string; bg: string
     icon: <ShieldCheck className="h-3.5 w-3.5" />,
   },
   MESSENGER: {
-    label: 'Messenger',
+    label: 'Messenger จัดส่ง',
     color: 'text-blue-600',
     bg: 'bg-blue-50',
     border: 'border-blue-200',
     icon: <Truck className="h-3.5 w-3.5" />,
   },
   USER: {
-    label: 'User',
+    label: 'ผู้ส่งพัสดุ',
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
     border: 'border-emerald-200',
@@ -178,8 +178,8 @@ export default function UserManagement() {
         {[
           { key: 'ALL' as const, label: 'ทั้งหมด', value: counts.total, icon: <Users className="h-5 w-5" />, color: 'text-primary', bg: 'bg-primary/10' },
           { key: 'ADMIN' as const, label: 'Admin', value: counts.admin, icon: <ShieldCheck className="h-5 w-5" />, color: 'text-rose-600', bg: 'bg-rose-50' },
-          { key: 'MESSENGER' as const, label: 'Messenger', value: counts.messenger, icon: <Truck className="h-5 w-5" />, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { key: 'USER' as const, label: 'User', value: counts.user, icon: <User className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+          { key: 'MESSENGER' as const, label: 'Messenger จัดส่ง', value: counts.messenger, icon: <Truck className="h-5 w-5" />, color: 'text-blue-600', bg: 'bg-blue-50' },
+          { key: 'USER' as const, label: 'ผู้ส่งพัสดุ', value: counts.user, icon: <User className="h-5 w-5" />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         ].map(s => (
           <button
             key={s.label}

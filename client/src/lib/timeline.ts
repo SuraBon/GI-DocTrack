@@ -24,7 +24,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
         events.push({
           id: String(idCounter++),
           status: 'completed',
-          title: 'รับพัสดุเข้าระบบ',
+          title: 'สร้างรายการส่ง',
           description: `ผู้ส่ง: ${evt.person || parcel['ผู้ส่ง'] || '-'} → ผู้รับ: ${parcel['ผู้รับ'] || evt.destLocation || '-'}`,
           timestamp: evt.timestamp,
           location: evt.location,
@@ -63,7 +63,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
           id: String(idCounter++),
           status: 'completed',
           title: 'ส่งสำเร็จ',
-          description: 'ส่งถึงผู้รับเรียบร้อย',
+          description: 'ส่งถึงปลายทางเรียบร้อย',
           timestamp: evt.timestamp,
           location: evt.location,
           imageUrl: evt.photoUrl,
@@ -101,7 +101,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
   events.push({
     id: String(idCounter++),
     status: isCreationCurrent ? 'current' : 'completed',
-    title: 'รับพัสดุเข้าระบบ',
+    title: 'สร้างรายการส่ง',
     description: `ผู้ส่ง: ${parcel['ผู้ส่ง']} → ผู้รับ: ${parcel['ผู้รับ']}`,
     timestamp: parcel['วันที่สร้าง'],
     location: parcel['สาขาผู้ส่ง'],
@@ -156,7 +156,7 @@ export function parseParcelTimeline(parcel: Parcel): TimelineEvent[] {
     const proxyMatch  = proxyRegex.exec(note);
     const normalMatch = normalRegex.exec(note);
 
-    let description = 'ส่งถึงผู้รับเรียบร้อย';
+    let description = 'ส่งถึงปลายทางเรียบร้อย';
     let timestamp   = parcel['วันที่รับ'] ?? '';
     let imageUrl    = parcel['รูปยืนยัน'] ?? undefined;
 

@@ -171,7 +171,7 @@ export default function ConfirmReceipt({
         if (actuallyDelivered) {
           toast.warning(`พัสดุนี้ถูกจัดส่งถึงที่หมายเรียบร้อยแล้ว`);
         } else {
-          toast.success(`พบข้อมูลพัสดุ สถานที่รับ: ${p['สาขาผู้รับ']}`);
+          toast.success(`พบข้อมูลพัสดุ ต้องส่งไปที่: ${p['สาขาผู้รับ']}`);
           setCurrentStep(2); // Auto move to photo step
           requestLocation(); // Request GPS automatically on step 2
           if (shouldOpenCamera) {
@@ -354,8 +354,8 @@ export default function ConfirmReceipt({
         !photoUrl ? 'กรุณาแนบรูปหลักฐาน' :
         !eventType ? 'กรุณาเลือกวิธีบันทึกการจัดส่ง' :
         isForwarding ? (
-          validateRequiredText(eventPerson, 'ชื่อผู้ส่งต่อ', 1, 200) ||
-          validateRequiredText(eventDestLocation, 'สาขาปลายทาง', 1, 100)
+          validateRequiredText(eventPerson, 'ชื่อผู้รับช่วงต่อ', 1, 200) ||
+          validateRequiredText(eventDestLocation, 'จุดหมายถัดไป', 1, 100)
         ) :
         isProxy ? validateRequiredText(eventPerson, 'ชื่อผู้รับแทน', 1, 200) :
         null;
@@ -421,8 +421,8 @@ export default function ConfirmReceipt({
     <div className={`${embedded ? 'max-w-none pb-4' : 'max-w-2xl mx-auto pb-20'} space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700`}>
       {/* Header Section */}
       <div className={`${embedded ? 'hidden' : 'text-center space-y-2 mb-8 sm:mb-10'}`}>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary tracking-tight">บันทึกการจัดส่ง</h1>
-        <p className="text-xs sm:text-sm text-on-surface-variant">ถ่ายรูปหลักฐานและบันทึกสถานะการจัดส่งของพัสดุ</p>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary tracking-tight">งานส่งพัสดุ</h1>
+        <p className="text-xs sm:text-sm text-on-surface-variant">สแกนหรือกรอกหมายเลข แล้วดูทันทีว่าต้องรับจากไหน ไปส่งที่ไหนหรือให้ใคร</p>
       </div>
 
       {!embedded && <StepIndicator currentStep={currentStep} />}
@@ -456,7 +456,7 @@ export default function ConfirmReceipt({
               <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>search</span>
             </div>
             <h2 className="font-display text-xl font-bold text-primary">ระบุหมายเลขติดตาม</h2>
-            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">กรอกหมายเลขติดตามเพื่อเริ่มบันทึกการจัดส่ง</p>
+            <p className="text-xs text-on-surface-variant uppercase font-bold tracking-widest mt-1">กรอกหมายเลขติดตามเพื่อดูต้นทาง ปลายทาง และผู้รับ</p>
           </div>
           <div className="p-5 sm:p-8 space-y-6">
             <div className="space-y-4">
@@ -501,7 +501,7 @@ export default function ConfirmReceipt({
                 </>
               ) : (
                 <>
-                  ตรวจสอบพัสดุ
+                  ดูงานส่งนี้
                   <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
                 </>
               )}
@@ -633,8 +633,8 @@ export default function ConfirmReceipt({
             <div className="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>fact_check</span>
             </div>
-            <h2 className="font-display text-lg font-black text-primary">ตรวจสอบและยืนยันก่อนส่งพัสดุ</h2>
-            <p className="mt-0.5 text-xs font-semibold text-on-surface-variant/60">ระบุรายละเอียดก่อนบันทึกการจัดส่ง</p>
+            <h2 className="font-display text-lg font-black text-primary">เช็กปลายทางก่อนบันทึก</h2>
+            <p className="mt-0.5 text-xs font-semibold text-on-surface-variant/60">ดูว่าพัสดุมาจากไหน ต้องไปส่งที่ไหน และส่งให้ใคร</p>
           </div>
           <div className="space-y-4 p-4 sm:p-5">
             <div className="grid grid-cols-1 gap-3 rounded-2xl border border-outline-variant bg-surface-container-lowest p-3 text-sm sm:grid-cols-2">
@@ -648,7 +648,7 @@ export default function ConfirmReceipt({
               <div className="flex items-center gap-2.5 text-on-surface-variant">
                 <span className="material-symbols-outlined text-lg text-primary">person</span>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 leading-none">ผู้รับตามรายการ</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 leading-none">ต้องส่งให้</span>
                   <span className="text-sm font-black leading-tight text-primary">{checkedParcel?.['ผู้รับ']}</span>
                 </div>
               </div>
@@ -663,8 +663,8 @@ export default function ConfirmReceipt({
                         <span className="material-symbols-outlined text-xl">fork_right</span>
                       </div>
                       <div className="min-w-0">
-                        <p className="font-display text-sm font-black text-primary">ส่งต่อพัสดุ</p>
-                        <p className="text-[11px] leading-tight text-on-surface-variant/60">ส่งต่อให้พนักงานหรือสาขาอื่น</p>
+                        <p className="font-display text-sm font-black text-primary">ส่งต่อไปจุดถัดไป</p>
+                        <p className="text-[11px] leading-tight text-on-surface-variant/60">เลือกเมื่อยังไม่ได้ส่งถึงผู้รับ ต้องส่งต่อให้คนหรือสาขาอื่น</p>
                       </div>
                     </div>
                     <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${isForwarding ? 'border-secondary bg-secondary' : 'border-outline-variant group-hover:border-primary'}`}>
@@ -676,7 +676,7 @@ export default function ConfirmReceipt({
                       <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">person</span>
                         <input
-                          placeholder="ระบุชื่อพนักงานที่ส่งต่อ"
+                          placeholder="ชื่อคนที่รับช่วงต่อ"
                           value={forwardSender}
                           onChange={(e) => setForwardSender(sanitizeTextInput(e.target.value, 200))}
                           className="w-full rounded-2xl border border-outline-variant bg-white py-2.5 pl-10 pr-4 font-display text-sm outline-none focus:ring-1 focus:ring-secondary"
@@ -687,10 +687,10 @@ export default function ConfirmReceipt({
                           value={forwardToBranch}
                           onChange={setForwardToBranch}
                           options={branches}
-                          placeholder="ไปที่"
+                          placeholder="ส่งต่อไปที่"
                           icon="flight_land"
                           otherLabel="อื่นๆ"
-                          otherPlaceholder="ระบุชื่อสาขาปลายทาง"
+                          otherPlaceholder="ระบุจุดหมายถัดไป"
                         />
                       </div>
                     </div>
@@ -704,8 +704,8 @@ export default function ConfirmReceipt({
                         <span className="material-symbols-outlined text-xl">account_circle</span>
                       </div>
                       <div className="min-w-0">
-                        <p className="font-display text-sm font-black text-primary">ผู้รับแทน</p>
-                        <p className="text-[11px] leading-tight text-on-surface-variant/60">กรณีบุคคลอื่นรับแทนผู้รับตัวจริง</p>
+                        <p className="font-display text-sm font-black text-primary">มีผู้รับแทน</p>
+                        <p className="text-[11px] leading-tight text-on-surface-variant/60">เลือกเมื่อส่งถึงปลายทางแล้ว แต่คนอื่นรับแทนผู้รับตามรายการ</p>
                       </div>
                     </div>
                     <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${isProxy ? 'border-blue-600 bg-blue-600' : 'border-outline-variant group-hover:border-primary'}`}>
@@ -717,7 +717,7 @@ export default function ConfirmReceipt({
                       <div className="relative">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 text-lg">person</span>
                         <input
-                          placeholder="ระบุชื่อผู้รับแทน"
+                          placeholder="ชื่อคนที่รับแทน"
                           value={proxyName}
                           onChange={(e) => setProxyName(sanitizeTextInput(e.target.value, 200))}
                           className="w-full rounded-2xl border border-outline-variant bg-white py-2.5 pl-10 pr-4 font-display text-sm outline-none focus:ring-1 focus:ring-blue-500"
@@ -757,7 +757,7 @@ export default function ConfirmReceipt({
                   || (isProxy && !proxyName.trim())}
                 className="group flex h-13 min-w-0 items-center justify-center gap-2 rounded-2xl bg-primary px-3 font-display text-sm font-black text-white shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] hover:bg-primary/95 active:scale-[0.98] disabled:scale-100 disabled:bg-on-surface-variant/30 disabled:shadow-none sm:text-base"
               >
-                บันทึกการจัดส่ง
+                บันทึกผลการส่ง
                 <span className="material-symbols-outlined text-xl transition-transform group-hover:translate-x-1 sm:text-2xl">verified</span>
               </button>
             </div>
@@ -785,7 +785,7 @@ export default function ConfirmReceipt({
             </div>
             <div className="flex-1">
               <DialogTitle className="text-lg font-black font-display text-primary leading-tight">
-                {isForwarding ? 'ยืนยันส่งต่อพัสดุ' : isProxy ? 'ยืนยันผู้รับแทน' : 'ยืนยันส่งสำเร็จ'}
+                {isForwarding ? 'ยืนยันส่งต่อไปจุดถัดไป' : isProxy ? 'ยืนยันว่ามีผู้รับแทน' : 'ยืนยันว่าส่งถึงผู้รับแล้ว'}
               </DialogTitle>
               <p className="text-xs text-on-surface-variant mt-0.5">กรุณาตรวจสอบข้อมูลก่อนยืนยัน</p>
             </div>
@@ -813,7 +813,7 @@ export default function ConfirmReceipt({
               <div className="bg-secondary/5 rounded-2xl p-4 border border-secondary/15 space-y-3">
                 <div className="flex items-center gap-2 text-secondary">
                   <span className="material-symbols-outlined text-base">person</span>
-                  <span className="text-xs font-bold">ผู้ส่งต่อ: <span className="text-primary">{forwardSender || '-'}</span></span>
+                  <span className="text-xs font-bold">ผู้รับช่วงต่อ: <span className="text-primary">{forwardSender || '-'}</span></span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 bg-white rounded-xl px-3 py-2 border border-outline-variant/20 text-center">
@@ -824,7 +824,7 @@ export default function ConfirmReceipt({
                   </div>
                   <span className="material-symbols-outlined text-outline-variant text-xl shrink-0">arrow_forward</span>
                   <div className="flex-1 bg-white rounded-xl px-3 py-2 border border-outline-variant/20 text-center">
-                    <p className="text-[9px] text-on-surface-variant/50 font-bold uppercase tracking-wider mb-0.5">ไปสาขา</p>
+                    <p className="text-[9px] text-on-surface-variant/50 font-bold uppercase tracking-wider mb-0.5">ส่งต่อไปที่</p>
                     <p className="text-sm font-black text-primary truncate">
                       {resolveSelectValue(forwardToBranch)}
                     </p>

@@ -36,11 +36,11 @@ export default function ImagePopup({ url, title = 'รูปหลักฐา�
       <DialogTrigger asChild>
         {triggerVariant === 'icon' ? (
           <button
-            className={`inline-grid h-7 w-7 shrink-0 place-items-center rounded-full border border-primary/15 bg-primary/6 text-primary transition-all hover:bg-primary hover:text-white active:scale-95 ${className}`}
+            className={`inline-grid h-8 w-8 shrink-0 place-items-center bg-transparent text-primary transition-all hover:text-secondary active:scale-95 ${className}`}
             aria-label={`ดู${title}`}
             title={`ดู${title}`}
           >
-            <span className="material-symbols-outlined text-[16px]">image</span>
+            <span className="material-symbols-outlined text-[20px]">photo_library</span>
           </button>
         ) : (
           <button className={`flex items-center gap-2.5 px-5 py-3 bg-surface-container-low text-primary hover:bg-surface-container rounded-2xl border border-outline-variant/30 font-display font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${className}`}>
